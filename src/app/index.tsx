@@ -1,98 +1,121 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
+  const categorias = ['AMBIENTAL', 'ELECTRO', 'SISTEMAS', 'TURISMO', 'IA'];
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <View style={styles.container}>
+      {/* Tarjeta de Total */}
+      <View style={styles.cardTotal}>
+        <Text style={styles.cardTitle}>Categorías registradas</Text>
+        <Text style={styles.cardNumber}>11</Text>
+      </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+      {/* Sección Explorar Categorías */}
+      <Text style={styles.sectionTitle}>Explorara categorias</Text>
+      
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsContainer}>
+        {categorias.map((cat, index) => (
+          <TouchableOpacity 
+            key={index} 
+            style={[styles.tag, index === 1 && styles.activeTag]}
+          >
+            <Text style={[styles.tagText, index === 1 && styles.activeTagText]}>
+              {cat}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      {/* Barra de navegación inferior */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity style={styles.bottomTab}>
+          <Ionicons name="star" size={20} color="#555" />
+          <Text style={styles.tabText}>Categorías</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.bottomTab}>
+          <Ionicons name="star" size={20} color="#555" />
+          <Text style={styles.tabText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.bottomTab}>
+          <Ionicons name="star" size={20} color="#555" />
+          <Text style={styles.tabText}>Label</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#fff',
+    paddingTop: 20,
+  },
+  cardTotal: {
+    backgroundColor: '#9eb23b',
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 25,
+    alignItems: 'center',
+  },
+  cardTitle: {
+    fontSize: 18,
+    color: '#000',
+    fontWeight: '600',
+  },
+  cardNumber: {
+    fontSize: 52,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginHorizontal: 20,
+    marginTop: 30,
+    marginBottom: 15,
+  },
+  tagsContainer: {
+    paddingLeft: 20,
+  },
+  tag: {
+    backgroundColor: '#eaf4ff',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginRight: 10,
+    height: 36,
+  },
+  activeTag: {
+    backgroundColor: '#007bff',
+  },
+  tagText: {
+    color: '#007bff',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  activeTagText: {
+    color: '#fff',
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 65,
+    backgroundColor: '#f3ebfc',
     flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
+    justifyContent: 'space-around',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
-  heroSection: {
+  bottomTab: {
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
   },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  tabText: {
+    fontSize: 12,
+    color: '#4a4a4a',
+    marginTop: 2,
   },
 });
