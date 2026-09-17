@@ -22,6 +22,25 @@ export default function RootLayout() {
           headerTitle: '',
         }}
       />
+      <Drawer.Screen
+        name="registroEvento"
+        options={{
+          headerTitle: 'Registro de Certámenes',
+        }}
+      />
+      {/* 🟢 Cambiado: Ahora muestra la barra superior azul */}
+      <Drawer.Screen
+        name="categorias"
+        options={{
+          headerTitle: 'Categorías',
+        }}
+      />
+      <Drawer.Screen
+        name="gesJurados"
+        options={{
+          headerTitle: 'Jurado',
+        }}
+      />
     </Drawer>
   );
 }

@@ -63,6 +63,19 @@ export default function CustomDrawer(props: any) {
             style={styles.menuItem}
             onPress={() => {
               props.navigation.closeDrawer();
+              router.push('/registroEvento' as any);
+            }}
+          >
+            <View style={styles.iconCircle}>
+              <Ionicons name="trophy-outline" size={22} color="#002b49" />
+            </View>
+            <Text style={styles.menuText}>Certamenes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              props.navigation.closeDrawer();
               router.push('/categorias' as any);
             }}
           >
@@ -70,13 +83,6 @@ export default function CustomDrawer(props: any) {
               <Ionicons name="folder-open-outline" size={22} color="#002b49" />
             </View>
             <Text style={styles.menuText}>Categorías</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="trophy-outline" size={22} color="#002b49" />
-            </View>
-            <Text style={styles.menuText}>Desafíos</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem}>
@@ -92,6 +98,20 @@ export default function CustomDrawer(props: any) {
             </View>
             <Text style={styles.menuText}>Generación de constancias</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              props.navigation.closeDrawer();
+              router.push('/gesJurados' as any);
+            }}
+          >
+            <View style={styles.iconCircle}>
+              <Ionicons name="people-outline" size={22} color="#002b49" />
+            </View>
+            <Text style={styles.menuText}>Jurado</Text>
+          </TouchableOpacity>
+
         </View>
 
       </DrawerContentScrollView>
