@@ -9,9 +9,9 @@ export default function CustomDrawer(props: any) {
   return (
     <View style={styles.container}>
       <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 20 }}>
-        
-        <TouchableOpacity 
-          style={styles.closeBtn} 
+
+        <TouchableOpacity
+          style={styles.closeBtn}
           onPress={() => props.navigation.closeDrawer()}
         >
           <Ionicons name="close" size={28} color="#fff" />
@@ -19,9 +19,9 @@ export default function CustomDrawer(props: any) {
 
         {/* Tarjeta de Perfil */}
         <View style={styles.profileCard}>
-          <Image 
-            source={{ uri: 'https://via.placeholder.com/100' }} 
-            style={styles.avatar} 
+          <Image
+            source={{ uri: 'https://via.placeholder.com/100' }}
+            style={styles.avatar}
           />
           <View style={styles.nameBadge}>
             <Text style={styles.profileName}>Alison Cecilia Alonso Meneses</Text>
@@ -46,7 +46,7 @@ export default function CustomDrawer(props: any) {
 
         {/* Opciones del Menú */}
         <View style={styles.menuItemsContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {
               props.navigation.closeDrawer();
@@ -59,7 +59,7 @@ export default function CustomDrawer(props: any) {
             <Text style={styles.menuText}>Inicio (Dashboard)</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {
               props.navigation.closeDrawer();
@@ -72,7 +72,7 @@ export default function CustomDrawer(props: any) {
             <Text style={styles.menuText}>Certamenes</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {
               props.navigation.closeDrawer();
@@ -83,6 +83,19 @@ export default function CustomDrawer(props: any) {
               <Ionicons name="folder-open-outline" size={22} color="#002b49" />
             </View>
             <Text style={styles.menuText}>Categorías</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              props.navigation.closeDrawer();
+              router.push('/desafios' as any);
+            }}
+          >
+            <View style={styles.iconCircle}>
+              <Ionicons name="bulb-outline" size={22} color="#002b49" />
+            </View>
+            <Text style={styles.menuText}>Desafíos</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem}>
@@ -99,7 +112,8 @@ export default function CustomDrawer(props: any) {
             <Text style={styles.menuText}>Generación de constancias</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {
               props.navigation.closeDrawer();
