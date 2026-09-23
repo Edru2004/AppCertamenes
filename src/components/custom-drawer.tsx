@@ -126,6 +126,19 @@ export default function CustomDrawer(props: any) {
             <Text style={styles.menuText}>Jurado</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              props.navigation.closeDrawer();
+              router.push('/equipos' as any);
+            }}
+          >
+            <View style={styles.iconCircle}>
+              <Ionicons name="people-circle-outline" size={22} color="#002b49" />
+            </View>
+            <Text style={styles.menuText}>Equipos</Text>
+          </TouchableOpacity>
+
         </View>
 
       </DrawerContentScrollView>
