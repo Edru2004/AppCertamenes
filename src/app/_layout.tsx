@@ -41,6 +41,13 @@ export default function RootLayout() {
           headerTitle: 'Jurado',
         }}
       />
+      <Drawer.Screen
+        name="equipos"
+        options={{
+          headerTitle: 'Gestión de Equipos',
+        }}
+      />
+
     </Drawer>
   );
 }
