@@ -127,6 +127,18 @@ export default function CustomDrawer(props: any) {
           </TouchableOpacity>
 
         </View>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            props.navigation.closeDrawer();
+            router.push('/registroSalas' as any);
+          }}
+        >
+          <View style={styles.iconCircle}>
+            <Ionicons name="easel-outline" size={22} color="#002b49" />
+          </View>
+          <Text style={styles.menuText}>Registro de Salas</Text>
+        </TouchableOpacity>
 
       </DrawerContentScrollView>
     </View>
