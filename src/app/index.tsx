@@ -1,8 +1,41 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const [cargando, setCargando] = useState(true);
   const categorias = ['AMBIENTAL', 'ELECTRO', 'SISTEMAS', 'TURISMO', 'IA'];
+
+  useEffect(() => {
+    const verificarSesion = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+          // Si no hay token guardado, redirige a la pantalla de login
+          router.replace('/login');
+        } else {
+          // Si sí hay token, detenemos la carga para mostrar el Dashboard
+          setCargando(false);
+        }
+      } catch (error) {
+        router.replace('/login');
+      }
+    };
+
+    verificarSesion();
+  }, []);
+
+  // Si está verificando la sesión en el dispositivo, muestra una pantalla de carga neutra
+  if (cargando) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#007bff" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

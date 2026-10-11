@@ -1,10 +1,31 @@
+import { logoutUsuario } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { DrawerContentScrollView } from 'expo-router/drawer';
+import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function CustomDrawer(props: any) {
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+  // Cargar datos del usuario guardados al hacer Login
+  useEffect(() => {
+    const loadUser = async () => {
+      const storedUser = await AsyncStorage.getItem('userData');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    };
+    loadUser();
+  }, []);
+
+  const handleLogout = async () => {
+    props.navigation.closeDrawer();
+    await logoutUsuario();
+    router.replace('/login');
+  };
 
   return (
     <View style={styles.container}>
@@ -17,15 +38,21 @@ export default function CustomDrawer(props: any) {
           <Ionicons name="close" size={28} color="#fff" />
         </TouchableOpacity>
 
-        {/* Tarjeta de Perfil */}
+        {/* Tarjeta de Perfil Dinámica */}
         <View style={styles.profileCard}>
           <Image
-            source={{ uri: 'https://via.placeholder.com/100' }}
+            source={{ 
+              uri: user?.Foto && user?.Foto !== 'default.png' 
+                ? user.Foto 
+                : 'https://via.placeholder.com/100' 
+            }}
             style={styles.avatar}
           />
           <View style={styles.nameBadge}>
-            <Text style={styles.profileName}>Alison Cecilia Alonso Meneses</Text>
-            <Text style={styles.profileRole}>Administrador</Text>
+            <Text style={styles.profileName}>
+              {user ? `${user.Nombre} ${user.App || ''} ${user.Apm || ''}` : 'Cargando...'}
+            </Text>
+            <Text style={styles.profileRole}>{user?.Rol || 'Usuario'}</Text>
           </View>
 
           <View style={styles.statsRow}>
@@ -98,20 +125,18 @@ export default function CustomDrawer(props: any) {
             <Text style={styles.menuText}>Desafíos</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              props.navigation.closeDrawer();
+              router.push('/registroSalas' as any);
+            }}
+          >
             <View style={styles.iconCircle}>
               <Ionicons name="easel-outline" size={22} color="#002b49" />
             </View>
             <Text style={styles.menuText}>Registro de Salas</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="document-text-outline" size={22} color="#002b49" />
-            </View>
-            <Text style={styles.menuText}>Generación de constancias</Text>
-          </TouchableOpacity>
-
 
           <TouchableOpacity
             style={styles.menuItem}
@@ -139,19 +164,18 @@ export default function CustomDrawer(props: any) {
             <Text style={styles.menuText}>Equipos</Text>
           </TouchableOpacity>
 
+          {/* Botón de Cerrar Sesión */}
+          <TouchableOpacity
+            style={[styles.menuItem, { marginTop: 20 }]}
+            onPress={handleLogout}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: '#ff4d4d' }]}>
+              <Ionicons name="log-out-outline" size={22} color="#fff" />
+            </View>
+            <Text style={[styles.menuText, { color: '#ff4d4d' }]}>Cerrar Sesión</Text>
+          </TouchableOpacity>
+
         </View>
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => {
-            props.navigation.closeDrawer();
-            router.push('/registroSalas' as any);
-          }}
-        >
-          <View style={styles.iconCircle}>
-            <Ionicons name="easel-outline" size={22} color="#002b49" />
-          </View>
-          <Text style={styles.menuText}>Registro de Salas</Text>
-        </TouchableOpacity>
 
       </DrawerContentScrollView>
     </View>
@@ -220,6 +244,7 @@ const styles = StyleSheet.create({
   },
   menuItemsContainer: {
     gap: 20,
+    paddingBottom: 30,
   },
   menuItem: {
     flexDirection: 'row',

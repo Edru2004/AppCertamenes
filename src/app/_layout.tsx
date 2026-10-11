@@ -16,6 +16,17 @@ export default function RootLayout() {
         ),
       }}
     >
+      {/* 🔴 PANTALLA DE LOGIN: Sin menú, sin barra azul y sin gesto de deslizar */}
+      <Drawer.Screen
+        name="login"
+        options={{
+          drawerItemStyle: { display: 'none' }, // Oculta del menú lateral
+          headerShown: false,                    // Oculta el encabezado azul y las 3 rayitas
+          swipeEnabled: false,                   // Desactiva deslizar para abrir el menú
+        }}
+      />
+
+      {/* PANTALLAS DE LA APLICACIÓN */}
       <Drawer.Screen
         name="index"
         options={{
@@ -28,7 +39,6 @@ export default function RootLayout() {
           headerTitle: 'Registro de Certámenes',
         }}
       />
-      {/* 🟢 Cambiado: Ahora muestra la barra superior azul */}
       <Drawer.Screen
         name="categorias"
         options={{
@@ -47,7 +57,12 @@ export default function RootLayout() {
           headerTitle: 'Gestión de Equipos',
         }}
       />
-
+      <Drawer.Screen
+        name="registroSalas"
+        options={{
+          headerTitle: 'Registro de Salas',
+        }}
+      />
     </Drawer>
   );
 }
