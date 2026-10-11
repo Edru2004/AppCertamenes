@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Reemplaza '192.168.1.XX' por la IP local IPv4 de tu computadora (ipconfig)
+// Reemplaza la IP local IPv4 de tu computadora
 const API = "http://192.168.1.91:8000/api"; 
 
 // Función auxiliar para construir headers con Token de Sanctum
