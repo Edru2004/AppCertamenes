@@ -56,18 +56,33 @@ export default function LoginScreen() {
       }
 
       // Guardar el token devuelto por Laravel ('access_token')
+      // 1. Guardar el token devuelto por Laravel
       if (respuesta.access_token) {
         await AsyncStorage.setItem('userToken', String(respuesta.access_token));
+      } else if (respuesta.token) {
+        await AsyncStorage.setItem('userToken', String(respuesta.token));
       }
 
-      // Guardar los datos del usuario ('user')
+      // 2. Guardar los datos del usuario y SU ROL
       if (respuesta.user) {
         await AsyncStorage.setItem('userData', JSON.stringify(respuesta.user));
+        if (respuesta.user.Rol) {
+          await AsyncStorage.setItem('userRole', String(respuesta.user.Rol));
+        } else if (respuesta.user.rol) {
+          await AsyncStorage.setItem('userRole', String(respuesta.user.rol));
+        }
       }
 
+      // 3. Alerta y redirección limpia
       Alert.alert(
         '¡Bienvenido!',
-        `Hola, ${respuesta.user?.Nombre || respuesta.user?.Usuario || 'Usuario'}`
+        `Hola, ${respuesta.user?.Nombre || respuesta.user?.Usuario || 'Usuario'}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/'),
+          },
+        ]
       );
 
       // Redirige al menú principal (index)

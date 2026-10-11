@@ -1,91 +1,107 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
-interface Categoria {
-  id: string;
-  nombre: string;
-  certamenId: string;
-  certamenNombre: string;
-  desafiosCount: number;
-  equiposCount: number;
-  rubricaConfigurada: boolean;
-}
-
-const DATA_INICIAL: Categoria[] = [
-  {
-    id: 'CAT-001',
-    nombre: 'Sistemas e Inteligencia Artificial',
-    certamenId: 'CERT-2026',
-    certamenNombre: 'Certamen Nacional de Innovación 2026',
-    desafiosCount: 4,
-    equiposCount: 12,
-    rubricaConfigurada: true,
-  },
-  {
-    id: 'CAT-002',
-    nombre: 'Salud y Biotecnología',
-    certamenId: 'CERT-2026',
-    certamenNombre: 'Certamen Nacional de Innovación 2026',
-    desafiosCount: 2,
-    equiposCount: 5,
-    rubricaConfigurada: false,
-  },
-  {
-    id: 'CAT-003',
-    nombre: 'Innovación Social y Agroindustria',
-    certamenId: 'CERT-2025',
-    certamenNombre: 'Certamen Regional 2025',
-    desafiosCount: 3,
-    equiposCount: 0,
-    rubricaConfigurada: true,
-  },
-];
+const API_URL = 'http://192.168.1.99:8000/api';
 
 export default function CategoriasIndexScreen() {
   const router = useRouter();
-  const [busqueda, setBusqueda] = useState('');
-  const [certamenFiltro, setCertamenFiltro] = useState('TODOS');
-  const [categorias, setCategorias] = useState<Categoria[]>(DATA_INICIAL);
+  const [categorias, setCategorias] = useState<any[]>([]);
+  const [busquedaNombre, setBusquedaNombre] = useState('');
+  const [cargando, setCargando] = useState(true);
 
-  const categoriasFiltradas = categorias.filter((cat) => {
-    const coincideBusqueda = cat.nombre
-      .toLowerCase()
-      .includes(busqueda.toLowerCase());
-    const coincideCertamen =
-      certamenFiltro === 'TODOS' || cat.certamenId === certamenFiltro;
-    return coincideBusqueda && coincideCertamen;
-  });
+  // useFocusEffect se ejecuta SIEMPRE que entras o regresas a esta pantalla
+  useFocusEffect(
+    useCallback(() => {
+      cargarCategorias();
+    }, [])
+  );
 
-  const handleEliminar = (cat: Categoria) => {
-    if (cat.equiposCount > 0) {
+  const cargarCategorias = async (nombre = '') => {
+    try {
+      setCargando(true);
+      const token = await AsyncStorage.getItem('userToken');
+
+      let url = `${API_URL}/categoria-certamens`;
+      if (nombre.trim()) {
+        url += `?Nombre=${encodeURIComponent(nombre.trim())}`;
+      }
+
+      const res = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const data = await res.json();
+      console.log('Categorías recibidas de Laravel:', data);
+
+      if (res.ok) {
+        // Maneja tanto arreglos planos como objetos paginados { data: [...] }
+        const lista = Array.isArray(data) ? data : data.data || [];
+        setCategorias(lista);
+      } else {
+        throw new Error(data.message || 'Error al obtener categorías');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudo conectar con el servidor');
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const handleEliminar = (idCategory: number, nombreCategory: string, equiposCount: number) => {
+    if (equiposCount > 0) {
       Alert.alert(
         'Acción No Permitida',
-        `No se puede eliminar la categoría "${cat.nombre}" porque tiene ${cat.equiposCount} equipo(s) inscritos.`,
-        [{ text: 'Entendido' }]
+        `No se puede eliminar la categoría "${nombreCategory}" porque tiene ${equiposCount} equipo(s) inscrito(s).`
       );
       return;
     }
 
     Alert.alert(
-      'Confirmar Eliminación',
-      `¿Deseas eliminar la categoría "${cat.nombre}"?`,
+      'Confirmar eliminación',
+      `¿Deseas eliminar la categoría "${nombreCategory}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            setCategorias((prev) => prev.filter((item) => item.id !== cat.id));
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem('userToken');
+              const res = await fetch(`${API_URL}/categoria-certamens/${idCategory}`, {
+                method: 'DELETE',
+                headers: {
+                  Accept: 'application/json',
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              });
+
+              const data = await res.json();
+
+              if (res.ok) {
+                Alert.alert('¡Éxito!', 'Categoría eliminada correctamente.');
+                cargarCategorias(busquedaNombre);
+              } else {
+                throw new Error(data.message || 'Error al eliminar');
+              }
+            } catch (e: any) {
+              Alert.alert('Error al eliminar', e.message);
+            }
           },
         },
       ]
@@ -94,150 +110,132 @@ export default function CategoriasIndexScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Panel de Gestión de Categorías</Text>
+      {/* Botón Agregar Nueva Categoría */}
+      <TouchableOpacity
+        style={styles.btnNuevo}
+        onPress={() => router.push('/categorias/form' as any)}
+      >
+        <Ionicons name="add-circle-outline" size={20} color="#fff" />
+        <Text style={styles.btnNuevoText}>Nueva Categoría</Text>
+      </TouchableOpacity>
 
-      <View style={styles.filterSection}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={20} color="#666" />
+      <View style={styles.filterCard}>
+        <View style={styles.inputContainer}>
+          <Ionicons name="search-outline" size={18} color="#666" />
           <TextInput
-            style={styles.searchInput}
+            style={styles.input}
             placeholder="Buscar por nombre..."
-            value={busqueda}
-            onChangeText={setBusqueda}
+            value={busquedaNombre}
+            onChangeText={setBusquedaNombre}
           />
         </View>
-
-        <View style={styles.certamenFilterRow}>
-          <Text style={styles.filterLabel}>Certamen:</Text>
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              certamenFiltro === 'TODOS' && styles.filterChipActive,
-            ]}
-            onPress={() => setCertamenFiltro('TODOS')}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                certamenFiltro === 'TODOS' && styles.filterChipTextActive,
-              ]}
-            >
-              Todos
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              certamenFiltro === 'CERT-2026' && styles.filterChipActive,
-            ]}
-            onPress={() => setCertamenFiltro('CERT-2026')}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                certamenFiltro === 'CERT-2026' && styles.filterChipTextActive,
-              ]}
-            >
-              2026
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.btnBuscar}
+          onPress={() => cargarCategorias(busquedaNombre)}
+        >
+          <Ionicons name="filter" size={16} color="#fff" />
+          <Text style={styles.btnBuscarText}>Buscar</Text>
+        </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={categoriasFiltradas}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View>
-                <Text style={styles.idText}>{item.id}</Text>
-                <Text style={styles.nombreText}>{item.nombre}</Text>
-              </View>
-              <View
-                style={[
-                  styles.statusBadge,
-                  item.rubricaConfigurada
-                    ? styles.statusReady
-                    : styles.statusPending,
-                ]}
-              >
-                <Text style={styles.statusText}>
-                  {item.rubricaConfigurada ? 'Rúbrica OK' : 'Sin Rúbrica'}
-                </Text>
-              </View>
-            </View>
+      {cargando ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#002b45" />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {categorias.length === 0 ? (
+            <Text style={styles.emptyText}>No hay categorías registradas en la base de datos.</Text>
+          ) : (
+            categorias.map((cat) => {
+              const id = cat.Id_categCertamen || cat.idCategoria_certa || cat.id;
+              const nombreCat = cat.Nombre || cat.nombre;
+              const certamenId = cat.Id_Certamen || cat.idCertamen;
+              const certamenNombre = cat.certamen?.Nombre || `Certamen #${certamenId}`;
+              const equiposCount = cat.equipos_count || 0;
 
-            <Text style={styles.certamenSubtext}>{item.certamenNombre}</Text>
+              return (
+                <View key={id} style={styles.card}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>{nombreCat}</Text>
+                    <Text style={styles.cardBadge}>CAT-00{id}</Text>
+                  </View>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoBadge}>
-                <Ionicons name="bulb-outline" size={14} /> Desafíos: {item.desafiosCount}
-              </Text>
-              <Text style={styles.infoBadge}>
-                <Ionicons name="people-outline" size={14} /> Equipos: {item.equiposCount}
-              </Text>
-            </View>
+                  <Text style={styles.subtext}>Certamen: {certamenNombre}</Text>
+                  <Text style={styles.teamsText}>
+                    Equipos inscritos: <Text style={styles.bold}>{equiposCount}</Text>
+                  </Text>
 
-            <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={[styles.btnAction, styles.btnEdit]}
-                onPress={() => router.push('/categorias/form' as any)}
-              >
-                <Ionicons name="create-outline" size={16} color="#fff" />
-                <Text style={styles.btnActionText}>Editar</Text>
-              </TouchableOpacity>
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={[styles.btnAction, styles.btnEdit]}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/categorias/form' as any,
+                          params: { id, idCertamen: certamenId, nombre: nombreCat },
+                        })
+                      }
+                    >
+                      <Ionicons name="create-outline" size={16} color="#fff" />
+                      <Text style={styles.btnActionText}>Editar</Text>
+                    </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.btnAction, styles.btnRubrica]}
-                onPress={() => router.push('/categorias/rubricas' as any)}
-              >
-                <Ionicons name="checkbox-outline" size={16} color="#fff" />
-                <Text style={styles.btnActionText}>Rúbrica</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.btnAction, styles.btnDelete]}
-                onPress={() => handleEliminar(item)}
-              >
-                <Ionicons name="trash-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      />
+                    <TouchableOpacity
+                      style={[styles.btnAction, styles.btnDelete]}
+                      onPress={() => handleEliminar(id, nombreCat, equiposCount)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f7fa', padding: 15 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#002b45', marginBottom: 15 },
-  filterSection: { marginBottom: 15, gap: 10 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#e0e0e0' },
-  searchInput: { flex: 1, height: 42, marginLeft: 8 },
-  certamenFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  filterLabel: { fontSize: 14, fontWeight: '600', color: '#444' },
-  filterChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: '#e0e0e0' },
-  filterChipActive: { backgroundColor: '#002b45' },
-  filterChipText: { fontSize: 12, color: '#333' },
-  filterChipTextActive: { color: '#fff', fontWeight: 'bold' },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 15, marginBottom: 12, elevation: 2 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  idText: { fontSize: 11, color: '#888', fontWeight: 'bold' },
-  nombreText: { fontSize: 16, fontWeight: 'bold', color: '#002b45' },
-  certamenSubtext: { fontSize: 12, color: '#666', marginTop: 4 },
-  statusBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 },
-  statusReady: { backgroundColor: '#d4edda' },
-  statusPending: { backgroundColor: '#fff3cd' },
-  statusText: { fontSize: 11, fontWeight: 'bold', color: '#155724' },
-  infoRow: { flexDirection: 'row', gap: 15, marginTop: 10 },
-  infoBadge: { fontSize: 12, color: '#555' },
-  actionsRow: { flexDirection: 'row', gap: 8, marginTop: 15, justifyContent: 'flex-end' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  btnNuevo: {
+    flexDirection: 'row',
+    backgroundColor: '#9eb23b',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  btnNuevoText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  filterCard: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 15, elevation: 1 },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f4f8',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 40,
+    gap: 8,
+  },
+  input: { flex: 1, fontSize: 13, color: '#333' },
+  btnBuscar: { flexDirection: 'row', backgroundColor: '#002b45', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6, gap: 6, alignItems: 'center', marginTop: 8, alignSelf: 'flex-end' },
+  btnBuscarText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  scroll: { paddingBottom: 20 },
+  card: { backgroundColor: '#fff', borderRadius: 10, padding: 15, marginBottom: 12, elevation: 2 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#002b45', flex: 1, marginRight: 8 },
+  cardBadge: { fontSize: 12, color: '#888', fontWeight: 'bold' },
+  subtext: { fontSize: 13, color: '#666', marginTop: 4 },
+  teamsText: { fontSize: 13, color: '#333', marginTop: 6, marginBottom: 12 },
+  bold: { fontWeight: 'bold', color: '#002b45' },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   btnAction: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, gap: 4 },
-  btnEdit: { backgroundColor: '#007bff' },
-  btnRubrica: { backgroundColor: '#28a745' },
-  btnDelete: { backgroundColor: '#dc3545' },
+  btnEdit: { backgroundColor: '#0284c7' },
+  btnDelete: { backgroundColor: '#dc2626' },
   btnActionText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  emptyText: { textAlign: 'center', color: '#777', marginTop: 20 },
 });

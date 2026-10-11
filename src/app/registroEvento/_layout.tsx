@@ -1,35 +1,16 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 
-// 🟢 OBLIGATORIO: export default
-export default function RegistroEventoLayout() {
+export default function RubricasLayout() {
   return (
-    <Tabs
+    <Stack
       screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#002b45',
-        tabBarInactiveTintColor: '#888',
-        tabBarStyle: { height: 60, paddingBottom: 8 },
+        headerStyle: { backgroundColor: '#002b45' },
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Gestión',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="form"
-        options={{
-          title: 'Nuevo / Editar',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle-outline" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+      <Stack.Screen name="index" options={{ title: 'Gestión de Rúbricas' }} />
+      <Stack.Screen name="form" options={{ title: 'Criterio de Rúbrica' }} />
+    </Stack>
   );
 }

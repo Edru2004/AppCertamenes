@@ -16,21 +16,36 @@ export default function RootLayout() {
         ),
       }}
     >
-      {/* 🔴 PANTALLA DE LOGIN: Sin menú, sin barra azul y sin gesto de deslizar */}
+      {/* 🔴 PANTALLAS SIN ENCABEZADO Y OCULTAS DEL MENÚ AUTOMÁTICO */}
       <Drawer.Screen
         name="login"
         options={{
-          drawerItemStyle: { display: 'none' }, // Oculta del menú lateral
-          headerShown: false,                    // Oculta el encabezado azul y las 3 rayitas
-          swipeEnabled: false,                   // Desactiva deslizar para abrir el menú
+          drawerItemStyle: { display: 'none' },
+          headerShown: false,
+          swipeEnabled: false,
         }}
       />
-
-      {/* PANTALLAS DE LA APLICACIÓN */}
       <Drawer.Screen
         name="index"
         options={{
-          headerTitle: '',
+          drawerItemStyle: { display: 'none' },
+          headerShown: false,
+        }}
+      />
+
+      {/* 🟢 DASHBOARD EXCLUSIVO DEL LÍDER */}
+      <Drawer.Screen
+        name="liderDashboard"
+        options={{
+          headerTitle: 'Panel del Líder',
+        }}
+      />
+
+      {/* 🔵 MÓDULOS DEL ADMINISTRADOR */}
+      <Drawer.Screen
+        name="adminDashboard"
+        options={{
+          headerTitle: 'Panel de Administración',
         }}
       />
       <Drawer.Screen
@@ -46,6 +61,24 @@ export default function RootLayout() {
         }}
       />
       <Drawer.Screen
+        name="Rubricas"
+        options={{
+          headerTitle: 'Rúbricas',
+        }}
+      />
+      <Drawer.Screen
+        name="desafios"
+        options={{
+          headerTitle: 'Desafíos',
+        }}
+      />
+      <Drawer.Screen
+        name="registroSalas"
+        options={{
+          headerTitle: 'Registro de Salas',
+        }}
+      />
+      <Drawer.Screen
         name="gesJurados"
         options={{
           headerTitle: 'Jurado',
@@ -57,23 +90,11 @@ export default function RootLayout() {
           headerTitle: 'Gestión de Equipos',
         }}
       />
-      <Drawer.Screen
-        name="registroSalas"
-        options={{
-          headerTitle: 'Registro de Salas',
-        }}
-      />
     </Drawer>
   );
 }
 
 const styles = StyleSheet.create({
-  headerRightContainer: {
-    marginRight: 15,
-  },
-  headerTitleText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  headerRightContainer: { marginRight: 15 },
+  headerTitleText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });

@@ -15,7 +15,11 @@ export default function CustomDrawer(props: any) {
     const loadUser = async () => {
       const storedUser = await AsyncStorage.getItem('userData');
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (error) {
+          console.log('Error parsing user data:', error);
+        }
       }
     };
     loadUser();
@@ -24,8 +28,13 @@ export default function CustomDrawer(props: any) {
   const handleLogout = async () => {
     props.navigation.closeDrawer();
     await logoutUsuario();
+    await AsyncStorage.multiRemove(['userToken', 'userRole', 'userData']);
     router.replace('/login');
   };
+
+  // Determinar si el usuario es Administrador
+  const rolLimpio = String(user?.Rol || '').toLowerCase().trim();
+  const esAdmin = rolLimpio === 'administrador' || rolLimpio === 'admin';
 
   return (
     <View style={styles.container}>
@@ -73,96 +82,144 @@ export default function CustomDrawer(props: any) {
 
         {/* Opciones del Menú */}
         <View style={styles.menuItemsContainer}>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              props.navigation.closeDrawer();
-              router.push('/');
-            }}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="home-outline" size={22} color="#002b49" />
-            </View>
-            <Text style={styles.menuText}>Inicio (Dashboard)</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              props.navigation.closeDrawer();
-              router.push('/registroEvento' as any);
-            }}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="trophy-outline" size={22} color="#002b49" />
-            </View>
-            <Text style={styles.menuText}>Certamenes</Text>
-          </TouchableOpacity>
+          {esAdmin ? (
+            /* 🔵 MÓDULOS EXCLUSIVOS PARA EL ADMINISTRADOR */
+            <>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/');
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="home-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Inicio (Dashboard)</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              props.navigation.closeDrawer();
-              router.push('/categorias' as any);
-            }}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="folder-open-outline" size={22} color="#002b49" />
-            </View>
-            <Text style={styles.menuText}>Categorías</Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/registroEvento' as any);
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="trophy-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Certámenes</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              props.navigation.closeDrawer();
-              router.push('/desafios' as any);
-            }}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="bulb-outline" size={22} color="#002b49" />
-            </View>
-            <Text style={styles.menuText}>Desafíos</Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/categorias' as any);
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="folder-open-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Categorías</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              props.navigation.closeDrawer();
-              router.push('/registroSalas' as any);
-            }}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="easel-outline" size={22} color="#002b49" />
-            </View>
-            <Text style={styles.menuText}>Registro de Salas</Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/Rubricas' as any);
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="ribbon-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Rúbricas</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              props.navigation.closeDrawer();
-              router.push('/gesJurados' as any);
-            }}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="people-outline" size={22} color="#002b49" />
-            </View>
-            <Text style={styles.menuText}>Jurado</Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/desafios' as any);
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="bulb-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Desafíos</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => {
-              props.navigation.closeDrawer();
-              router.push('/equipos' as any);
-            }}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="people-circle-outline" size={22} color="#002b49" />
-            </View>
-            <Text style={styles.menuText}>Equipos</Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/registroSalas' as any);
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="easel-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Registro de Salas</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/gesJurados' as any);
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="people-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Jurado</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/equipos' as any);
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="people-circle-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Equipos</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            /* 🟢 MÓDULOS EXCLUSIVOS PARA EL LÍDER DE EQUIPO */
+            <>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/liderDashboard' as any);
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="home-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Inicio (Líder)</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => {
+                  props.navigation.closeDrawer();
+                  router.push('/equipos' as any);
+                }}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="people-circle-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Mi Equipo</Text>
+              </TouchableOpacity>
+            </>
+          )}
 
           {/* Botón de Cerrar Sesión */}
           <TouchableOpacity
