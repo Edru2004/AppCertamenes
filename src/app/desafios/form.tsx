@@ -12,7 +12,8 @@ import {
   View,
 } from 'react-native';
 
-const API_URL = 'http://192.168.1.99:8000/api';
+// ✅ Usa la variable del .env
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.83:8000/api';
 
 export default function DesafiosFormScreen() {
   const router = useRouter();
@@ -51,24 +52,28 @@ export default function DesafiosFormScreen() {
       // 1. Cargar certámenes
       let listCert: any[] = [];
       try {
-        let resCert = await fetch(`${API_URL}/certamens`, { headers });
-        if (!resCert.ok) {
-          resCert = await fetch(`${API_URL}/certamenes`, { headers });
-        }
+        const resCert = await fetch(`${API_URL}/certamenes`, { headers });
 
         if (resCert.ok) {
           const dataCert = await resCert.json();
-          listCert = Array.isArray(dataCert) ? dataCert : dataCert.data || [];
+          const rawData = Array.isArray(dataCert) ? dataCert : dataCert.data || [];
+          
+          // Mapeamos soportando Id_certamen y Nombre de phpMyAdmin
+          listCert = rawData.map((item: any) => ({
+            id: item.Id_certamen || item.id_certamen || item.idCertamen || item.id,
+            nombre: item.Nombre || item.nombre || `Certamen #${item.id}`,
+          }));
+        } else {
+          console.log('Error HTTP al obtener certámenes:', resCert.status);
         }
       } catch (e) {
-        console.log('Error consultando certámenes');
+        console.log('Error consultando certámenes:', e);
       }
 
       setCertamenes(listCert);
 
       if (!idCertamenSel && listCert.length > 0) {
-        const primer = listCert[0];
-        const primerId = primer.Id_certamen || primer.idCertamen || primer.id;
+        const primerId = listCert[0].id;
         if (primerId) setIdCertamenSel(Number(primerId));
       }
 
@@ -79,7 +84,7 @@ export default function DesafiosFormScreen() {
           const dataDes = await resDes.json();
           setNombre(dataDes.Nombre || dataDes.nombre || '');
           setDescrip(dataDes.descrip || dataDes.descripcion || '');
-          const idCert = dataDes.idCertamen || dataDes.Id_Certamen;
+          const idCert = dataDes.idCertamen || dataDes.Id_certamen || dataDes.id_certamen;
           if (idCert) setIdCertamenSel(Number(idCert));
         }
       }
@@ -191,8 +196,8 @@ export default function DesafiosFormScreen() {
         ) : (
           <View style={styles.certamenList}>
             {certamenes.map((cert) => {
-              const idCert = Number(cert.Id_certamen || cert.idCertamen || cert.id);
-              const nombreCert = cert.Nombre || cert.nombre || `Certamen #${idCert}`;
+              const idCert = Number(cert.id);
+              const nombreCert = cert.nombre;
               const isSelected = idCertamenSel === idCert;
 
               return (

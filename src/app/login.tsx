@@ -32,7 +32,7 @@ export default function LoginScreen() {
       setCargando(true);
 
       // Enviamos el cuerpo con 'Correo' y 'Contrasena' (ambas con C mayúscula)
-      const response = await fetch('http://192.168.1.99:8000/api/login', {
+      const response = await fetch('http://192.168.1.83:8000/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

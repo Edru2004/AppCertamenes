@@ -11,6 +11,7 @@
     "@react-navigation/drawer": "^7.13.10",
     "@react-navigation/native": "^7.3.18",
     "expo": "~57.0.21",
+    "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.17",
     "expo-device": "~57.0.1",
     "expo-font": "~57.0.3",

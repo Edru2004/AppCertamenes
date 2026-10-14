@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 
-const API_URL = 'http://192.168.1.99:8000/api';
+const API_URL = 'http://192.168.1.83:8000/api';
 
 export default function CategoriasFormScreen() {
   const router = useRouter();
