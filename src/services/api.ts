@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Reemplaza la IP local IPv4 de tu computadora
-const API = "http://192.168.1.91:8000/api"; 
+// 192.168.1.91 
+const API = "http://127.0.0.1:8000/api"; 
+
 
 // Función auxiliar para construir headers con Token de Sanctum
 const getAuthHeaders = async () => {
@@ -205,3 +206,76 @@ export const actualizarUsuario = async (id: number, data: any) => {
   });
   return await res.json();
 };
+// ==========================================
+// DESAFÍOS
+// ==========================================
+export const getDesafios = async () => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/desafios`, { headers });
+  return await res.json();
+};
+
+export const crearDesafio = async (data: any) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/desafios`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(data)
+  });
+  return await res.json();
+};
+
+export const eliminarDesafio = async (id: number) => {
+  const headers = await getAuthHeaders();
+  return await fetch(`${API}/desafios/${id}`, {
+    method: "DELETE",
+    headers
+  });
+}
+
+export const actualizarDesafio = async (id: number, data: any) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/desafios/${id}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(data)
+  });
+  return await res.json();
+}
+
+// ==========================================
+// CATEGORÍAS CERTAMEN
+// ==========================================
+export const getCategCertamenes = async () => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/categorias-certamen`, { headers });
+  return await res.json();
+};
+
+export const crearCategCertamenes = async (data: any) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/categorias-certamen`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(data)
+  });
+  return await res.json();
+};
+
+export const eliminarCategCertamen = async (id: number) => {
+  const headers = await getAuthHeaders();
+  return await fetch(`${API}/categorias-certamen/${id}`, {
+    method: "DELETE",
+    headers
+  });
+}
+
+export const actualizarCategCertamen = async (id: number, data: any) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/categorias-certamen/${id}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(data)
+  });
+  return await res.json();
+}

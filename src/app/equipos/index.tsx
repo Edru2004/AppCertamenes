@@ -1,88 +1,74 @@
+import { eliminarEquipo, getEquipos } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export interface Equipo {
   Id_equipo: number;
   Id_desafio: number;
-  Nombre_desafio?: string;
   Id_categCertamen: number;
-  Nombre_categoria?: string;
   Id_sala: number | null;
-  Nombre_sala?: string;
   Nombre: string;
   Video?: string;
   Reporte?: string;
+  // Relaciones devueltas por Laravel
+  desafio?: { Nombre: string };
+  categoriaCertamen?: { Nombre: string };
+  categoria_certamen?: { Nombre: string };
+  sala?: { Nombre: string };
 }
-
-const DATA_INICIAL: Equipo[] = [
-  {
-    Id_equipo: 1,
-    Id_desafio: 10,
-    Nombre_desafio: 'Desafío Innovación Móvil',
-    Id_categCertamen: 2,
-    Nombre_categoria: 'Desarrollo de Software',
-    Id_sala: 1,
-    Nombre_sala: 'Sala 1 - Principal',
-    Nombre: 'Alpha Tech',
-    Video: 'https://youtube.com/watch?v=demo1',
-    Reporte: 'https://drive.google.com/file/d/reporte1.pdf',
-  },
-  {
-    Id_equipo: 2,
-    Id_desafio: 12,
-    Nombre_desafio: 'Optimización Agroindustrial',
-    Id_categCertamen: 3,
-    Nombre_categoria: 'Biotecnología',
-    Id_sala: null,
-    Nombre_sala: undefined,
-    Nombre: 'BioInnovadores',
-    Video: '',
-    Reporte: 'https://drive.google.com/file/d/reporte2.pdf',
-  },
-];
 
 export default function EquiposIndexScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ nuevoEquipo?: string }>();
 
   const [busqueda, setBusqueda] = useState('');
-  const [equipos, setEquipos] = useState<Equipo[]>(DATA_INICIAL);
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [cargando, setCargando] = useState<boolean>(true);
 
-  useEffect(() => {
-    if (typeof params.nuevoEquipo === 'string') {
-      try {
-        const objetoLlegado: Equipo = JSON.parse(params.nuevoEquipo);
-        setEquipos((prev) => {
-          const existe = prev.some((e) => e.Id_equipo === objetoLlegado.Id_equipo);
-          if (existe) {
-            return prev.map((e) =>
-              e.Id_equipo === objetoLlegado.Id_equipo ? objetoLlegado : e
-            );
-          }
-          return [objetoLlegado, ...prev];
-        });
-      } catch (e) {
-        console.error('Error al procesar equipo:', e);
+  // Cargar lista de equipos desde la API cada vez que entra en foco la pantalla
+  const cargarEquipos = useCallback(async () => {
+    try {
+      setCargando(true);
+      const data = await getEquipos();
+      if (Array.isArray(data)) {
+        setEquipos(data);
+      } else {
+        setEquipos([]);
       }
+    } catch (error: any) {
+      Alert.alert('Error', 'No se pudieron obtener los equipos de la API.');
+    } finally {
+      setCargando(false);
     }
-  }, [params.nuevoEquipo]);
+  }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      cargarEquipos();
+    }, [cargarEquipos])
+  );
+
+  // Filtro corregido para buscar en las propiedades anidadas de las relaciones
   const equiposFiltrados = equipos.filter((e) => {
     const query = busqueda.toLowerCase();
+    const nombreDesafio = e.desafio?.Nombre?.toLowerCase() || '';
+    const nombreCategoria = (e.categoriaCertamen?.Nombre || e.categoria_certamen?.Nombre)?.toLowerCase() || '';
+    const nombreEquipo = e.Nombre?.toLowerCase() || '';
+
     return (
-      e.Nombre.toLowerCase().includes(query) ||
-      (e.Nombre_desafio && e.Nombre_desafio.toLowerCase().includes(query)) ||
-      (e.Nombre_categoria && e.Nombre_categoria.toLowerCase().includes(query))
+      nombreEquipo.includes(query) ||
+      nombreDesafio.includes(query) ||
+      nombreCategoria.includes(query)
     );
   });
 
@@ -95,8 +81,14 @@ export default function EquiposIndexScreen() {
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            setEquipos((prev) => prev.filter((item) => item.Id_equipo !== equipo.Id_equipo));
+          onPress: async () => {
+            try {
+              await eliminarEquipo(equipo.Id_equipo);
+              Alert.alert('Éxito', 'Equipo eliminado correctamente.');
+              cargarEquipos();
+            } catch (error: any) {
+              Alert.alert('Error', 'No se pudo eliminar el equipo.');
+            }
           },
         },
       ]
@@ -119,72 +111,81 @@ export default function EquiposIndexScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={equiposFiltrados}
-        keyExtractor={(item) => item.Id_equipo.toString()}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={styles.idText}>EQUIPO-{item.Id_equipo}</Text>
-                <Text style={styles.nombreText}>{item.Nombre}</Text>
+      {cargando ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#002b45" />
+          <Text style={styles.loadingText}>Cargando equipos...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={equiposFiltrados}
+          keyExtractor={(item) => item.Id_equipo.toString()}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No hay equipos registrados.</Text>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.idText}>EQUIPO-{item.Id_equipo}</Text>
+                  <Text style={styles.nombreText}>{item.Nombre}</Text>
+                </View>
+                <View style={[styles.salaBadge, item.Id_sala ? styles.salaAsignada : styles.sinSala]}>
+                  <Text style={styles.salaText}>
+                    {item.sala?.Nombre || (item.Id_sala ? `Sala #${item.Id_sala}` : 'Sin Sala')}
+                  </Text>
+                </View>
               </View>
-              <View style={[styles.salaBadge, item.Id_sala ? styles.salaAsignada : styles.sinSala]}>
-                <Text style={styles.salaText}>
-                  {item.Nombre_sala ? item.Nombre_sala : 'Sin Sala'}
-                </Text>
-              </View>
-            </View>
 
-            <View style={styles.infoContainer}>
-              <Text style={styles.infoBadge}>
-                <Ionicons name="trophy-outline" size={14} color="#002b45" /> Desafío:{' '}
-                {item.Nombre_desafio || `ID #${item.Id_desafio}`}
-              </Text>
-              <Text style={styles.infoBadge}>
-                <Ionicons name="pricetag-outline" size={14} color="#002b45" /> Categoría:{' '}
-                {item.Nombre_categoria || `ID #${item.Id_categCertamen}`}
-              </Text>
-              
-              <View style={styles.entregablesRow}>
-                <Text style={styles.entregableTag}>
-                  <Ionicons name="logo-youtube" size={13} color={item.Video ? '#dc3545' : '#aaa'} />{' '}
-                  {item.Video ? 'Video Adjunto' : 'Sin Video'}
+              <View style={styles.infoContainer}>
+                <Text style={styles.infoBadge}>
+                  <Ionicons name="trophy-outline" size={14} color="#002b45" /> Desafío:{' '}
+                  {item.desafio?.Nombre || `ID #${item.Id_desafio}`}
                 </Text>
-                <Text style={styles.entregableTag}>
-                  <Ionicons name="document-text-outline" size={13} color={item.Reporte ? '#007bff' : '#aaa'} />{' '}
-                  {item.Reporte ? 'Reporte Adjunto' : 'Sin Reporte'}
+                
+                <Text style={styles.infoBadge}>
+                  <Ionicons name="pricetag-outline" size={14} color="#002b45" /> Categoría:{' '}
+                  {item.categoriaCertamen?.Nombre || item.categoria_certamen?.Nombre || `ID #${item.Id_categCertamen}`}
                 </Text>
+                
+                <View style={styles.entregablesRow}>
+                  <Text style={styles.entregableTag}>
+                    <Ionicons name="logo-youtube" size={13} color={item.Video ? '#dc3545' : '#aaa'} />{' '}
+                    {item.Video ? 'Video Adjunto' : 'Sin Video'}
+                  </Text>
+                  <Text style={styles.entregableTag}>
+                    <Ionicons name="document-text-outline" size={13} color={item.Reporte ? '#007bff' : '#aaa'} />{' '}
+                    {item.Reporte ? 'Reporte Adjunto' : 'Sin Reporte'}
+                  </Text>
+                </View>
               </View>
-            </View>
 
-            <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={[styles.btnAction, styles.btnEdit]}
-                onPress={() => {
-                    // 🟢 Limpiamos la ruta primero por si había datos previos y enviamos el nuevo objeto
-                    router.setParams({ equipoEditar: undefined });
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={[styles.btnAction, styles.btnEdit]}
+                  onPress={() => {
                     router.navigate({
-                    pathname: '/equipos/form' as any,
-                    params: { equipoEditar: JSON.stringify(item) },
+                      pathname: '/equipos/form' as any,
+                      params: { equipoEditar: JSON.stringify(item) },
                     });
-                }}
-              >
-                <Ionicons name="create-outline" size={16} color="#fff" />
-                <Text style={styles.btnActionText}>Editar</Text>
-              </TouchableOpacity>
+                  }}
+                >
+                  <Ionicons name="create-outline" size={16} color="#fff" />
+                  <Text style={styles.btnActionText}>Editar</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.btnAction, styles.btnDelete]}
-                onPress={() => handleEliminar(item)}
-              >
-                <Ionicons name="trash-outline" size={16} color="#fff" />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.btnAction, styles.btnDelete]}
+                  onPress={() => handleEliminar(item)}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#fff" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
-      />
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -195,6 +196,9 @@ const styles = StyleSheet.create({
   filterSection: { marginBottom: 15 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#e0e0e0' },
   searchInput: { flex: 1, height: 42, marginLeft: 8 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
+  loadingText: { marginTop: 10, color: '#002b45', fontWeight: '600' },
+  emptyText: { textAlign: 'center', color: '#888', marginTop: 30, fontSize: 15 },
   card: { backgroundColor: '#fff', borderRadius: 12, padding: 15, marginBottom: 12, elevation: 2 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   idText: { fontSize: 11, color: '#888', fontWeight: 'bold' },
