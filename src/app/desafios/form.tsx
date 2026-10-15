@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -12,8 +12,12 @@ import {
   View,
 } from 'react-native';
 
-// ✅ Usa la variable del .env
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.83:8000/api';
+import {
+  actualizarDesafio,
+  crearDesafio,
+  getCertamenes,
+  getDesafios,
+} from '../../services/api';
 
 export default function DesafiosFormScreen() {
   const router = useRouter();
@@ -42,30 +46,29 @@ export default function DesafiosFormScreen() {
   const cargarDatosIniciales = async () => {
     try {
       setCargando(true);
-      const token = await AsyncStorage.getItem('userToken');
-      const headers = {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
 
-      // 1. Cargar certámenes
+      // 1. Cargar certámenes desde services/api.ts
       let listCert: any[] = [];
-      try {
-        const resCert = await fetch(`${API_URL}/certamenes`, { headers });
 
-        if (resCert.ok) {
-          const dataCert = await resCert.json();
-          const rawData = Array.isArray(dataCert) ? dataCert : dataCert.data || [];
-          
-          // Mapeamos soportando Id_certamen y Nombre de phpMyAdmin
-          listCert = rawData.map((item: any) => ({
-            id: item.Id_certamen || item.id_certamen || item.idCertamen || item.id,
-            nombre: item.Nombre || item.nombre || `Certamen #${item.id}`,
-          }));
-        } else {
-          console.log('Error HTTP al obtener certámenes:', resCert.status);
-        }
+      try {
+        const dataCert: any = await getCertamenes();
+        const rawData = Array.isArray(dataCert)
+          ? dataCert
+          : dataCert?.data || [];
+
+        listCert = rawData.map((item: any) => ({
+          id:
+            item.Id_certamen ||
+            item.id_certamen ||
+            item.idCertamen ||
+            item.id,
+          nombre:
+            item.Nombre ||
+            item.nombre ||
+            `Certamen #${item.id}`,
+        }));
+
+        listCert = listCert.filter((item: any) => item.id != null);
       } catch (e) {
         console.log('Error consultando certámenes:', e);
       }
@@ -73,23 +76,43 @@ export default function DesafiosFormScreen() {
       setCertamenes(listCert);
 
       if (!idCertamenSel && listCert.length > 0) {
-        const primerId = listCert[0].id;
-        if (primerId) setIdCertamenSel(Number(primerId));
+        setIdCertamenSel(Number(listCert[0].id));
       }
 
-      // 2. Si es edición, cargar datos del desafío
+      // 2. Si se edita y no llegaron los datos por los parámetros,
+      // buscar el desafío en la lista del servicio.
       if (editId && !params.nombre) {
-        const resDes = await fetch(`${API_URL}/desafios/${editId}`, { headers });
-        if (resDes.ok) {
-          const dataDes = await resDes.json();
-          setNombre(dataDes.Nombre || dataDes.nombre || '');
-          setDescrip(dataDes.descrip || dataDes.descripcion || '');
-          const idCert = dataDes.idCertamen || dataDes.Id_certamen || dataDes.id_certamen;
-          if (idCert) setIdCertamenSel(Number(idCert));
+        const dataDes: any = await getDesafios();
+        const lista = Array.isArray(dataDes)
+          ? dataDes
+          : dataDes?.data || [];
+
+        const desafio = lista.find(
+          (item: any) =>
+            String(item.idDesafio || item.id) === editId
+        );
+
+        if (desafio) {
+          setNombre(desafio.Nombre || desafio.nombre || '');
+          setDescrip(
+            desafio.descrip || desafio.descripcion || ''
+          );
+
+          const idCert =
+            desafio.idCertamen ||
+            desafio.Id_certamen ||
+            desafio.id_certamen;
+
+          if (idCert) {
+            setIdCertamenSel(Number(idCert));
+          }
         }
       }
     } catch (e) {
-      Alert.alert('Error', 'No se pudieron cargar los datos de la base de datos');
+      Alert.alert(
+        'Error',
+        'No se pudieron cargar los datos de la base de datos'
+      );
     } finally {
       setCargando(false);
     }
@@ -97,30 +120,33 @@ export default function DesafiosFormScreen() {
 
   const handleGuardar = async () => {
     if (!idCertamenSel) {
-      Alert.alert('Atención', 'Por favor selecciona un certamen de la lista.');
+      Alert.alert(
+        'Atención',
+        'Por favor selecciona un certamen de la lista.'
+      );
       return;
     }
 
     if (!nombre.trim()) {
-      Alert.alert('Atención', 'Por favor ingresa el nombre del desafío.');
+      Alert.alert(
+        'Atención',
+        'Por favor ingresa el nombre del desafío.'
+      );
       return;
     }
 
     if (!descrip.trim()) {
-      Alert.alert('Atención', 'Por favor ingresa la descripción del desafío.');
+      Alert.alert(
+        'Atención',
+        'Por favor ingresa la descripción del desafío.'
+      );
       return;
     }
 
     try {
       setGuardando(true);
-      const token = await AsyncStorage.getItem('userToken');
+
       const esEdicion = !!editId;
-
-      const url = esEdicion
-        ? `${API_URL}/desafios/${editId}`
-        : `${API_URL}/desafios`;
-
-      const method = esEdicion ? 'PUT' : 'POST';
 
       const payload = {
         idCertamen: idCertamenSel,
@@ -128,30 +154,18 @@ export default function DesafiosFormScreen() {
         descrip: descrip.trim(),
       };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errorMsg =
-          data.message ||
-          (data.errors
-            ? Object.values(data.errors).flat().join('\n')
-            : 'Error al procesar la solicitud');
-        throw new Error(errorMsg);
+      // Guardar utilizando las funciones centralizadas.
+      if (esEdicion) {
+        await actualizarDesafio(Number(editId), payload);
+      } else {
+        await crearDesafio(payload);
       }
 
       Alert.alert(
         '¡Éxito!',
-        `El desafío "${nombre.trim()}" ha sido ${esEdicion ? 'actualizado' : 'registrado'} correctamente.`,
+        `El desafío "${nombre.trim()}" ha sido ${
+          esEdicion ? 'actualizado' : 'registrado'
+        } correctamente.`,
         [
           {
             text: 'OK',
@@ -164,7 +178,10 @@ export default function DesafiosFormScreen() {
         ]
       );
     } catch (e: any) {
-      Alert.alert('Error al guardar', e.message);
+      Alert.alert(
+        'Error al guardar',
+        e?.message || 'No se pudo guardar el desafío.'
+      );
     } finally {
       setGuardando(false);
     }
@@ -203,14 +220,28 @@ export default function DesafiosFormScreen() {
               return (
                 <TouchableOpacity
                   key={idCert}
-                  style={[styles.certItem, isSelected ? styles.certItemActive : null]}
+                  style={[
+                    styles.certItem,
+                    isSelected ? styles.certItemActive : null,
+                  ]}
                   onPress={() => setIdCertamenSel(idCert)}
                 >
                   <View style={styles.certRow}>
-                    <Text style={[styles.certIcon, isSelected ? styles.certIconActive : null]}>
+                    <Text
+                      style={[
+                        styles.certIcon,
+                        isSelected ? styles.certIconActive : null,
+                      ]}
+                    >
                       {isSelected ? '🔘' : '⚪'}
                     </Text>
-                    <Text style={[styles.certText, isSelected ? styles.certTextActive : null]}>
+
+                    <Text
+                      style={[
+                        styles.certText,
+                        isSelected ? styles.certTextActive : null,
+                      ]}
+                    >
                       {nombreCert}
                     </Text>
                   </View>
@@ -241,10 +272,16 @@ export default function DesafiosFormScreen() {
         <TouchableOpacity
           style={[
             styles.btnSave,
-            (guardando || !idCertamenSel || certamenes.length === 0) ? styles.btnDisabled : null,
+            guardando || !idCertamenSel || certamenes.length === 0
+              ? styles.btnDisabled
+              : null,
           ]}
           onPress={handleGuardar}
-          disabled={guardando || !idCertamenSel || certamenes.length === 0}
+          disabled={
+            guardando ||
+            !idCertamenSel ||
+            certamenes.length === 0
+          }
         >
           {guardando ? (
             <ActivityIndicator color="#fff" />
@@ -260,12 +297,39 @@ export default function DesafiosFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f7fa', padding: 15 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#002b45', marginBottom: 15 },
-  card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, elevation: 2 },
-  label: { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 8, marginTop: 12 },
-  certamenList: { gap: 8, marginBottom: 12 },
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f7fa',
+    padding: 15,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#002b45',
+    marginBottom: 15,
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#555',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  certamenList: {
+    gap: 8,
+    marginBottom: 12,
+  },
   certItem: {
     padding: 12,
     borderRadius: 8,
@@ -277,13 +341,37 @@ const styles = StyleSheet.create({
     borderColor: '#002b45',
     backgroundColor: '#e6f0f7',
   },
-  certRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  certIcon: { fontSize: 14 },
-  certIconActive: { color: '#002b45' },
-  certText: { fontSize: 14, color: '#334155', flex: 1 },
-  certTextActive: { fontWeight: 'bold', color: '#002b45' },
-  emptyBox: { padding: 12, backgroundColor: '#fef2f2', borderRadius: 8, marginBottom: 10 },
-  warningText: { fontSize: 12, color: '#dc2626', textAlign: 'center' },
+  certRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  certIcon: {
+    fontSize: 14,
+  },
+  certIconActive: {
+    color: '#002b45',
+  },
+  certText: {
+    fontSize: 14,
+    color: '#334155',
+    flex: 1,
+  },
+  certTextActive: {
+    fontWeight: 'bold',
+    color: '#002b45',
+  },
+  emptyBox: {
+    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#dc2626',
+    textAlign: 'center',
+  },
   input: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -305,6 +393,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 25,
   },
-  btnDisabled: { backgroundColor: '#94a3b8' },
-  btnSaveText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  btnDisabled: {
+    backgroundColor: '#94a3b8',
+  },
+  btnSaveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

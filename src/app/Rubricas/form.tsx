@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -11,8 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
-const API_URL = 'http://192.168.1.83:8000/api';
+import {
+  crearRubrica,
+  actualizarRubrica,
+} from '../../services/api';
 
 export default function RubricaFormScreen() {
   const router = useRouter();
@@ -38,56 +40,42 @@ export default function RubricaFormScreen() {
     }
 
     if (!pregunta.trim()) {
-      Alert.alert('Atención', 'Por favor ingresa la pregunta o criterio de evaluación.');
+      Alert.alert(
+        'Atención',
+        'Por favor ingresa la pregunta o criterio de evaluación.'
+      );
       return;
     }
 
-    if (!valorMaximo || Number(valorMaximo) <= 0) {
+    const valor = Number(valorMaximo);
+
+    if (!valorMaximo.trim() || !Number.isFinite(valor) || valor <= 0) {
       Alert.alert('Atención', 'Ingresa un valor máximo mayor a 0.');
       return;
     }
 
     try {
       setGuardando(true);
-      const token = await AsyncStorage.getItem('userToken');
+
       const esEdicion = !!editId;
-
-      const url = esEdicion
-        ? `${API_URL}/rubricas/${editId}`
-        : `${API_URL}/rubricas`;
-
-      const method = esEdicion ? 'PUT' : 'POST';
 
       const payload = {
         Id_categoriaRubrica: idCategoria_r,
         pregunta: pregunta.trim(),
-        valor_maximo: Number(valorMaximo),
+        valor_maximo: valor,
       };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errorMsg =
-          data.message ||
-          (data.errors
-            ? Object.values(data.errors).flat().join('\n')
-            : 'Error al procesar la solicitud');
-        throw new Error(errorMsg);
+      if (esEdicion) {
+        await actualizarRubrica(Number(editId), payload);
+      } else {
+        await crearRubrica(payload);
       }
 
       Alert.alert(
         '¡Éxito!',
-        `El criterio ha sido ${esEdicion ? 'actualizado' : 'registrado'} correctamente.`,
+        `El criterio ha sido ${
+          esEdicion ? 'actualizado' : 'registrado'
+        } correctamente.`,
         [
           {
             text: 'OK',
@@ -99,7 +87,10 @@ export default function RubricaFormScreen() {
         ]
       );
     } catch (e: any) {
-      Alert.alert('Error al guardar', e.message);
+      Alert.alert(
+        'Error al guardar',
+        e?.message || 'No se pudo guardar el criterio.'
+      );
     } finally {
       setGuardando(false);
     }
@@ -112,7 +103,9 @@ export default function RubricaFormScreen() {
       </Text>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Pregunta / Criterio de Evaluación *</Text>
+        <Text style={styles.label}>
+          Pregunta / Criterio de Evaluación *
+        </Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="ej. 1.1 La solución es innovadora..."
@@ -132,7 +125,10 @@ export default function RubricaFormScreen() {
         />
 
         <TouchableOpacity
-          style={[styles.btnSave, guardando ? styles.btnDisabled : null]}
+          style={[
+            styles.btnSave,
+            guardando ? styles.btnDisabled : null,
+          ]}
           onPress={handleGuardar}
           disabled={guardando}
         >
@@ -150,10 +146,30 @@ export default function RubricaFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f7fa', padding: 15 },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#002b45', marginBottom: 15 },
-  card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, elevation: 2 },
-  label: { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 8, marginTop: 12 },
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f7fa',
+    padding: 15,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#002b45',
+    marginBottom: 15,
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#555',
+    marginBottom: 8,
+    marginTop: 12,
+  },
   input: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -175,6 +191,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 25,
   },
-  btnDisabled: { backgroundColor: '#94a3b8' },
-  btnSaveText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  btnDisabled: {
+    backgroundColor: '#94a3b8',
+  },
+  btnSaveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

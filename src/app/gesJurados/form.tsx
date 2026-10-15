@@ -25,7 +25,7 @@ export default function JuradoFormScreen() {
   const [curriculum, setCurriculum] = useState('');
   const [invitacion, setInvitacion] = useState<'Aceptada' | 'Pendiente' | 'Rechazada'>('Pendiente');
 
-  // Carga automática si se seleccionó Editar
+  
   useEffect(() => {
     if (typeof params.juradoEditar === 'string') {
       try {
@@ -43,7 +43,7 @@ export default function JuradoFormScreen() {
         console.error('Error al parsear jurado a editar:', e);
       }
     } else {
-      // Resetea a valores por defecto si es un nuevo registro
+      
       setIdJurado(null);
       setIdUsuario('');
       setNombreUsuario('');

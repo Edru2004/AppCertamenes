@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -11,8 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
-const API_URL = 'http://192.168.1.83:8000/api';
+import {
+  actualizarSala,
+  crearSala,
+} from '../../services/api';
 
 export default function SalasFormScreen() {
   const router = useRouter();
@@ -41,44 +43,25 @@ export default function SalasFormScreen() {
 
     try {
       setGuardando(true);
-      const token = await AsyncStorage.getItem('userToken');
+
       const esEdicion = !!editId;
-
-      const url = esEdicion
-        ? `${API_URL}/salas/${editId}`
-        : `${API_URL}/salas`;
-
-      const method = esEdicion ? 'PUT' : 'POST';
 
       const payload = {
         Nombre: nombre.trim(),
         Ubicacion: ubicacion.trim(),
       };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errorMsg =
-          data.message ||
-          (data.errors
-            ? Object.values(data.errors).flat().join('\n')
-            : 'Error al procesar la solicitud');
-        throw new Error(errorMsg);
+      if (esEdicion) {
+        await actualizarSala(Number(editId), payload);
+      } else {
+        await crearSala(payload);
       }
 
       Alert.alert(
         '¡Éxito!',
-        `La sala "${nombre.trim()}" ha sido ${esEdicion ? 'actualizada' : 'registrada'} correctamente.`,
+        `La sala "${nombre.trim()}" ha sido ${
+          esEdicion ? 'actualizada' : 'registrada'
+        } correctamente.`,
         [
           {
             text: 'OK',
@@ -91,7 +74,10 @@ export default function SalasFormScreen() {
         ]
       );
     } catch (e: any) {
-      Alert.alert('Error al guardar', e.message);
+      Alert.alert(
+        'Error al guardar',
+        e?.message || 'No se pudo guardar la sala.'
+      );
     } finally {
       setGuardando(false);
     }
@@ -121,7 +107,10 @@ export default function SalasFormScreen() {
         />
 
         <TouchableOpacity
-          style={[styles.btnSave, guardando ? styles.btnDisabled : null]}
+          style={[
+            styles.btnSave,
+            guardando ? styles.btnDisabled : null,
+          ]}
           onPress={handleGuardar}
           disabled={guardando}
         >
@@ -139,10 +128,30 @@ export default function SalasFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f7fa', padding: 15 },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#002b45', marginBottom: 15 },
-  card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, elevation: 2 },
-  label: { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 8, marginTop: 12 },
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f7fa',
+    padding: 15,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#002b45',
+    marginBottom: 15,
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#555',
+    marginBottom: 8,
+    marginTop: 12,
+  },
   input: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -159,6 +168,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 25,
   },
-  btnDisabled: { backgroundColor: '#94a3b8' },
-  btnSaveText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  btnDisabled: {
+    backgroundColor: '#94a3b8',
+  },
+  btnSaveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     paddingBottom: 90,
   },
   cardTotal: {
-    backgroundColor: '#9eb23b',
+    backgroundColor: '#A4B74D',
     borderRadius: 16,
     padding: 20,
     elevation: 3,

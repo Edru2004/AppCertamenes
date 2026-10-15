@@ -36,6 +36,8 @@ export default function EquiposIndexScreen() {
   const [cargando, setCargando] = useState<boolean>(true);
 
   // Cargar lista de equipos desde la API cada vez que entra en foco la pantalla
+  
+  
   const cargarEquipos = useCallback(async () => {
     try {
       setCargando(true);

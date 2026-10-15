@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 192.168.1.91 
-const API = "http://127.0.0.1:8000/api"; 
-
+const API = 'http://192.168.1.83:8000/api';
 
 // Función auxiliar para construir headers con Token de Sanctum
 const getAuthHeaders = async () => {
@@ -279,3 +278,69 @@ export const actualizarCategCertamen = async (id: number, data: any) => {
   });
   return await res.json();
 }
+
+export const getRubricas = async (idCategoria: number) => {
+  const headers = await getAuthHeaders();
+
+  const res = await fetch(
+    `${API}/rubricas?id_categoria=${idCategoria}`,
+    { headers }
+  );
+
+  if (!res.ok) {
+    throw new Error('Error al obtener las rúbricas');
+  }
+
+  return await res.json();
+};
+
+export const crearRubrica = async (data: any) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/rubricas`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+
+  const resultado = await res.json();
+
+  if (!res.ok) {
+    throw new Error(resultado.message || 'Error al crear la rúbrica');
+  }
+
+  return resultado;
+};
+
+export const actualizarRubrica = async (
+  id: number,
+  data: any
+) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/rubricas/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+
+  const resultado = await res.json();
+
+  if (!res.ok) {
+    throw new Error(resultado.message || 'Error al actualizar la rúbrica');
+  }
+
+  return resultado;
+};
+
+export const eliminarRubrica = async (id: number) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/rubricas/${id}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!res.ok) {
+    throw new Error('Error al eliminar la rúbrica');
+  }
+
+  return res;
+};

@@ -1,18 +1,23 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
-const API_URL = 'http://192.168.1.83:8000/api';
+import {
+    actualizarCategCertamen,
+    crearCategCertamenes,
+    getCategCertamenes,
+    getCertamenes,
+} from '../../services/api';
 
 export default function CategoriasFormScreen() {
   const router = useRouter();
@@ -21,9 +26,11 @@ export default function CategoriasFormScreen() {
   const editId = params.id ? String(params.id) : null;
 
   const [certamenes, setCertamenes] = useState<any[]>([]);
+
   const [idCertamenSel, setIdCertamenSel] = useState<number | null>(
     params.idCertamen ? Number(params.idCertamen) : null
   );
+
   const [nombre, setNombre] = useState<string>(
     params.nombre ? String(params.nombre) : ''
   );
@@ -38,56 +45,72 @@ export default function CategoriasFormScreen() {
   const cargarDatosIniciales = async () => {
     try {
       setCargando(true);
-      const token = await AsyncStorage.getItem('userToken');
-      const headers = {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
 
-      // 1. Cargar certámenes registrados
-      let listCert: any[] = [];
-      try {
-        let resCert = await fetch(`${API_URL}/certamens`, { headers });
+      // Cargar certámenes utilizando el servicio centralizado
+      const respuestaCertamenes = await getCertamenes();
 
-        if (!resCert.ok) {
-          resCert = await fetch(`${API_URL}/certamenes`, { headers });
+      const listaCertamenes: any[] = Array.isArray(respuestaCertamenes)
+        ? respuestaCertamenes
+        : Array.isArray(respuestaCertamenes?.data)
+          ? respuestaCertamenes.data
+          : [];
+
+      setCertamenes(listaCertamenes);
+
+      // Seleccionar el primer certamen cuando se crea una categoría
+      if (!idCertamenSel && listaCertamenes.length > 0) {
+        const primer = listaCertamenes[0];
+
+        const primerId =
+          primer.Id_certamen ??
+          primer.idCertamen ??
+          primer.id;
+
+        if (primerId != null) {
+          setIdCertamenSel(Number(primerId));
         }
+      }
 
-        if (resCert.ok) {
-          const dataCert = await resCert.json();
+      // Si se está editando y no llegaron todos los datos
+      // desde index.tsx, buscar la categoría en el listado.
+      if (editId && (!params.nombre || !params.idCertamen)) {
+        const respuestaCategorias = await getCategCertamenes();
 
-          if (Array.isArray(dataCert)) {
-            listCert = dataCert;
-          } else if (dataCert && Array.isArray(dataCert.data)) {
-            listCert = dataCert.data;
+        const listaCategorias: any[] = Array.isArray(respuestaCategorias)
+          ? respuestaCategorias
+          : Array.isArray(respuestaCategorias?.data)
+            ? respuestaCategorias.data
+            : [];
+
+        const categoria = listaCategorias.find((cat: any) => {
+          const id =
+            cat.Id_categCertamen ??
+            cat.idCategoria_certa ??
+            cat.id;
+
+          return String(id) === editId;
+        });
+
+        if (categoria) {
+          setNombre(
+            categoria.Nombre || categoria.nombre || ''
+          );
+
+          const idCertamen =
+            categoria.Id_Certamen ??
+            categoria.Id_certamen ??
+            categoria.idCertamen;
+
+          if (idCertamen != null) {
+            setIdCertamenSel(Number(idCertamen));
           }
         }
-      } catch (err) {
-        console.log('Error al consultar certámenes:', err);
       }
-
-      setCertamenes(listCert);
-
-      // Seleccionar por defecto el primer certamen de la lista
-      if (!idCertamenSel && listCert.length > 0) {
-        const primer = listCert[0];
-        const primerId = primer.Id_certamen || primer.idCertamen || primer.id;
-        if (primerId) setIdCertamenSel(Number(primerId));
-      }
-
-      // 2. Si es edición, cargar datos de la categoría
-      if (editId && !params.nombre) {
-        const resCat = await fetch(`${API_URL}/categoria-certamens/${editId}`, { headers });
-        if (resCat.ok) {
-          const dataCat = await resCat.json();
-          setNombre(dataCat.Nombre || dataCat.nombre || '');
-          const idCert = dataCat.Id_Certamen || dataCat.idCertamen || dataCat.Id_certamen;
-          if (idCert) setIdCertamenSel(Number(idCert));
-        }
-      }
-    } catch (e) {
-      Alert.alert('Error', 'No se pudieron obtener los datos de la base de datos');
+    } catch (e: any) {
+      Alert.alert(
+        'Error',
+        e.message || 'No se pudieron obtener los datos de la base de datos'
+      );
     } finally {
       setCargando(false);
     }
@@ -95,55 +118,56 @@ export default function CategoriasFormScreen() {
 
   const handleGuardar = async () => {
     if (!idCertamenSel) {
-      Alert.alert('Atención', 'Por favor selecciona un certamen de la lista.');
+      Alert.alert(
+        'Atención',
+        'Por favor selecciona un certamen de la lista.'
+      );
       return;
     }
 
     if (!nombre.trim()) {
-      Alert.alert('Atención', 'Por favor ingresa el nombre de la categoría.');
+      Alert.alert(
+        'Atención',
+        'Por favor ingresa el nombre de la categoría.'
+      );
       return;
     }
 
     try {
       setGuardando(true);
-      const token = await AsyncStorage.getItem('userToken');
-      const esEdicion = !!editId;
 
-      const url = esEdicion
-        ? `${API_URL}/categoria-certamens/${editId}`
-        : `${API_URL}/categoria-certamens`;
-
-      const method = esEdicion ? 'PUT' : 'POST';
+      const esEdicion = Boolean(editId);
 
       const payload = {
         Id_Certamen: idCertamenSel,
         Nombre: nombre.trim(),
       };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
+      // Registrar o actualizar mediante services/api.ts
+      const respuesta = esEdicion
+        ? await actualizarCategCertamen(Number(editId), payload)
+        : await crearCategCertamenes(payload);
 
-      const data = await res.json();
+      // Las funciones actuales de api.ts devuelven el JSON.
+      // Si Laravel devuelve errores de validación en el JSON,
+      // mostrar el mensaje correspondiente.
+      if (
+        respuesta &&
+        typeof respuesta === 'object' &&
+        (respuesta.errors || respuesta.message === 'Unauthenticated.')
+      ) {
+        const mensaje = respuesta.errors
+          ? Object.values(respuesta.errors).flat().join('\n')
+          : respuesta.message;
 
-      if (!res.ok) {
-        const errorMsg =
-          data.message ||
-          (data.errors
-            ? Object.values(data.errors).flat().join('\n')
-            : 'Error al procesar la solicitud');
-        throw new Error(errorMsg);
+        throw new Error(String(mensaje));
       }
 
       Alert.alert(
         '¡Éxito!',
-        `La categoría "${nombre.trim()}" ha sido ${esEdicion ? 'actualizada' : 'registrada'} correctamente.`,
+        `La categoría "${nombre.trim()}" ha sido ${
+          esEdicion ? 'actualizada' : 'registrada'
+        } correctamente.`,
         [
           {
             text: 'OK',
@@ -155,7 +179,10 @@ export default function CategoriasFormScreen() {
         ]
       );
     } catch (e: any) {
-      Alert.alert('Error al guardar', e.message);
+      Alert.alert(
+        'Error al guardar',
+        e.message || 'No se pudo guardar la categoría'
+      );
     } finally {
       setGuardando(false);
     }
@@ -176,7 +203,7 @@ export default function CategoriasFormScreen() {
       </Text>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Certamen Asociado *</Text>
+        <Text style={styles.label}>Certamen Asociado</Text>
 
         {certamenes.length === 0 ? (
           <View style={styles.emptyBox}>
@@ -186,22 +213,45 @@ export default function CategoriasFormScreen() {
           </View>
         ) : (
           <View style={styles.certamenList}>
-            {certamenes.map((cert) => {
-              const idCert = Number(cert.Id_certamen || cert.idCertamen || cert.id);
-              const nombreCert = cert.Nombre || cert.nombre || `Certamen #${idCert}`;
+            {certamenes.map((cert: any) => {
+              const idCert = Number(
+                cert.Id_certamen ??
+                cert.idCertamen ??
+                cert.id
+              );
+
+              const nombreCert =
+                cert.Nombre ||
+                cert.nombre ||
+                `Certamen #${idCert}`;
+
               const isSelected = idCertamenSel === idCert;
 
               return (
                 <TouchableOpacity
                   key={idCert}
-                  style={[styles.certItem, isSelected ? styles.certItemActive : null]}
+                  style={[
+                    styles.certItem,
+                    isSelected ? styles.certItemActive : null,
+                  ]}
                   onPress={() => setIdCertamenSel(idCert)}
                 >
                   <View style={styles.certRow}>
-                    <Text style={[styles.certIcon, isSelected ? styles.certIconActive : null]}>
+                    <Text
+                      style={[
+                        styles.certIcon,
+                        isSelected ? styles.certIconActive : null,
+                      ]}
+                    >
                       {isSelected ? '🔘' : '⚪'}
                     </Text>
-                    <Text style={[styles.certText, isSelected ? styles.certTextActive : null]}>
+
+                    <Text
+                      style={[
+                        styles.certText,
+                        isSelected ? styles.certTextActive : null,
+                      ]}
+                    >
                       {nombreCert}
                     </Text>
                   </View>
@@ -211,10 +261,11 @@ export default function CategoriasFormScreen() {
           </View>
         )}
 
-        <Text style={styles.label}>Nombre de la Categoría *</Text>
+        <Text style={styles.label}>Nombre de la Categoría</Text>
+
         <TextInput
           style={styles.input}
-          placeholder="ej. Agroindustria, Salud y Biotecnología..."
+          placeholder="Ej. Agroindustria, Salud y Biotecnología..."
           value={nombre}
           onChangeText={setNombre}
         />
@@ -222,10 +273,20 @@ export default function CategoriasFormScreen() {
         <TouchableOpacity
           style={[
             styles.btnSave,
-            (guardando || !idCertamenSel || certamenes.length === 0) ? styles.btnDisabled : null,
+            (
+              guardando ||
+              !idCertamenSel ||
+              certamenes.length === 0
+            )
+              ? styles.btnDisabled
+              : null,
           ]}
           onPress={handleGuardar}
-          disabled={guardando || !idCertamenSel || certamenes.length === 0}
+          disabled={
+            guardando ||
+            !idCertamenSel ||
+            certamenes.length === 0
+          }
         >
           {guardando ? (
             <ActivityIndicator color="#fff" />
@@ -241,12 +302,39 @@ export default function CategoriasFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f7fa', padding: 15 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#002b45', marginBottom: 15 },
-  card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, elevation: 2 },
-  label: { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 8, marginTop: 12 },
-  certamenList: { gap: 8, marginBottom: 12 },
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f7fa',
+    padding: 15,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#002b45',
+    marginBottom: 15,
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#555',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  certamenList: {
+    gap: 8,
+    marginBottom: 12,
+  },
   certItem: {
     padding: 12,
     borderRadius: 8,
@@ -258,13 +346,37 @@ const styles = StyleSheet.create({
     borderColor: '#002b45',
     backgroundColor: '#e6f0f7',
   },
-  certRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  certIcon: { fontSize: 14 },
-  certIconActive: { color: '#002b45' },
-  certText: { fontSize: 14, color: '#334155', flex: 1 },
-  certTextActive: { fontWeight: 'bold', color: '#002b45' },
-  emptyBox: { padding: 12, backgroundColor: '#fef2f2', borderRadius: 8, marginBottom: 10 },
-  warningText: { fontSize: 12, color: '#dc2626', textAlign: 'center' },
+  certRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  certIcon: {
+    fontSize: 14,
+  },
+  certIconActive: {
+    color: '#002b45',
+  },
+  certText: {
+    fontSize: 14,
+    color: '#334155',
+    flex: 1,
+  },
+  certTextActive: {
+    fontWeight: 'bold',
+    color: '#002b45',
+  },
+  emptyBox: {
+    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#dc2626',
+    textAlign: 'center',
+  },
   input: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -281,6 +393,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 25,
   },
-  btnDisabled: { backgroundColor: '#94a3b8' },
-  btnSaveText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  btnDisabled: {
+    backgroundColor: '#94a3b8',
+  },
+  btnSaveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

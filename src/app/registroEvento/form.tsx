@@ -1,21 +1,24 @@
+
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
-const API_URL = 'http://192.168.1.83:8000/api';
+import {
+    actualizarCertamen,
+    crearCertamen,
+} from '../../services/api';
 
 export default function CertamenFormScreen() {
   const router = useRouter();
@@ -23,9 +26,20 @@ export default function CertamenFormScreen() {
 
   const editId = params.id ? String(params.id) : null;
 
-  const [nombre, setNombre] = useState(params.nombre ? String(params.nombre) : '');
-  const [fecha, setFecha] = useState<Date>(new Date());
-  const [fechaTexto, setFechaTexto] = useState(params.fecha ? String(params.fecha) : '');
+  const [nombre, setNombre] = useState(
+    params.nombre ? String(params.nombre) : ''
+  );
+  const [fecha, setFecha] = useState<Date>(() => {
+    const valor = params.fecha ? String(params.fecha) : '';
+    const fechaInicial = valor ? new Date(`${valor}T12:00:00`) : new Date();
+
+    return Number.isNaN(fechaInicial.getTime())
+      ? new Date()
+      : fechaInicial;
+  });
+  const [fechaTexto, setFechaTexto] = useState(
+    params.fecha ? String(params.fecha) : ''
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [estado, setEstado] = useState<'Activo' | 'Inactivo'>(
     params.estado === 'Inactivo' ? 'Inactivo' : 'Activo'
@@ -34,7 +48,14 @@ export default function CertamenFormScreen() {
 
   useEffect(() => {
     if (params.fecha) {
-      setFechaTexto(String(params.fecha));
+      const valor = String(params.fecha);
+      setFechaTexto(valor);
+
+      const fechaInicial = new Date(`${valor}T12:00:00`);
+
+      if (!Number.isNaN(fechaInicial.getTime())) {
+        setFecha(fechaInicial);
+      }
     }
   }, [params.fecha]);
 
@@ -42,6 +63,7 @@ export default function CertamenFormScreen() {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
+
     return `${year}-${month}-${day}`;
   };
 
@@ -58,14 +80,8 @@ export default function CertamenFormScreen() {
 
     try {
       setGuardando(true);
-      const token = await AsyncStorage.getItem('userToken');
+
       const esEdicion = !!editId;
-
-      const url = esEdicion
-        ? `${API_URL}/certamens/${editId}`
-        : `${API_URL}/certamens`;
-
-      const method = esEdicion ? 'PUT' : 'POST';
 
       const payload = {
         Nombre: nombre.trim(),
@@ -75,46 +91,17 @@ export default function CertamenFormScreen() {
         Estatus: estado,
       };
 
-      let res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      // Fallback si la ruta singular responde 404
-      if (!res.ok && res.status === 404) {
-        const urlAlt = esEdicion
-          ? `${API_URL}/certamenes/${editId}`
-          : `${API_URL}/certamenes`;
-        res = await fetch(urlAlt, {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify(payload),
-        });
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errorMsg =
-          data.message ||
-          (data.errors
-            ? Object.values(data.errors).flat().join('\n')
-            : 'Error al procesar la solicitud');
-        throw new Error(errorMsg);
+      if (esEdicion) {
+        await actualizarCertamen(Number(editId), payload);
+      } else {
+        await crearCertamen(payload);
       }
 
       Alert.alert(
         '¡Éxito!',
-        `El certamen ha sido ${esEdicion ? 'actualizado' : 'guardado'} correctamente en la base de datos.`,
+        `El certamen ha sido ${
+          esEdicion ? 'actualizado' : 'guardado'
+        } correctamente en la base de datos.`,
         [
           {
             text: 'OK',
@@ -127,7 +114,10 @@ export default function CertamenFormScreen() {
         ]
       );
     } catch (e: any) {
-      Alert.alert('Error al guardar', e.message || 'Error de conexión');
+      Alert.alert(
+        'Error al guardar',
+        e?.message || 'Error de conexión'
+      );
     } finally {
       setGuardando(false);
     }
@@ -154,9 +144,18 @@ export default function CertamenFormScreen() {
         style={styles.datePickerButton}
         onPress={() => setShowDatePicker(true)}
       >
-        <Ionicons name="calendar-outline" size={20} color="#002b45" />
-        <Text style={[styles.datePickerText, !fechaTexto ? styles.placeholderText : null]}>
-          {fechaTexto ? fechaTexto : 'Seleccionar fecha en el calendario'}
+        <Ionicons
+          name="calendar-outline"
+          size={20}
+          color="#002b45"
+        />
+        <Text
+          style={[
+            styles.datePickerText,
+            !fechaTexto ? styles.placeholderText : null,
+          ]}
+        >
+          {fechaTexto || 'Seleccionar fecha en el calendario'}
         </Text>
       </TouchableOpacity>
 
@@ -169,6 +168,7 @@ export default function CertamenFormScreen() {
             if (Platform.OS === 'android') {
               setShowDatePicker(false);
             }
+
             if (selectedDate) {
               setFecha(selectedDate);
               setFechaTexto(formatDate(selectedDate));
@@ -188,7 +188,11 @@ export default function CertamenFormScreen() {
           onPress={() => setEstado('Activo')}
         >
           <Ionicons
-            name={estado === 'Activo' ? 'checkmark-circle' : 'ellipse-outline'}
+            name={
+              estado === 'Activo'
+                ? 'checkmark-circle'
+                : 'ellipse-outline'
+            }
             size={20}
             color={estado === 'Activo' ? '#155724' : '#666'}
           />
@@ -205,12 +209,18 @@ export default function CertamenFormScreen() {
         <TouchableOpacity
           style={[
             styles.statusOption,
-            estado === 'Inactivo' ? styles.statusSelectedInactive : null,
+            estado === 'Inactivo'
+              ? styles.statusSelectedInactive
+              : null,
           ]}
           onPress={() => setEstado('Inactivo')}
         >
           <Ionicons
-            name={estado === 'Inactivo' ? 'checkmark-circle' : 'ellipse-outline'}
+            name={
+              estado === 'Inactivo'
+                ? 'checkmark-circle'
+                : 'ellipse-outline'
+            }
             size={20}
             color={estado === 'Inactivo' ? '#721c24' : '#666'}
           />
@@ -226,7 +236,10 @@ export default function CertamenFormScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.btnSave, guardando ? styles.btnDisabled : null]}
+        style={[
+          styles.btnSave,
+          guardando ? styles.btnDisabled : null,
+        ]}
         onPress={handleGuardar}
         disabled={guardando}
       >
@@ -246,10 +259,32 @@ export default function CertamenFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f7fa', padding: 15 },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#002b45', marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '600', color: '#333', marginTop: 12, marginBottom: 6 },
-  input: { backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: '#ccc' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f7fa',
+    padding: 15,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#002b45',
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
   datePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -261,9 +296,18 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     gap: 10,
   },
-  datePickerText: { fontSize: 14, color: '#333' },
-  placeholderText: { color: '#888' },
-  statusRow: { flexDirection: 'row', gap: 12, marginTop: 5 },
+  datePickerText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  placeholderText: {
+    color: '#888',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 5,
+  },
   statusOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -275,11 +319,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#eee',
   },
-  statusSelectedActive: { borderColor: '#28a745', backgroundColor: '#d4edda' },
-  statusSelectedInactive: { borderColor: '#dc3545', backgroundColor: '#f8d7da' },
-  statusOptionText: { fontSize: 14, fontWeight: '600', color: '#333' },
-  statusTextActive: { color: '#155724' },
-  statusTextInactive: { color: '#721c24' },
+  statusSelectedActive: {
+    borderColor: '#28a745',
+    backgroundColor: '#d4edda',
+  },
+  statusSelectedInactive: {
+    borderColor: '#dc3545',
+    backgroundColor: '#f8d7da',
+  },
+  statusOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  statusTextActive: {
+    color: '#155724',
+  },
+  statusTextInactive: {
+    color: '#721c24',
+  },
   btnSave: {
     flexDirection: 'row',
     backgroundColor: '#002b45',
@@ -291,6 +349,12 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     gap: 8,
   },
-  btnDisabled: { backgroundColor: '#6c757d' },
-  btnSaveText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  btnDisabled: {
+    backgroundColor: '#6c757d',
+  },
+  btnSaveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });
