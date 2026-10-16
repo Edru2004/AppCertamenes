@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// 192.168.1.91 
-const API = 'http://192.168.1.83:8000/api';
+const API = 'http://192.168.1.202:8000/api';
 
 // Función auxiliar para construir headers con Token de Sanctum
 const getAuthHeaders = async () => {
@@ -279,6 +278,8 @@ export const actualizarCategCertamen = async (id: number, data: any) => {
   return await res.json();
 }
 
+// RUBRICAS
+
 export const getRubricas = async (idCategoria: number) => {
   const headers = await getAuthHeaders();
 
@@ -342,5 +343,52 @@ export const eliminarRubrica = async (id: number) => {
     throw new Error('Error al eliminar la rúbrica');
   }
 
+  return res;
+};
+
+// JURADOS
+export const getJurados = async () => {
+  const headers = await getAuthHeaders(); // Envía el Token de Sanctum
+  const res = await fetch(`${API}/jurados`, { headers });
+  if (!res.ok) {
+    throw new Error(`Error ${res.status}: No se pudieron obtener los jurados`);
+  }
+  return await res.json();
+};
+
+export const crearJurado = async (data: any) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/jurados`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(data)
+  });
+  const responseData = await res.json();
+  if (!res.ok) {
+    throw new Error(responseData.message || JSON.stringify(responseData));
+  }
+  return responseData;
+};
+
+export const actualizarJurado = async (id: number, data: any) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/jurados/${id}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(data)
+  });
+  const responseData = await res.json();
+  if (!res.ok) {
+    throw new Error(responseData.message || JSON.stringify(responseData));
+  }
+  return responseData;
+};
+
+export const eliminarJurado = async (id: number) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API}/jurados/${id}`, {
+    method: "DELETE",
+    headers
+  });
   return res;
 };

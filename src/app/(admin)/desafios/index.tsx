@@ -3,20 +3,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import {
-  eliminarDesafio,
-  getDesafios,
-} from '../../services/api';
+    eliminarDesafio,
+    getDesafios,
+} from '../../../services/api';
 
 export default function DesafiosIndexScreen() {
   const router = useRouter();

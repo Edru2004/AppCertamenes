@@ -1,4 +1,4 @@
-
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -16,14 +16,16 @@ import {
 } from 'react-native';
 
 import { loginUsuario } from '../services/api';
+
 export default function LoginScreen() {
   const router = useRouter();
 
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
-  const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
+  // Normaliza el texto del rol para comparar fácilmente
   const normalizarRol = (rol: unknown): string =>
     String(rol ?? '')
       .normalize('NFD')
@@ -33,12 +35,9 @@ export default function LoginScreen() {
       .replace(/[_-]+/g, ' ')
       .replace(/\s+/g, ' ');
 
-  const iniciarSesion = async () => {
+  const handleLogin = async () => {
     if (!correo.trim() || !contrasena) {
-      Alert.alert(
-        'Campos incompletos',
-        'Ingresa tu correo y contraseña para continuar.'
-      );
+      Alert.alert('Atención', 'Por favor ingresa correo y contraseña.');
       return;
     }
 
@@ -47,63 +46,82 @@ export default function LoginScreen() {
     setCargando(true);
 
     try {
-      // La conexión se realiza desde services/api.ts.
-      const datos = await loginUsuario(
-        correo.trim(),
-        contrasena
-      );
+      const datos = await loginUsuario(correo.trim(), contrasena);
 
       if (!datos.access_token || !datos.user) {
-        throw new Error(
-          'La respuesta de la API no contiene el token o los datos del usuario.'
-        );
+        throw new Error('La respuesta de la API no contiene el token o los datos del usuario.');
       }
 
       const usuario = datos.user;
-      const rol = normalizarRol(usuario.Rol);
 
+      // =========================================================
+      // 🔍 AQUÍ ESTÁ EL CONSOLE.LOG PARA DIAGNOSTICAR TU BACKEND
+      // Revisa la terminal de Expo al hacer login para ver el valor real
+      // =========================================================
+      console.log('--- DATOS DEL USUARIO RECIBIDOS DESDE LARAVEL ---');
+      console.log('Objeto Usuario completo:', usuario);
+      console.log('Valor de usuario.Rol:', usuario.Rol);
+      console.log('Valor de usuario.rol:', usuario.rol);
+      console.log('Valor de usuario.id_rol:', usuario.id_rol);
+
+      // Leemos el rol independientemente de cómo venga escrito en la BD
+      const valorRol = usuario.Rol ?? usuario.rol ?? usuario.id_rol ?? '';
+      const rol = normalizarRol(valorRol);
+
+      console.log('Rol Normalizado resultante:', rol);
+
+      // Flexibilizamos la detección de Administrador
       const esAdministrador =
-        rol === 'admin' || rol === 'administrador';
+        rol === 'admin' ||
+        rol === 'administrador' ||
+        rol === 'administrador de sistema' ||
+        rol === 'administrador general' ||
+        valorRol === 1 ||
+        valorRol === '1';
 
       const esLider =
         rol === 'lider' ||
         rol === 'lider de equipo' ||
         rol === 'lider de equipos' ||
-        rol === 'jefe de equipo';
+        rol === 'jefe de equipo' ||
+        valorRol === 2 ||
+        valorRol === '2';
 
+      console.log('¿Es Administrador?:', esAdministrador);
+      console.log('¿Es Líder?:', esLider);
+
+      // Verificación de acceso
       if (!esAdministrador && !esLider) {
         Alert.alert(
           'Rol no reconocido',
-          `El rol "${usuario.Rol ?? 'sin rol'}" no tiene un panel configurado.`
+          `El rol "${valorRol || 'sin rol'}" no tiene un panel configurado.`
         );
         return;
       }
 
-      // Guardar los datos de sesión.
+      // Guardar datos en AsyncStorage
       await AsyncStorage.multiSet([
         ['userToken', String(datos.access_token)],
         ['userData', JSON.stringify(usuario)],
         ['userRole', rol],
       ]);
 
-      // Redirigir según el rol.
-      if (esAdministrador) {
-        router.replace('/');
-      } else {
-        router.replace('/liderDashboard' as any);
-      }
-    } catch (error) {
-      const mensaje =
-        error instanceof Error
-          ? error.message
-          : 'No fue posible iniciar sesión. Intenta nuevamente.';
-
       Alert.alert(
-        'Error al iniciar sesión',
-        mensaje.includes('Network request failed')
-          ? 'No se pudo conectar con el servidor. Verifica que la IP configurada sea correcta, que tu dispositivo esté en la misma red Wi-Fi que tu laptop y que Laravel esté funcionando.'
-          : mensaje
+        '¡Bienvenido!',
+        `Hola, ${usuario.Nombre || usuario.Usuario || usuario.name || 'Usuario'}`
       );
+
+      // Redirección limpia a las carpetas raíz de cada grupo
+      if (esAdministrador) {
+        console.log('Redirigiendo a pantalla de Administrador (/(admin))');
+        router.replace('/(admin)' as any); 
+      } else if (esLider) {
+        console.log('Redirigiendo a pantalla de Líder (/(lider))');
+        router.replace('/(lider)' as any);
+      }
+    } catch (error: any) {
+      const mensaje = error?.message || 'No se pudo conectar al servidor';
+      Alert.alert('Error al iniciar sesión', mensaje);
     } finally {
       setCargando(false);
     }
@@ -111,108 +129,89 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.contenedor}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.contenido}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.encabezado}>
-          <View style={styles.logo}>
-            <Text style={styles.logoTexto}>CT</Text>
+      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+        {/* Cabecera / Identidad */}
+        <View style={styles.headerSection}>
+          <View style={styles.logoCircle}>
+            <Ionicons name="trophy" size={42} color="#002b45" />
           </View>
-
-          <Text style={styles.titulo}>CertamenesTec</Text>
-
-          <Text style={styles.subtitulo}>
-            Instituto Tecnologico de San Martin texmelucan Puebla
-          </Text>
+          <Text style={styles.title}>AppCertámenes</Text>
+          <Text style={styles.subtitle}>Instituto Tecnológico Superior de San Martín Texmelucan</Text>
         </View>
 
-        <View style={styles.tarjeta}>
-          <Text style={styles.tituloFormulario}>
-            Iniciar sesión
-          </Text>
+        {/* Tarjeta del Formulario */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Iniciar Sesión</Text>
+          <Text style={styles.cardSubtitle}>Ingresa tus credenciales para acceder al sistema</Text>
 
-          <Text style={styles.descripcion}>
-            Ingresa tus datos para acceder a tu cuenta.
-          </Text>
-
-          <Text style={styles.etiqueta}>
-            Correo electrónico
-          </Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Ingresa tu correo"
-            placeholderTextColor="#999"
-            value={correo}
-            onChangeText={setCorreo}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!cargando}
-            returnKeyType="next"
-          />
-
-          <Text style={styles.etiqueta}>
-            Contraseña
-          </Text>
-
-          <View style={styles.contenedorContrasena}>
+          {/* Campo Correo Electrónico */}
+          <Text style={styles.label}>Correo Electrónico</Text>
+          <View style={styles.inputContainer}>
+            <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
-              style={styles.inputContrasena}
-              placeholder="Ingresa tu contraseña"
+              placeholder="ejemplo@itssmt.edu.mx"
+              value={correo}
+              onChangeText={setCorreo}
+              autoCapitalize="none"
+              keyboardType="email-address"
               placeholderTextColor="#999"
+              editable={!cargando}
+              style={styles.input}
+              returnKeyType="next"
+            />
+          </View>
+
+          {/* Campo Contraseña */}
+          <Text style={styles.label}>Contraseña</Text>
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+            <TextInput
+              placeholder="••••••••"
               value={contrasena}
               onChangeText={setContrasena}
               secureTextEntry={!mostrarContrasena}
-              autoCapitalize="none"
-              autoCorrect={false}
+              placeholderTextColor="#999"
               editable={!cargando}
+              style={styles.input}
               returnKeyType="done"
-              onSubmitEditing={iniciarSesion}
+              onSubmitEditing={handleLogin}
             />
-
-            <TouchableOpacity
-              onPress={() =>
-                setMostrarContrasena(!mostrarContrasena)
-              }
+            <TouchableOpacity 
+              onPress={() => setMostrarContrasena(!mostrarContrasena)}
               disabled={cargando}
-              style={styles.botonMostrar}
             >
-              <Text style={styles.textoMostrar}>
-                {mostrarContrasena ? 'Ocultar' : 'Ver'}
-              </Text>
+              <Ionicons
+                name={mostrarContrasena ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color="#666"
+              />
             </TouchableOpacity>
           </View>
 
+          {/* Botón de Iniciar Sesión */}
           <TouchableOpacity
-            style={[
-              styles.botonIngresar,
-              cargando && styles.botonDeshabilitado,
-            ]}
-            onPress={iniciarSesion}
+            style={[styles.btnLogin, cargando && styles.btnDisabled]}
+            onPress={handleLogin}
             disabled={cargando}
             activeOpacity={0.8}
           >
             {cargando ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.textoBoton}>
-                Ingresar
-              </Text>
+              <>
+                <Text style={styles.btnLoginText}>Iniciar Sesión</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </>
             )}
           </TouchableOpacity>
-
-          <Text style={styles.textoAyuda}>
-            Si tienes problemas para ingresar, contacta al administrador.
-          </Text>
         </View>
 
-        <Text style={styles.pie}>
-          CertamenesTec · Gestión académica
+        {/* Pie de página */}
+        <Text style={styles.footerText}>
+          Comité Organizador de Certámenes • ITSSMT
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -220,137 +219,114 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  contenedor: {
+  container: {
     flex: 1,
     backgroundColor: '#002b45',
   },
-  contenido: {
+  scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 35,
+    padding: 20,
   },
-  encabezado: {
+  headerSection: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 25,
   },
-  logo: {
-    width: 76,
-    height: 76,
-    borderRadius: 22,
-    backgroundColor: '#6C993E',
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
-  },
-  logoTexto: {
-    color: '#000000',
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  titulo: {
-    fontSize: 27,
-    fontWeight: 'bold',
-    color: '#eff3f0',
-    textAlign: 'center',
-  },
-  subtitulo: {
-    fontSize: 14,
-    color: '#edf6ef',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 21,
-  },
-  tarjeta: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 24,
-    elevation: 3,
-    shadowColor: '#000000',
+    marginBottom: 12,
+    elevation: 4,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  tituloFormulario: {
-    fontSize: 23,
+  title: {
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#263629',
+    color: '#fff',
+    letterSpacing: 0.5,
   },
-  descripcion: {
-    fontSize: 14,
-    color: '#737B74',
-    marginTop: 8,
-    marginBottom: 25,
-    lineHeight: 20,
+  subtitle: {
+    fontSize: 12,
+    color: '#a0b2c6',
+    textAlign: 'center',
+    marginTop: 4,
   },
-  etiqueta: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#354438',
-    marginBottom: 8,
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 22,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#DCE2DA',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: '#263629',
-    backgroundColor: '#FFFFFF',
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#002b45',
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: '#666',
     marginBottom: 20,
+    marginTop: 2,
   },
-  contenedorContrasena: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#DCE2DA',
-    borderRadius: 10,
-    marginBottom: 25,
-    paddingRight: 12,
-  },
-  inputContrasena: {
-    flex: 1,
-    height: 50,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: '#263629',
-  },
-  botonMostrar: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  textoMostrar: {
-    color: '#6C993E',
+  label: {
     fontSize: 13,
     fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
   },
-  botonIngresar: {
-    height: 52,
-    backgroundColor: '#6C993E',
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f7fa',
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    paddingHorizontal: 12,
+    height: 46,
+    marginBottom: 16,
+  },
+  inputIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    color: '#333',
+    fontSize: 14,
+  },
+  btnLogin: {
+    flexDirection: 'row',
+    backgroundColor: '#9eb23b',
+    borderRadius: 10,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 10,
+    gap: 8,
+    elevation: 2,
   },
-  botonDeshabilitado: {
-    opacity: 0.7,
+  btnDisabled: {
+    backgroundColor: '#b5c469',
   },
-  textoBoton: {
-    color: '#FFFFFF',
+  btnLoginText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  textoAyuda: {
-    marginTop: 20,
-    fontSize: 12,
-    color: '#7A817B',
+  footerText: {
     textAlign: 'center',
-    lineHeight: 18,
-  },
-  pie: {
-    textAlign: 'center',
+    color: '#7a92a8',
+    fontSize: 11,
     marginTop: 25,
-    fontSize: 12,
-    color: '#7A817B',
   },
 });

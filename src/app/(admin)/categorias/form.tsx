@@ -17,7 +17,7 @@ import {
     crearCategCertamenes,
     getCategCertamenes,
     getCertamenes,
-} from '../../services/api';
+} from '../../../services/api';
 
 export default function CategoriasFormScreen() {
   const router = useRouter();

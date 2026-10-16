@@ -2,42 +2,55 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import {
-  actualizarSala,
-  crearSala,
-} from '../../services/api';
+    actualizarRubrica,
+    crearRubrica,
+} from '../../../services/api';
 
-export default function SalasFormScreen() {
+export default function RubricaFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
   const editId = params.id ? String(params.id) : null;
+  const idCategoria_r = params.idCategoria_r
+    ? Number(params.idCategoria_r)
+    : null;
 
-  const [nombre, setNombre] = useState<string>(
-    params.nombre ? String(params.nombre) : ''
+  const [pregunta, setPregunta] = useState<string>(
+    params.pregunta ? String(params.pregunta) : ''
   );
-  const [ubicacion, setUbicacion] = useState<string>(
-    params.ubicacion ? String(params.ubicacion) : ''
+  const [valorMaximo, setValorMaximo] = useState<string>(
+    params.valor_maximo ? String(params.valor_maximo) : '10'
   );
   const [guardando, setGuardando] = useState(false);
 
   const handleGuardar = async () => {
-    if (!nombre.trim()) {
-      Alert.alert('Atención', 'Por favor ingresa el nombre de la sala.');
+    if (!idCategoria_r) {
+      Alert.alert('Error', 'No se ha seleccionado ninguna categoría.');
       return;
     }
 
-    if (!ubicacion.trim()) {
-      Alert.alert('Atención', 'Por favor ingresa la ubicación.');
+    if (!pregunta.trim()) {
+      Alert.alert(
+        'Atención',
+        'Por favor ingresa la pregunta o criterio de evaluación.'
+      );
+      return;
+    }
+
+    const valor = Number(valorMaximo);
+
+    if (!valorMaximo.trim() || !Number.isFinite(valor) || valor <= 0) {
+      Alert.alert('Atención', 'Ingresa un valor máximo mayor a 0.');
       return;
     }
 
@@ -47,27 +60,27 @@ export default function SalasFormScreen() {
       const esEdicion = !!editId;
 
       const payload = {
-        Nombre: nombre.trim(),
-        Ubicacion: ubicacion.trim(),
+        Id_categoriaRubrica: idCategoria_r,
+        pregunta: pregunta.trim(),
+        valor_maximo: valor,
       };
 
       if (esEdicion) {
-        await actualizarSala(Number(editId), payload);
+        await actualizarRubrica(Number(editId), payload);
       } else {
-        await crearSala(payload);
+        await crearRubrica(payload);
       }
 
       Alert.alert(
         '¡Éxito!',
-        `La sala "${nombre.trim()}" ha sido ${
-          esEdicion ? 'actualizada' : 'registrada'
+        `El criterio ha sido ${
+          esEdicion ? 'actualizado' : 'registrado'
         } correctamente.`,
         [
           {
             text: 'OK',
             onPress: () => {
-              setNombre('');
-              setUbicacion('');
+              setPregunta('');
               router.back();
             },
           },
@@ -76,7 +89,7 @@ export default function SalasFormScreen() {
     } catch (e: any) {
       Alert.alert(
         'Error al guardar',
-        e?.message || 'No se pudo guardar la sala.'
+        e?.message || 'No se pudo guardar el criterio.'
       );
     } finally {
       setGuardando(false);
@@ -86,24 +99,29 @@ export default function SalasFormScreen() {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>
-        {editId ? 'Editar Sala' : 'Registro de Sala'}
+        {editId ? 'Editar Criterio' : 'Nuevo Criterio de Rúbrica'}
       </Text>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Nombre de la Sala *</Text>
+        <Text style={styles.label}>
+          Pregunta / Criterio de Evaluación *
+        </Text>
         <TextInput
-          style={styles.input}
-          placeholder="ej. VACIA, IMPACTO SOCIAL, IND ELECTR..."
-          value={nombre}
-          onChangeText={setNombre}
+          style={[styles.input, styles.textArea]}
+          placeholder="ej. 1.1 La solución es innovadora..."
+          value={pregunta}
+          onChangeText={setPregunta}
+          multiline
+          numberOfLines={3}
         />
 
-        <Text style={styles.label}>Ubicación *</Text>
+        <Text style={styles.label}>Valor Máximo (Puntaje) *</Text>
         <TextInput
           style={styles.input}
-          placeholder="ej. EB02, EB10, EB11..."
-          value={ubicacion}
-          onChangeText={setUbicacion}
+          placeholder="ej. 7, 10, 8..."
+          keyboardType="numeric"
+          value={valorMaximo}
+          onChangeText={setValorMaximo}
         />
 
         <TouchableOpacity
@@ -118,7 +136,7 @@ export default function SalasFormScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.btnSaveText}>
-              {editId ? 'Guardar Cambios' : 'Guardar Sala'}
+              {editId ? 'Guardar Cambios' : 'Guardar Criterio'}
             </Text>
           )}
         </TouchableOpacity>
@@ -159,6 +177,11 @@ const styles = StyleSheet.create({
     height: 44,
     borderWidth: 1,
     borderColor: '#ccc',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+    paddingTop: 10,
   },
   btnSave: {
     backgroundColor: '#002b45',

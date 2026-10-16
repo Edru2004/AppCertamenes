@@ -3,58 +3,61 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import {
-  eliminarSala,
-  getSalas,
-} from '../../services/api';
 
-export default function SalasIndexScreen() {
+import {
+    eliminarCategCertamen,
+    getCategCertamenes,
+} from '../../../services/api';
+
+export default function CategoriasIndexScreen() {
   const router = useRouter();
 
-  const [salas, setSalas] = useState<any[]>([]);
-  const [busqueda, setBusqueda] = useState('');
+  const [categorias, setCategorias] = useState<any[]>([]);
+  const [busquedaNombre, setBusquedaNombre] = useState('');
   const [cargando, setCargando] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
-      cargarSalas();
+      cargarCategorias();
     }, [])
   );
 
-  const cargarSalas = async (nombre = '') => {
+  const cargarCategorias = async (nombre = '') => {
     try {
       setCargando(true);
 
-      const respuesta = await getSalas();
+      // Consultar categorías desde services/api.ts
+      const respuesta = await getCategCertamenes();
 
-      const lista = Array.isArray(respuesta)
+      const lista: any[] = Array.isArray(respuesta)
         ? respuesta
-        : respuesta?.data || [];
+        : Array.isArray(respuesta?.data)
+          ? respuesta.data
+          : [];
 
-      const termino = nombre.trim().toLowerCase();
-
-      const salasFiltradas = termino
-        ? lista.filter((sala: any) =>
-            String(sala.Nombre || sala.NOMBRE || '')
+      // Filtrar categorías por nombre
+      const filtradas = nombre.trim()
+        ? lista.filter((cat: any) =>
+            String(cat.Nombre || cat.nombre || '')
               .toLowerCase()
-              .includes(termino)
+              .includes(nombre.trim().toLowerCase())
           )
         : lista;
 
-      setSalas(salasFiltradas);
+      setCategorias(filtradas);
     } catch (e: any) {
       Alert.alert(
         'Error',
-        e?.message || 'Error al obtener las salas.'
+        e.message || 'No se pudo conectar con el servidor'
       );
     } finally {
       setCargando(false);
@@ -62,12 +65,21 @@ export default function SalasIndexScreen() {
   };
 
   const handleEliminar = (
-    idSala: number,
-    nombreSala: string
+    idCategory: number,
+    nombreCategory: string,
+    equiposCount: number
   ) => {
+    if (equiposCount > 0) {
+      Alert.alert(
+        'Acción no permitida',
+        `No se puede eliminar la categoría "${nombreCategory}" porque tiene ${equiposCount} equipo(s) inscrito(s).`
+      );
+      return;
+    }
+
     Alert.alert(
-      'Confirmar Eliminación',
-      `¿Deseas eliminar la sala "${nombreSala}"?`,
+      'Confirmar eliminación',
+      `¿Deseas eliminar la categoría "${nombreCategory}"?`,
       [
         {
           text: 'Cancelar',
@@ -78,35 +90,27 @@ export default function SalasIndexScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const res = await eliminarSala(idSala);
-
-              let data: any = {};
-
-              try {
-                data = await res.json();
-              } catch {
-                // La respuesta puede no contener JSON.
-              }
+              // Eliminar mediante services/api.ts
+              const res = await eliminarCategCertamen(idCategory);
 
               if (res.ok) {
                 Alert.alert(
                   '¡Éxito!',
-                  data?.message ||
-                    'Sala eliminada correctamente.'
+                  'Categoría eliminada correctamente.'
                 );
 
-                cargarSalas(busqueda);
+                await cargarCategorias(busquedaNombre);
               } else {
-                Alert.alert(
-                  'No se pudo eliminar',
-                  data?.message ||
-                    'Error al eliminar en la base de datos.'
+                const data = await res.json().catch(() => ({}));
+
+                throw new Error(
+                  data.message || 'Error al eliminar la categoría'
                 );
               }
             } catch (e: any) {
               Alert.alert(
                 'Error al eliminar',
-                e?.message || 'Error de conexión.'
+                e.message || 'No se pudo eliminar la categoría'
               );
             }
           },
@@ -119,16 +123,14 @@ export default function SalasIndexScreen() {
     <View style={styles.container}>
       <TouchableOpacity
         style={styles.btnNuevo}
-        onPress={() =>
-          router.push('/registroSalas/form' as any)
-        }
+        onPress={() => router.push('/categorias/form' as any)}
       >
         <Ionicons
           name="add-circle-outline"
           size={20}
           color="#fff"
         />
-        <Text style={styles.btnNuevoText}>Nueva Sala</Text>
+        <Text style={styles.btnNuevoText}>Nueva Categoría</Text>
       </TouchableOpacity>
 
       <View style={styles.filterCard}>
@@ -138,17 +140,18 @@ export default function SalasIndexScreen() {
             size={18}
             color="#666"
           />
+
           <TextInput
             style={styles.input}
-            placeholder="Buscar por nombre de sala..."
-            value={busqueda}
-            onChangeText={setBusqueda}
+            placeholder="Buscar por nombre..."
+            value={busquedaNombre}
+            onChangeText={setBusquedaNombre}
           />
         </View>
 
         <TouchableOpacity
           style={styles.btnBuscar}
-          onPress={() => cargarSalas(busqueda)}
+          onPress={() => cargarCategorias(busquedaNombre)}
         >
           <Ionicons
             name="filter"
@@ -168,58 +171,64 @@ export default function SalasIndexScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
-          {salas.length === 0 ? (
+          {categorias.length === 0 ? (
             <Text style={styles.emptyText}>
-              No hay salas registradas en la base de datos.
+              No hay categorías registradas en la base de datos.
             </Text>
           ) : (
-            salas.map((sala: any) => {
+            categorias.map((cat: any) => {
               const id =
-                sala.id ?? sala.ID ?? sala.Id_sala;
+                cat.Id_categCertamen ??
+                cat.idCategoria_certa ??
+                cat.id;
 
-              const nombre =
-                sala.Nombre || sala.NOMBRE || 'Sin Nombre';
+              const nombreCat = cat.Nombre || cat.nombre || 'Sin nombre';
 
-              const ubicacion =
-                sala.Ubicacion ||
-                sala['UBICACIÓN'] ||
-                sala.ubicacion ||
-                'Sin Ubicación';
+              const certamenId =
+                cat.Id_Certamen ??
+                cat.Id_certamen ??
+                cat.idCertamen;
+
+              const certamenNombre =
+                cat.certamen?.Nombre ||
+                cat.certamen?.nombre ||
+                `Certamen #${certamenId ?? ''}`;
+
+              const equiposCount = Number(cat.equipos_count || 0);
 
               return (
                 <View key={id} style={styles.card}>
                   <View style={styles.cardHeader}>
-                    <View style={styles.infoCol}>
-                      <Text style={styles.cardTitle}>
-                        {nombre}
-                      </Text>
-                      <Text style={styles.cardBadge}>
-                        SALA-00{id}
-                      </Text>
-                    </View>
+                    <Text style={styles.cardTitle}>
+                      {nombreCat}
+                    </Text>
+
+                    <Text style={styles.cardBadge}>
+                      CAT-{String(id).padStart(3, '0')}
+                    </Text>
                   </View>
 
                   <Text style={styles.subtext}>
-                    Ubicación:{' '}
+                    Certamen: {certamenNombre}
+                  </Text>
+
+                  <Text style={styles.teamsText}>
+                    Equipos inscritos:{' '}
                     <Text style={styles.bold}>
-                      {ubicacion}
+                      {equiposCount}
                     </Text>
                   </Text>
 
                   <View style={styles.actions}>
                     <TouchableOpacity
-                      style={[
-                        styles.btnAction,
-                        styles.btnEdit,
-                      ]}
+                      style={[styles.btnAction, styles.btnEdit]}
                       onPress={() =>
                         router.push({
-                          pathname:
-                            '/registroSalas/form' as any,
+                          pathname: '/categorias/form' as any,
                           params: {
                             id: String(id),
-                            nombre: String(nombre),
-                            ubicacion: String(ubicacion),
+                            idCertamen: String(certamenId ?? ''),
+                            nombre: String(nombreCat),
                           },
                         })
                       }
@@ -235,12 +244,13 @@ export default function SalasIndexScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[
-                        styles.btnAction,
-                        styles.btnDelete,
-                      ]}
+                      style={[styles.btnAction, styles.btnDelete]}
                       onPress={() =>
-                        handleEliminar(Number(id), nombre)
+                        handleEliminar(
+                          Number(id),
+                          String(nombreCat),
+                          equiposCount
+                        )
                       }
                     >
                       <Ionicons
@@ -338,16 +348,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  infoCol: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    flex: 1,
-    alignItems: 'center',
-  },
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#002b45',
+    flex: 1,
+    marginRight: 8,
   },
   cardBadge: {
     fontSize: 12,
@@ -357,6 +363,11 @@ const styles = StyleSheet.create({
   subtext: {
     fontSize: 13,
     color: '#666',
+    marginTop: 4,
+  },
+  teamsText: {
+    fontSize: 13,
+    color: '#333',
     marginTop: 6,
     marginBottom: 12,
   },

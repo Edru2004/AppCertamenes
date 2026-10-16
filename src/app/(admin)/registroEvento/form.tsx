@@ -18,7 +18,7 @@ import {
 import {
     actualizarCertamen,
     crearCertamen,
-} from '../../services/api';
+} from '../../../services/api';
 
 export default function CertamenFormScreen() {
   const router = useRouter();

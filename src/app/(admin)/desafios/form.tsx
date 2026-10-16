@@ -2,22 +2,22 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import {
-  actualizarDesafio,
-  crearDesafio,
-  getCertamenes,
-  getDesafios,
-} from '../../services/api';
+    actualizarDesafio,
+    crearDesafio,
+    getCertamenes,
+    getDesafios,
+} from '../../../services/api';
 
 export default function DesafiosFormScreen() {
   const router = useRouter();

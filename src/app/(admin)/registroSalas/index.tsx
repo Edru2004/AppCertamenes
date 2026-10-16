@@ -12,52 +12,49 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-
 import {
-    eliminarCategCertamen,
-    getCategCertamenes,
-} from '../../services/api';
+    eliminarSala,
+    getSalas,
+} from '../../../services/api';
 
-export default function CategoriasIndexScreen() {
+export default function SalasIndexScreen() {
   const router = useRouter();
 
-  const [categorias, setCategorias] = useState<any[]>([]);
-  const [busquedaNombre, setBusquedaNombre] = useState('');
+  const [salas, setSalas] = useState<any[]>([]);
+  const [busqueda, setBusqueda] = useState('');
   const [cargando, setCargando] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
-      cargarCategorias();
+      cargarSalas();
     }, [])
   );
 
-  const cargarCategorias = async (nombre = '') => {
+  const cargarSalas = async (nombre = '') => {
     try {
       setCargando(true);
 
-      // Consultar categorías desde services/api.ts
-      const respuesta = await getCategCertamenes();
+      const respuesta = await getSalas();
 
-      const lista: any[] = Array.isArray(respuesta)
+      const lista = Array.isArray(respuesta)
         ? respuesta
-        : Array.isArray(respuesta?.data)
-          ? respuesta.data
-          : [];
+        : respuesta?.data || [];
 
-      // Filtrar categorías por nombre
-      const filtradas = nombre.trim()
-        ? lista.filter((cat: any) =>
-            String(cat.Nombre || cat.nombre || '')
+      const termino = nombre.trim().toLowerCase();
+
+      const salasFiltradas = termino
+        ? lista.filter((sala: any) =>
+            String(sala.Nombre || sala.NOMBRE || '')
               .toLowerCase()
-              .includes(nombre.trim().toLowerCase())
+              .includes(termino)
           )
         : lista;
 
-      setCategorias(filtradas);
+      setSalas(salasFiltradas);
     } catch (e: any) {
       Alert.alert(
         'Error',
-        e.message || 'No se pudo conectar con el servidor'
+        e?.message || 'Error al obtener las salas.'
       );
     } finally {
       setCargando(false);
@@ -65,21 +62,12 @@ export default function CategoriasIndexScreen() {
   };
 
   const handleEliminar = (
-    idCategory: number,
-    nombreCategory: string,
-    equiposCount: number
+    idSala: number,
+    nombreSala: string
   ) => {
-    if (equiposCount > 0) {
-      Alert.alert(
-        'Acción no permitida',
-        `No se puede eliminar la categoría "${nombreCategory}" porque tiene ${equiposCount} equipo(s) inscrito(s).`
-      );
-      return;
-    }
-
     Alert.alert(
-      'Confirmar eliminación',
-      `¿Deseas eliminar la categoría "${nombreCategory}"?`,
+      'Confirmar Eliminación',
+      `¿Deseas eliminar la sala "${nombreSala}"?`,
       [
         {
           text: 'Cancelar',
@@ -90,27 +78,35 @@ export default function CategoriasIndexScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Eliminar mediante services/api.ts
-              const res = await eliminarCategCertamen(idCategory);
+              const res = await eliminarSala(idSala);
+
+              let data: any = {};
+
+              try {
+                data = await res.json();
+              } catch {
+                // La respuesta puede no contener JSON.
+              }
 
               if (res.ok) {
                 Alert.alert(
                   '¡Éxito!',
-                  'Categoría eliminada correctamente.'
+                  data?.message ||
+                    'Sala eliminada correctamente.'
                 );
 
-                await cargarCategorias(busquedaNombre);
+                cargarSalas(busqueda);
               } else {
-                const data = await res.json().catch(() => ({}));
-
-                throw new Error(
-                  data.message || 'Error al eliminar la categoría'
+                Alert.alert(
+                  'No se pudo eliminar',
+                  data?.message ||
+                    'Error al eliminar en la base de datos.'
                 );
               }
             } catch (e: any) {
               Alert.alert(
                 'Error al eliminar',
-                e.message || 'No se pudo eliminar la categoría'
+                e?.message || 'Error de conexión.'
               );
             }
           },
@@ -123,14 +119,16 @@ export default function CategoriasIndexScreen() {
     <View style={styles.container}>
       <TouchableOpacity
         style={styles.btnNuevo}
-        onPress={() => router.push('/categorias/form' as any)}
+        onPress={() =>
+          router.push('/registroSalas/form' as any)
+        }
       >
         <Ionicons
           name="add-circle-outline"
           size={20}
           color="#fff"
         />
-        <Text style={styles.btnNuevoText}>Nueva Categoría</Text>
+        <Text style={styles.btnNuevoText}>Nueva Sala</Text>
       </TouchableOpacity>
 
       <View style={styles.filterCard}>
@@ -140,18 +138,17 @@ export default function CategoriasIndexScreen() {
             size={18}
             color="#666"
           />
-
           <TextInput
             style={styles.input}
-            placeholder="Buscar por nombre..."
-            value={busquedaNombre}
-            onChangeText={setBusquedaNombre}
+            placeholder="Buscar por nombre de sala..."
+            value={busqueda}
+            onChangeText={setBusqueda}
           />
         </View>
 
         <TouchableOpacity
           style={styles.btnBuscar}
-          onPress={() => cargarCategorias(busquedaNombre)}
+          onPress={() => cargarSalas(busqueda)}
         >
           <Ionicons
             name="filter"
@@ -171,64 +168,58 @@ export default function CategoriasIndexScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
-          {categorias.length === 0 ? (
+          {salas.length === 0 ? (
             <Text style={styles.emptyText}>
-              No hay categorías registradas en la base de datos.
+              No hay salas registradas en la base de datos.
             </Text>
           ) : (
-            categorias.map((cat: any) => {
+            salas.map((sala: any) => {
               const id =
-                cat.Id_categCertamen ??
-                cat.idCategoria_certa ??
-                cat.id;
+                sala.id ?? sala.ID ?? sala.Id_sala;
 
-              const nombreCat = cat.Nombre || cat.nombre || 'Sin nombre';
+              const nombre =
+                sala.Nombre || sala.NOMBRE || 'Sin Nombre';
 
-              const certamenId =
-                cat.Id_Certamen ??
-                cat.Id_certamen ??
-                cat.idCertamen;
-
-              const certamenNombre =
-                cat.certamen?.Nombre ||
-                cat.certamen?.nombre ||
-                `Certamen #${certamenId ?? ''}`;
-
-              const equiposCount = Number(cat.equipos_count || 0);
+              const ubicacion =
+                sala.Ubicacion ||
+                sala['UBICACIÓN'] ||
+                sala.ubicacion ||
+                'Sin Ubicación';
 
               return (
                 <View key={id} style={styles.card}>
                   <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>
-                      {nombreCat}
-                    </Text>
-
-                    <Text style={styles.cardBadge}>
-                      CAT-{String(id).padStart(3, '0')}
-                    </Text>
+                    <View style={styles.infoCol}>
+                      <Text style={styles.cardTitle}>
+                        {nombre}
+                      </Text>
+                      <Text style={styles.cardBadge}>
+                        SALA-00{id}
+                      </Text>
+                    </View>
                   </View>
 
                   <Text style={styles.subtext}>
-                    Certamen: {certamenNombre}
-                  </Text>
-
-                  <Text style={styles.teamsText}>
-                    Equipos inscritos:{' '}
+                    Ubicación:{' '}
                     <Text style={styles.bold}>
-                      {equiposCount}
+                      {ubicacion}
                     </Text>
                   </Text>
 
                   <View style={styles.actions}>
                     <TouchableOpacity
-                      style={[styles.btnAction, styles.btnEdit]}
+                      style={[
+                        styles.btnAction,
+                        styles.btnEdit,
+                      ]}
                       onPress={() =>
                         router.push({
-                          pathname: '/categorias/form' as any,
+                          pathname:
+                            '/registroSalas/form' as any,
                           params: {
                             id: String(id),
-                            idCertamen: String(certamenId ?? ''),
-                            nombre: String(nombreCat),
+                            nombre: String(nombre),
+                            ubicacion: String(ubicacion),
                           },
                         })
                       }
@@ -244,13 +235,12 @@ export default function CategoriasIndexScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.btnAction, styles.btnDelete]}
+                      style={[
+                        styles.btnAction,
+                        styles.btnDelete,
+                      ]}
                       onPress={() =>
-                        handleEliminar(
-                          Number(id),
-                          String(nombreCat),
-                          equiposCount
-                        )
+                        handleEliminar(Number(id), nombre)
                       }
                     >
                       <Ionicons
@@ -348,12 +338,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  infoCol: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flex: 1,
+    alignItems: 'center',
+  },
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#002b45',
-    flex: 1,
-    marginRight: 8,
   },
   cardBadge: {
     fontSize: 12,
@@ -363,11 +357,6 @@ const styles = StyleSheet.create({
   subtext: {
     fontSize: 13,
     color: '#666',
-    marginTop: 4,
-  },
-  teamsText: {
-    fontSize: 13,
-    color: '#333',
     marginTop: 6,
     marginBottom: 12,
   },

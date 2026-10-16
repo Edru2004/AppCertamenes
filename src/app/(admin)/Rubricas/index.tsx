@@ -3,19 +3,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import {
-  getCategCertamenes,
-  getRubricas,
-  eliminarRubrica,
-} from '../../services/api';
+    eliminarRubrica,
+    getCategCertamenes,
+    getRubricas,
+} from '../../../services/api';
 
 export default function RubricasIndexScreen() {
   const router = useRouter();
