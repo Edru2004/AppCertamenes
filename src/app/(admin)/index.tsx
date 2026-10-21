@@ -1,24 +1,110 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+
+// Ajusta esta ruta a la ubicación real de tu archivo api.ts.
+// Ejemplo: '../../services/api' o '../services/api'.
+import {
+  getCategCertamenes,
+  getDesafios,
+  getEquipos,
+  getSalas,
+} from '../../services/api';
+
+type Cantidades = {
+  categorias: number;
+  desafios: number;
+  salas: number;
+  equipos: number;
+};
+
+type TarjetaResumen = {
+  titulo: string;
+  cantidad: number;
+  detalle: string;
+  icono: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+  fondoIcono: string;
+};
+
+/**
+ * Acepta respuestas comunes de Laravel:
+ * - [...]
+ * - { data: [...] } (paginación o recurso)
+ * - { categorias: [...] }, { desafios: [...] }, etc.
+ *
+ * Si tu API devuelve una estructura distinta, ajusta esta función
+ * para que apunte a la propiedad que contiene el arreglo.
+ */
+const contarRegistros = (respuesta: any): number => {
+  if (Array.isArray(respuesta)) return respuesta.length;
+
+  if (respuesta && typeof respuesta === 'object') {
+    if (Array.isArray(respuesta.data)) return respuesta.data.length;
+    if (Array.isArray(respuesta.registros)) return respuesta.registros.length;
+    if (Array.isArray(respuesta.categorias)) return respuesta.categorias.length;
+    if (Array.isArray(respuesta.desafios)) return respuesta.desafios.length;
+    if (Array.isArray(respuesta.salas)) return respuesta.salas.length;
+    if (Array.isArray(respuesta.equipos)) return respuesta.equipos.length;
+  }
+
+  return 0;
+};
 
 export default function AdminHomeScreen() {
   const router = useRouter();
   const [cargando, setCargando] = useState(true);
+  const [actualizando, setActualizando] = useState(false);
   const [usuario, setUsuario] = useState<any>(null);
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(0);
+  const [cantidades, setCantidades] = useState<Cantidades>({
+    categorias: 0,
+    desafios: 0,
+    salas: 0,
+    equipos: 0,
+  });
 
-  const categorias = ['TODAS', 'SISTEMAS', 'IA', 'ELECTRO', 'SALUD', 'TURISMO'];
+  const categoriasFiltro = ['TODAS', 'SISTEMAS', 'IA', 'ELECTRO', 'SALUD', 'TURISMO'];
+
+  const cargarCantidades = useCallback(async () => {
+    setActualizando(true);
+    try {
+      // Estas funciones usan la URL y el token de Sanctum configurados en api.ts.
+      const [respuestaCategorias, respuestaDesafios, respuestaSalas, respuestaEquipos] =
+        await Promise.all([
+          getCategCertamenes(),
+          getDesafios(),
+          getSalas(),
+          getEquipos(),
+        ]);
+
+      setCantidades({
+        categorias: contarRegistros(respuestaCategorias),
+        desafios: contarRegistros(respuestaDesafios),
+        salas: contarRegistros(respuestaSalas),
+        equipos: contarRegistros(respuestaEquipos),
+      });
+    } catch (error) {
+      console.error('Error al cargar las cantidades del panel:', error);
+      Alert.alert(
+        'No se pudieron cargar los registros',
+        'Verifica la conexión con la API y que el usuario tenga permisos para consultar categorías, desafíos, salas y equipos.'
+      );
+    } finally {
+      setActualizando(false);
+      setCargando(false);
+    }
+  }, []);
 
   useEffect(() => {
     const verificarSesion = async () => {
@@ -28,28 +114,28 @@ export default function AdminHomeScreen() {
 
         if (!token) {
           router.replace('/login');
-        } else {
-          if (userData) {
-            setUsuario(JSON.parse(userData));
-          }
-          setCargando(false);
+          return;
         }
+
+        if (userData) setUsuario(JSON.parse(userData));
+        await cargarCantidades();
       } catch (error) {
+        console.error('Error al verificar la sesión:', error);
         router.replace('/login');
       }
     };
 
     verificarSesion();
-  }, []);
+  }, [cargarCantidades, router]);
 
   const handleCerrarSesion = () => {
     Alert.alert(
-      'Cerrar Sesión',
+      'Cerrar sesión',
       '¿Estás seguro de que deseas salir del sistema?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Cerrar Sesión',
+          text: 'Cerrar sesión',
           style: 'destructive',
           onPress: async () => {
             await AsyncStorage.removeItem('userToken');
@@ -61,114 +147,140 @@ export default function AdminHomeScreen() {
     );
   };
 
+  const tarjetas: TarjetaResumen[] = [
+    {
+      titulo: 'CATEGORÍAS',
+      cantidad: cantidades.categorias,
+      detalle: 'Registradas en el sistema',
+      icono: 'shapes-outline',
+      color: '#2563eb',
+      fondoIcono: '#eff6ff',
+    },
+    {
+      titulo: 'DESAFÍOS',
+      cantidad: cantidades.desafios,
+      detalle: 'Desafíos registrados',
+      icono: 'flame-outline',
+      color: '#d97706',
+      fondoIcono: '#fffbeb',
+    },
+    {
+      titulo: 'SALAS',
+      cantidad: cantidades.salas,
+      detalle: 'Salas registradas',
+      icono: 'business-outline',
+      color: '#0284c7',
+      fondoIcono: '#f0f9ff',
+    },
+    {
+      titulo: 'EQUIPOS',
+      cantidad: cantidades.equipos,
+      detalle: 'Equipos registrados',
+      icono: 'people-outline',
+      color: '#059669',
+      fondoIcono: '#ecfdf5',
+    },
+  ];
+
   if (cargando) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#002b45" />
-        <Text style={styles.loadingText}>Verificando sesión...</Text>
+        <Text style={styles.loadingText}>Cargando panel de administración...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Cabecera / Saludo al Usuario */}
       <View style={styles.topHeader}>
-        <View>
+        <View style={styles.headerText}>
           <Text style={styles.welcomeTitle}>
-            ¡Hola, {usuario?.Nombre || usuario?.Nom || 'Usuario'}! 👋
+            ¡Hola, {usuario?.Nombre || usuario?.Nom || 'Usuario'}! 
           </Text>
           <Text style={styles.welcomeSubtitle}>
-            {usuario?.Rol ? `Rol: ${usuario.Rol}` : 'Panel de Control ITSSMT'}
+            {usuario?.Rol ? ` ${usuario.Rol}` : 'Panel de Control ITSSMT'}
           </Text>
         </View>
-        <TouchableOpacity style={styles.btnLogout} onPress={handleCerrarSesion}>
+
+        <TouchableOpacity
+          style={styles.btnLogout}
+          onPress={handleCerrarSesion}
+          accessibilityLabel="Cerrar sesión"
+        >
           <Ionicons name="log-out-outline" size={22} color="#ff4d4d" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Tarjeta de Resumen / Total de Categorías */}
-        <View style={styles.cardTotal}>
-          <View style={styles.cardTotalHeader}>
-            <Ionicons name="trophy-outline" size={28} color="#002b45" />
-            <Text style={styles.cardTitle}>Categorías Registradas</Text>
-          </View>
-          <Text style={styles.cardNumber}>11</Text>
-          <Text style={styles.cardFooter}>Certamen InnovaTecNM 2026</Text>
-        </View>
-
-        {/* Módulos de Acceso Rápido */}
-        <Text style={styles.sectionTitle}>Módulos Principales</Text>
-        <View style={styles.gridContainer}>
-          <TouchableOpacity style={styles.gridCard} activeOpacity={0.8}>
-            <View style={[styles.iconBox, { backgroundColor: '#e8f0fe' }]}>
-              <Ionicons name="shapes-outline" size={24} color="#002b45" />
-            </View>
-            <Text style={styles.gridTitle}>Categorías</Text>
-            <Text style={styles.gridSubtitle}>Gestión y registro</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.gridCard} activeOpacity={0.8}>
-            <View style={[styles.iconBox, { backgroundColor: '#f3f8e0' }]}>
-              <Ionicons name="flame-outline" size={24} color="#9eb23b" />
-            </View>
-            <Text style={styles.gridTitle}>Desafíos</Text>
-            <Text style={styles.gridSubtitle}>Retos activos</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.gridCard} activeOpacity={0.8}>
-            <View style={[styles.iconBox, { backgroundColor: '#eaf4ff' }]}>
-              <Ionicons name="business-outline" size={24} color="#0284c7" />
-            </View>
-            <Text style={styles.gridTitle}>Salas</Text>
-            <Text style={styles.gridSubtitle}>Asignación de espacio</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.gridCard} activeOpacity={0.8}>
-            <View style={[styles.iconBox, { backgroundColor: '#fef3c7' }]}>
-              <Ionicons name="people-outline" size={24} color="#d97706" />
-            </View>
-            <Text style={styles.gridTitle}>Equipos</Text>
-            <Text style={styles.gridSubtitle}>Evaluación y notas</Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Resumen de registros</Text>
+          <TouchableOpacity
+            onPress={cargarCantidades}
+            disabled={actualizando}
+            style={styles.refreshButton}
+            accessibilityLabel="Actualizar cantidades"
+          >
+            {actualizando ? (
+              <ActivityIndicator size="small" color="#002b45" />
+            ) : (
+              <Ionicons name="refresh-outline" size={19} color="#002b45" />
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Filtro de Categorías */}
-        <Text style={styles.sectionTitle}>Explorar Categorías</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsContainer}>
-          {categorias.map((cat, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.tag, categoriaSeleccionada === index && styles.activeTag]}
-              onPress={() => setCategoriaSeleccionada(index)}
-            >
-              <Text
+        <View style={styles.statsGrid}>
+          {tarjetas.map((tarjeta) => (
+            <View key={tarjeta.titulo} style={styles.statCard}>
+              <View style={styles.statTextContainer}>
+                <Text style={styles.statTitle}>{tarjeta.titulo}</Text>
+                <Text style={styles.statNumber}>{tarjeta.cantidad}</Text>
+                <View style={styles.statFooter}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={13}
+                    color={tarjeta.color}
+                  />
+                  <Text style={[styles.statDetail, { color: tarjeta.color }]}>
+                    {tarjeta.detalle}
+                  </Text>
+                </View>
+              </View>
+
+              <View
                 style={[
-                  styles.tagText,
-                  categoriaSeleccionada === index && styles.activeTagText,
+                  styles.statIconBox,
+                  { backgroundColor: tarjeta.fondoIcono },
                 ]}
               >
-                {cat}
-              </Text>
-            </TouchableOpacity>
+                <Ionicons
+                  name={tarjeta.icono}
+                  size={25}
+                  color={tarjeta.color}
+                />
+              </View>
+            </View>
           ))}
-        </ScrollView>
+        </View>
+
       </ScrollView>
 
-      {/* Barra de Navegación Inferior */}
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.bottomTab}>
           <Ionicons name="home" size={22} color="#002b45" />
-          <Text style={[styles.tabText, { color: '#002b45', fontWeight: 'bold' }]}>Inicio</Text>
+          <Text style={[styles.tabText, styles.activeTabText]}>Inicio</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.bottomTab}>
-          <Ionicons name="layers-outline" size={22} color="#666" />
-          <Text style={styles.tabText}>Categorías</Text>
-        </TouchableOpacity>
+     
 
-        <TouchableOpacity style={styles.bottomTab}>
+        <TouchableOpacity
+          style={styles.bottomTab}
+          onPress={() => router.push('')}
+        >
           <Ionicons name="person-outline" size={22} color="#666" />
           <Text style={styles.tabText}>Perfil</Text>
         </TouchableOpacity>
@@ -199,8 +311,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingBottom: 18,
     backgroundColor: '#002b45',
+  },
+  headerText: {
+    flex: 1,
+    paddingRight: 12,
   },
   welcomeTitle: {
     fontSize: 20,
@@ -210,7 +326,7 @@ const styles = StyleSheet.create({
   welcomeSubtitle: {
     fontSize: 12,
     color: '#a0b2c6',
-    marginTop: 2,
+    marginTop: 3,
   },
   btnLogout: {
     padding: 8,
@@ -218,45 +334,86 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 90,
+    padding: 16,
+    paddingBottom: 100,
   },
-  cardTotal: {
-    backgroundColor: '#A4B74D',
-    borderRadius: 16,
-    padding: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  cardTotalHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  cardTitle: {
-    fontSize: 16,
-    color: '#002b45',
-    fontWeight: '600',
-  },
-  cardNumber: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#002b45',
-    marginVertical: 4,
-  },
-  cardFooter: {
-    fontSize: 12,
-    color: '#334155',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: 'bold',
     color: '#002b45',
-    marginTop: 22,
+    marginTop: 18,
     marginBottom: 12,
+  },
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e8eef5',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 14,
+  },
+  statCard: {
+    width: '48.5%',
+    minHeight: 132,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#dce5ef',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  statTextContainer: {
+    flex: 1,
+    paddingRight: 5,
+  },
+  statTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.45,
+    color: '#8190a5',
+  },
+  statNumber: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    color: '#002b45',
+    marginTop: 5,
+    marginBottom: 4,
+  },
+  statFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statDetail: {
+    fontSize: 9,
+    flexShrink: 1,
+  },
+  statIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gridContainer: {
     flexDirection: 'row',
@@ -267,12 +424,14 @@ const styles = StyleSheet.create({
   gridCard: {
     width: '48%',
     backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     borderRadius: 14,
     padding: 16,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 3,
   },
   iconBox: {
@@ -335,5 +494,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#666',
     marginTop: 2,
+  },
+  activeTabText: {
+    color: '#002b45',
+    fontWeight: 'bold',
   },
 });

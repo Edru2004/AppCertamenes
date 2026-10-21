@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API = 'http://192.168.1.202:8000/api';
+const API = 'http://192.168.1.97:8000/api';
 
 // Función auxiliar para construir headers con Token de Sanctum
 const getAuthHeaders = async () => {
