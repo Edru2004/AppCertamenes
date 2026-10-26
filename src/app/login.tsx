@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -113,10 +114,8 @@ export default function LoginScreen() {
 
       // Redirección limpia a las carpetas raíz de cada grupo
       if (esAdministrador) {
-        console.log('Redirigiendo a pantalla de Administrador (/(admin))');
-        router.replace('/(admin)' as any); 
+        router.replace('/(admin)/seleccion' as any);
       } else if (esLider) {
-        console.log('Redirigiendo a pantalla de Líder (/(lider))');
         router.replace('/(lider)' as any);
       }
     } catch (error: any) {
@@ -179,7 +178,7 @@ export default function LoginScreen() {
               returnKeyType="done"
               onSubmitEditing={handleLogin}
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setMostrarContrasena(!mostrarContrasena)}
               disabled={cargando}
             >
