@@ -11,13 +11,7 @@ export default function RubricasLayout() {
         headerTitleStyle: { fontWeight: 'bold' },
       },
     },
-    createElement(Stack.Screen, {
-      name: 'index',
-      options: { title: 'Gestión de Rúbricas' },
-    }),
-    createElement(Stack.Screen, {
-      name: 'form',
-      options: { title: 'Criterio de Rúbrica' },
-    }),
+  
+    
   );
 }

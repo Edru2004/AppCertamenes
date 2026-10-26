@@ -250,7 +250,12 @@ export default function CategoriasIndexScreen() {
 
   return (
     <View style={styles.page}>
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.pageScroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <View style={styles.headerIcon}>
             <Ionicons name="pricetags-outline" size={25} color="#fff" />
@@ -356,7 +361,7 @@ export default function CategoriasIndexScreen() {
             <Text style={styles.loadingText}>Cargando categorías...</Text>
           </View>
         ) : (
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.scroll}>
             {categoriasFiltradas.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="file-tray-outline" size={42} color="#94a3b8" />
@@ -456,9 +461,9 @@ export default function CategoriasIndexScreen() {
                 );
               })
             )}
-          </ScrollView>
+          </View>
         )}
-      </View>
+      </ScrollView>
 
       {/* Confirmación visual antes de eliminar */}
       <Modal
@@ -550,7 +555,8 @@ export default function CategoriasIndexScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#f1f5f9' },
-  container: { flex: 1, paddingHorizontal: 15, paddingTop: 12, maxWidth: 850, width: '100%', alignSelf: 'center' },
+  pageScroll: { flex: 1, width: '100%' },
+  container: { flexGrow: 1, paddingHorizontal: 15, paddingTop: 12, paddingBottom: 30, maxWidth: 850, width: '100%', alignSelf: 'center' },
   header: { alignItems: 'center', paddingBottom: 15 },
   headerIcon: { width: 55, height: 55, borderRadius: 18, backgroundColor: '#002b45', alignItems: 'center', justifyContent: 'center', marginBottom: 9 },
   title: { fontSize: 23, fontWeight: '800', color: '#002b45', textAlign: 'center' },

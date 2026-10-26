@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -210,7 +209,7 @@ export default function LoginScreen() {
 
         {/* Pie de página */}
         <Text style={styles.footerText}>
-          Comité Organizador de Certámenes • ITSSMT
+          @ACAM-DRBP 2027 ITSSMT
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
