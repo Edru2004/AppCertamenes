@@ -313,7 +313,7 @@ export default function CategoriasFormScreen() {
           >
             <Ionicons name="save-outline" size={20} color="#fff" />
             <Text style={styles.saveButtonText}>
-              {editId ? 'Revisar y guardar cambios' : 'Revisar y guardar categoría'}
+              {editId ? 'guardar cambios' : 'guardar categoría'}
             </Text>
           </TouchableOpacity>
 

@@ -203,9 +203,20 @@ export default function CertamenesIndexScreen() {
               return (
                 <View key={String(id)} style={styles.card}>
                   <View style={styles.cardHeader}>
-                    <Text style={styles.cardBadge}>CERT-{id}</Text>
-                    <View style={[styles.statusBadge, isActivo ? styles.bgActive : styles.bgInactive]}>
-                      <Text style={[styles.statusBadgeText, isActivo ? styles.txtActive : styles.txtInactive]}>
+                    <View style={{ flex: 1 }} />
+
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        isActivo ? styles.bgActive : styles.bgInactive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          isActivo ? styles.txtActive : styles.txtInactive,
+                        ]}
+                      >
                         {estado}
                       </Text>
                     </View>
