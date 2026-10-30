@@ -50,13 +50,20 @@ type TarjetaResumen = {
 const contarRegistros = (respuesta: any): number => {
   if (Array.isArray(respuesta)) return respuesta.length;
 
-  if (respuesta && typeof respuesta === 'object') {
-    if (Array.isArray(respuesta.data)) return respuesta.data.length;
-    if (Array.isArray(respuesta.registros)) return respuesta.registros.length;
-    if (Array.isArray(respuesta.categorias)) return respuesta.categorias.length;
-    if (Array.isArray(respuesta.desafios)) return respuesta.desafios.length;
-    if (Array.isArray(respuesta.salas)) return respuesta.salas.length;
-    if (Array.isArray(respuesta.equipos)) return respuesta.equipos.length;
+  if (!respuesta || typeof respuesta !== 'object') return 0;
+
+  const posiblesListas = [
+    respuesta.data,
+    respuesta.data?.data,
+    respuesta.registros,
+    respuesta.categorias,
+    respuesta.desafios,
+    respuesta.salas,
+    respuesta.equipos,
+  ];
+
+  for (const lista of posiblesListas) {
+    if (Array.isArray(lista)) return lista.length;
   }
 
   return 0;
@@ -77,35 +84,95 @@ export default function AdminHomeScreen() {
 
   const categoriasFiltro = ['TODAS', 'SISTEMAS', 'IA', 'ELECTRO', 'SALUD', 'TURISMO'];
 
-  const cargarCantidades = useCallback(async () => {
-    setActualizando(true);
-    try {
-      // Estas funciones usan la URL y el token de Sanctum configurados en api.ts.
-      const [respuestaCategorias, respuestaDesafios, respuestaSalas, respuestaEquipos] =
-        await Promise.all([
-          getCategCertamenes(),
-          getDesafios(),
-          getSalas(),
-          getEquipos(),
-        ]);
+const cargarCantidades = useCallback(async () => {
+  setActualizando(true);
 
-      setCantidades({
-        categorias: contarRegistros(respuestaCategorias),
-        desafios: contarRegistros(respuestaDesafios),
-        salas: contarRegistros(respuestaSalas),
-        equipos: contarRegistros(respuestaEquipos),
-      });
-    } catch (error) {
-      console.error('Error al cargar las cantidades del panel:', error);
+  try {
+    const consultas = [
+      {
+        nombre: 'Categorías',
+        peticion: getCategCertamenes(),
+      },
+      {
+        nombre: 'Desafíos',
+        peticion: getDesafios(),
+      },
+      {
+        nombre: 'Salas',
+        peticion: getSalas(),
+      },
+      {
+        nombre: 'Equipos',
+        peticion: getEquipos(),
+      },
+    ];
+
+    const resultados = await Promise.allSettled(
+      consultas.map((consulta) => consulta.peticion)
+    );
+
+    const nuevasCantidades: Cantidades = {
+      categorias: 0,
+      desafios: 0,
+      salas: 0,
+      equipos: 0,
+    };
+
+    const errores: string[] = [];
+
+    const propiedades: (keyof Cantidades)[] = [
+      'categorias',
+      'desafios',
+      'salas',
+      'equipos',
+    ];
+
+    resultados.forEach((resultado, index) => {
+      const propiedad = propiedades[index];
+      const nombre = consultas[index].nombre;
+
+      if (resultado.status === 'fulfilled') {
+        nuevasCantidades[propiedad] = contarRegistros(
+          resultado.value
+        );
+
+        console.log(
+          `${nombre} cargados:`,
+          resultado.value
+        );
+      } else {
+        const mensaje =
+          resultado.reason?.message || 'Error desconocido';
+
+        errores.push(`${nombre}: ${mensaje}`);
+
+        console.error(
+          `Error al consultar ${nombre}:`,
+          resultado.reason
+        );
+      }
+    });
+
+    setCantidades(nuevasCantidades);
+
+    if (errores.length > 0) {
       Alert.alert(
-        'No se pudieron cargar los registros',
-        'Verifica la conexión con la API y que el usuario tenga permisos para consultar categorías, desafíos, salas y equipos.'
+        'Error al cargar algunos registros',
+        errores.join('\n\n')
       );
-    } finally {
-      setActualizando(false);
-      setCargando(false);
     }
-  }, []);
+  } catch (error: any) {
+    console.error('Error general del panel:', error);
+
+    Alert.alert(
+      'Error del panel',
+      error?.message || 'No se pudieron cargar los registros.'
+    );
+  } finally {
+    setActualizando(false);
+    setCargando(false);
+  }
+}, []);
 
   useEffect(() => {
     const verificarSesion = async () => {

@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // El celular y la computadora deben estar en la misma red Wi-Fi.
 
-const API = 'http://10.2.40.106:8000/api';
+const API = 'http://192.168.1.122:8000/api';
 
 type Datos = Record<string, any>;
 
@@ -23,19 +23,19 @@ type Metodo = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
  */
 
 const getAuthHeaders = async (): Promise<Record<string, string>> => {
-
   const token = await AsyncStorage.getItem('userToken');
 
+  if (!token) {
+    throw new Error(
+      'No se encontró el token de sesión. Cierra sesión e inicia nuevamente.'
+    );
+  }
+
   return {
-
     'Content-Type': 'application/json',
-
     Accept: 'application/json',
-
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-
+    Authorization: `Bearer ${token}`,
   };
-
 };
 
 /**
@@ -168,21 +168,18 @@ export const loginUsuario = async (
   const data = await leerRespuesta(res);
 
   if (!data?.access_token) {
+    console.log('Respuesta del login:', data);
 
-    throw new Error('El servidor no devolvió un token de acceso.');
-
+    throw new Error('Laravel no devolvió un token válido.');
   }
 
   await AsyncStorage.setItem('userToken', data.access_token);
 
   if (data.user) {
-
     await AsyncStorage.setItem('userData', JSON.stringify(data.user));
-
   }
 
   return data;
-
 };
 
 export const logoutUsuario = async () => {
