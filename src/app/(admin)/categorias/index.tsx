@@ -512,25 +512,13 @@ export default function CategoriasIndexScreen() {
       >
 
         <View style={styles.header}>
-
           <View style={styles.headerIcon}>
-
             <Ionicons name="pricetags-outline" size={25} color="#fff" />
-
           </View>
-
           <Text style={styles.title}>Gestión de categorías</Text>
-
           <Text style={styles.subtitle}>
-
-            Administra las categorías y consulta a qué certamen pertenecen.
-
           </Text>
-
         </View>
-
-
-
         <View style={styles.certamenFilterCard}>
           <Text style={styles.certamenFilterTitle}>Certamen seleccionado</Text>
           <Text style={styles.certamenFilterSubtitle}>
@@ -546,7 +534,12 @@ export default function CategoriasIndexScreen() {
               disabled={eliminando}
               activeOpacity={0.8}
             >
-              <View style={styles.selectedCertamenIcon}>
+              <View style={[
+                  styles.selectedCertamenIcon,
+                  tipoCertamenActual === 'Rally'
+                    ? styles.selectedCertamenIconRally
+                    : styles.selectedCertamenIconInnovaTec,
+                ]}>
                 <Ionicons
                   name={tipoCertamenActual === 'Rally' ? 'trophy-outline' : 'bulb-outline'}
                   size={25}
@@ -571,15 +564,9 @@ export default function CategoriasIndexScreen() {
           onPress={() => router.push({ pathname: '/categorias/form' as any, params: { idCertamen: String(idCertamenSel ?? '') } })}
           disabled={eliminando || idCertamenSel == null}
         >
-
           <Ionicons name="add-circle-outline" size={20} color="#fff" />
-
           <Text style={styles.newButtonText}>Nueva categoría</Text>
-
         </TouchableOpacity>
-
-
-
         <View style={styles.searchCard}>
 
           <View style={styles.searchInputWrapper}>
@@ -789,9 +776,6 @@ export default function CategoriasIndexScreen() {
                       </View>
 
                     </View>
-
-
-
                     <View style={styles.teamsRow}>
 
                       <Ionicons name="people-outline" size={17} color="#64748b" />
@@ -801,9 +785,6 @@ export default function CategoriasIndexScreen() {
                       <Text style={styles.teamsCount}>{equiposCount}</Text>
 
                     </View>
-
-
-
                     <View style={styles.actions}>
 
                       <TouchableOpacity
@@ -839,9 +820,6 @@ export default function CategoriasIndexScreen() {
                         <Text style={styles.actionButtonText}>Editar</Text>
 
                       </TouchableOpacity>
-
-
-
                       <TouchableOpacity
 
                         style={[styles.actionButton, styles.deleteButton, eliminando && styles.disabledButton]}
@@ -873,9 +851,6 @@ export default function CategoriasIndexScreen() {
         )}
 
       </ScrollView>
-
-
-
       {/* Selector de certamen */}
       <Modal
         visible={modalCertamenVisible}
@@ -943,42 +918,26 @@ export default function CategoriasIndexScreen() {
         </View>
       </Modal>
 
-      {/* Confirmación visual antes de eliminar \*/}
+      {/* Confirmación visual antes de eliminar */}
 
       <Modal
 
         visible={modalEliminarVisible}
-
         transparent
-
         animationType="fade"
-
         onRequestClose={() => setModalEliminarVisible(false)}
-
       >
-
         <View style={styles.modalBackdrop}>
-
           <View style={styles.modalCard}>
-
             <View style={[styles.modalIcon, styles.deleteModalIcon]}>
-
               <Ionicons name="trash-outline" size={29} color="#dc2626" />
-
             </View>
-
             <Text style={styles.modalTitle}>¿Deseas eliminar?</Text>
-
             <Text style={styles.modalMessage}>
-
               ¿Seguro que deseas eliminar la categoría
-
             </Text>
-
             <Text style={styles.modalRecordName}>{categoriaSeleccionada?.nombre}</Text>
-
             <View style={styles.modalSummary}>
-
               <Text style={styles.modalSummaryText}>
 
                 {categoriaSeleccionada?.certamen}
@@ -1035,7 +994,7 @@ export default function CategoriasIndexScreen() {
 
 
 
-      {/* Indicador que bloquea la pantalla mientras el servidor elimina \*/}
+      {/* Indicador que bloquea la pantalla mientras el servidor elimina */}
 
       <Modal visible={eliminando} transparent animationType="fade" onRequestClose={() => {}}>
 
@@ -1057,7 +1016,7 @@ export default function CategoriasIndexScreen() {
 
 
 
-      {/* Mensajes de éxito y error \*/}
+      {/* Mensajes de éxito y error */}
 
       <Modal
 
@@ -1137,7 +1096,9 @@ const styles = StyleSheet.create({
 
   certamenFilterCard: { backgroundColor: '#fff', borderRadius: 13, borderWidth: 1, borderColor: '#e2e8f0', padding: 12, marginBottom: 12 },
   selectedCertamenCard: { minHeight: 92, backgroundColor: '#f8fafc', borderRadius: 13, borderWidth: 1, borderColor: '#cbd5e1', padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  selectedCertamenIcon: { width: 52, height: 52, borderRadius: 14, backgroundColor: '#e0f2fe', alignItems: 'center', justifyContent: 'center' },
+  selectedCertamenIcon: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  selectedCertamenIconRally: { backgroundColor: '#fef3c7' },
+  selectedCertamenIconInnovaTec: { backgroundColor: '#e0f2fe' },
   selectedCertamenInfo: { flex: 1, gap: 3 },
   selectedCertamenName: { color: '#0f172a', fontSize: 16, fontWeight: '800' },
   selectedCertamenType: { color: '#64748b', fontSize: 13, fontWeight: '600' },

@@ -7,8 +7,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 
 import {
-  ActivityIndicator,
 
+  ActivityIndicator,
   Modal,
 
   ScrollView,
@@ -20,9 +20,11 @@ import {
   TouchableOpacity,
 
   View,
+
 } from 'react-native';
 
 import {
+
   eliminarRubrica,
 
   getCategCertamenes,
@@ -30,9 +32,8 @@ import {
   getCertamenes,
 
   getRubricas,
+
 } from '../../../services/api';
-
-
 
 const obtenerLista = (respuesta: any): any[] => {
 
@@ -47,8 +48,6 @@ const obtenerLista = (respuesta: any): any[] => {
   return [];
 
 };
-
-
 
 const idDeCertamen = (item: any) => Number(item?.Id_certamen ?? item?.Id_Certamen ?? item?.idCertamen ?? item?.id_certamen ?? item?.id);
 
@@ -78,8 +77,6 @@ const preguntaDeRubrica = (item: any) => String(item?.Pregunta ?? item?.pregunta
 
 const valorDeRubrica = (item: any) => Number(item?.Valor_Max ?? item?.valor_maximo ?? item?.['valor maximo'] ?? item?.valorMaximo ?? 0);
 
-
-
 export default function RubricasIndexScreen() {
 
   const router = useRouter();
@@ -101,8 +98,7 @@ export default function RubricasIndexScreen() {
   const [cargando, setCargando] = useState(true);
 
   const [cargandoCriterios, setCargandoCriterios] = useState(false);
-
-
+  const [modalCertamenVisible, setModalCertamenVisible] = useState(false);
 
   const [modalEliminarVisible, setModalEliminarVisible] = useState(false);
 
@@ -118,8 +114,6 @@ export default function RubricasIndexScreen() {
 
   const [resultadoExito, setResultadoExito] = useState(false);
 
-
-
   const abrirResultado = (titulo: string, mensaje: string, exito = false) => {
 
     setResultadoTitulo(titulo);
@@ -131,8 +125,6 @@ export default function RubricasIndexScreen() {
     setModalResultado(true);
 
   };
-
-
 
   const cargarCriterios = async (idCategoria: number | null, mostrarCarga = true) => {
 
@@ -174,8 +166,6 @@ export default function RubricasIndexScreen() {
 
   };
 
-
-
   const cargarDatos = useCallback(async () => {
 
     try {
@@ -195,8 +185,6 @@ export default function RubricasIndexScreen() {
       const listaCategoriasBase = obtenerLista(respuestaCategorias);
 
       setCertamenes(listaCertamenes);
-
-
 
       const mapaCertamenes = new Map(listaCertamenes.map((cert: any) => [String(idDeCertamen(cert)), cert]));
 
@@ -224,8 +212,6 @@ export default function RubricasIndexScreen() {
 
       setCategoriasCertamen(listaCategorias);
 
-
-
       const rally = listaCertamenes.find((cert: any) => tipoNormalizado(cert?.Tipo ?? cert?.tipo) === 'RALLY');
 
       const actualCertamen = listaCertamenes.find((cert: any) => idDeCertamen(cert) === Number(idCertamenRef.current));
@@ -245,8 +231,6 @@ export default function RubricasIndexScreen() {
       const categoriaElegida = categoriaActual ?? categoriasDeCertamen[0] ?? null;
 
       const siguienteCategoriaId = categoriaElegida ? idDeCategoriaCertamen(categoriaElegida) : null;
-
-
 
       idCertamenRef.current = siguienteCertamenId != null && Number.isFinite(siguienteCertamenId) ? siguienteCertamenId : null;
 
@@ -276,11 +260,7 @@ export default function RubricasIndexScreen() {
 
   }, []);
 
-
-
   useFocusEffect(useCallback(() => { void cargarDatos(); }, [cargarDatos]));
-
-
 
   const categoriasDelCertamen = categoriasCertamen.filter(
 
@@ -293,8 +273,6 @@ export default function RubricasIndexScreen() {
   const certamenActual = certamenes.find((item: any) => idDeCertamen(item) === Number(idCertamenSel));
 
   const totalPuntos = criterios.reduce((suma: number, item: any) => suma + valorDeRubrica(item), 0);
-
-
 
   const seleccionarCertamen = async (id: number) => {
 
@@ -313,12 +291,11 @@ export default function RubricasIndexScreen() {
     setIdCategoriaSel(siguienteIdCategoria);
 
     setCriterios([]);
+    setModalCertamenVisible(false);
 
     await cargarCriterios(siguienteIdCategoria, true);
 
   };
-
-
 
   const seleccionarCategoriaCertamen = async (id: number) => {
 
@@ -329,8 +306,6 @@ export default function RubricasIndexScreen() {
     await cargarCriterios(id, true);
 
   };
-
-
 
   const abrirConfirmacionEliminar = (item: any) => {
 
@@ -349,8 +324,6 @@ export default function RubricasIndexScreen() {
     setModalEliminarVisible(true);
 
   };
-
-
 
   const confirmarEliminacion = async () => {
 
@@ -384,18 +357,22 @@ export default function RubricasIndexScreen() {
 
   };
 
-
-
   return (
 
     <View style={styles.page}>
 
       <ScrollView
+
         style={styles.pageScroll}
+
         contentContainerStyle={styles.container}
+
         showsVerticalScrollIndicator={false}
+
         keyboardShouldPersistTaps="handled"
+
         nestedScrollEnabled
+
       >
 
         <View style={styles.header}>
@@ -403,14 +380,8 @@ export default function RubricasIndexScreen() {
           <View style={styles.headerIcon}><Ionicons name="clipboard-outline" size={26} color="#fff" /></View>
 
           <Text style={styles.title}>Gestión de rúbricas</Text>
-
-          <Text style={styles.subtitle}>Primero elige Rally o InnovaTecNM. Después verás las categorías registradas en el módulo Categorías para ese certamen y podrás administrar sus criterios.</Text>
-
         </View>
-
-
-
-        <Text style={styles.sectionLabel}>1. Selecciona el certamen:</Text>
+        <Text style={styles.sectionLabel}>Selecciona el certamen:</Text>
 
         {cargando ? (
 
@@ -421,46 +392,129 @@ export default function RubricasIndexScreen() {
           <View style={styles.emptyBox}><Ionicons name="trophy-outline" size={27} color="#64748b" /><Text style={styles.emptyTitle}>No hay certámenes registrados</Text><Text style={styles.emptyText}>Registra un certamen antes de administrar las rúbricas.</Text></View>
 
         ) : (
+          <>
+            <View style={styles.certamenSelectorCard}>
+              <Text style={styles.certamenSelectorTitle}>Certamen seleccionado</Text>
+              <Text style={styles.certamenSelectorDescription}>
+              </Text>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.certamenOptions}>
-
-            {certamenes.map((cert: any) => {
-
-              const id = idDeCertamen(cert);
-
-              const selected = Number(idCertamenSel) === Number(id);
-
-              const tipo = tipoVisible(cert?.Tipo ?? cert?.tipo);
-
-              const esRally = tipo === 'Rally';
-
-              return (
-
-                <TouchableOpacity key={String(id)} style={[styles.certamenOption, selected && styles.certamenOptionSelected]} onPress={() => void seleccionarCertamen(id)} disabled={cargandoCriterios || eliminando}>
-
-                  <Ionicons name={esRally ? 'trophy-outline' : 'bulb-outline'} size={17} color={selected ? '#fff' : esRally ? '#a16207' : '#0369a1'} />
-
-                  <View style={styles.certamenOptionInfo}>
-
-                    <Text style={[styles.certamenOptionName, selected && styles.certamenOptionNameSelected]} numberOfLines={1}>{nombreDeCertamen(cert)}</Text>
-
-                    <Text style={[styles.certamenOptionType, selected && styles.certamenOptionTypeSelected]}>{tipo}</Text>
-
+              {certamenActual ? (
+                <TouchableOpacity
+                  style={styles.certamenSeleccionado}
+                  onPress={() => setModalCertamenVisible(true)}
+                  disabled={cargandoCriterios || eliminando}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.certamenSeleccionadoIcon}>
+                    <Ionicons
+                      name={
+                        tipoVisible(certamenActual?.Tipo ?? certamenActual?.tipo) === 'Rally'
+                          ? 'trophy-outline'
+                          : 'bulb-outline'
+                      }
+                      size={25}
+                      color="#a16207"
+                    />
                   </View>
 
-                  {selected ? <Ionicons name="checkmark-circle" size={17} color="#fff" /> : null}
+                  <View style={styles.certamenSeleccionadoInfo}>
+                    <Text style={styles.certamenSeleccionadoNombre} numberOfLines={2}>
+                      {nombreDeCertamen(certamenActual)}
+                    </Text>
+                    <Text style={styles.certamenSeleccionadoTipo}>
+                      {tipoVisible(certamenActual?.Tipo ?? certamenActual?.tipo)}
+                    </Text>
+                    <Text style={styles.certamenCambiarTexto}>
+                      Toca para cambiar de certamen
+                    </Text>
+                  </View>
 
+                  <Ionicons name="chevron-down-circle" size={27} color="#64748b" />
                 </TouchableOpacity>
+              ) : (
+                <View style={styles.emptyBox}>
+                  <Text style={styles.emptyText}>Selecciona un certamen.</Text>
+                </View>
+              )}
+            </View>
 
-              );
+            <Modal
+              visible={modalCertamenVisible}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setModalCertamenVisible(false)}
+            >
+              <View style={styles.modalBackdrop}>
+                <View style={styles.certamenModalCard}>
+                  <View style={styles.certamenModalHeader}>
+                    <Text style={styles.certamenModalTitle}>Seleccionar certamen</Text>
+                    <TouchableOpacity
+                      onPress={() => setModalCertamenVisible(false)}
+                      style={styles.closeModalButton}
+                    >
+                      <Ionicons name="close" size={27} color="#334155" />
+                    </TouchableOpacity>
+                  </View>
 
-            })}
+                  <ScrollView
+                    style={styles.certamenModalList}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {certamenes.map((cert: any) => {
+                      const id = idDeCertamen(cert);
+                      const selected = Number(idCertamenSel) === Number(id);
+                      const tipo = tipoVisible(cert?.Tipo ?? cert?.tipo);
+                      const esRally = tipo === 'Rally';
 
-          </ScrollView>
+                      return (
+                        <TouchableOpacity
+                          key={String(id)}
+                          style={[
+                            styles.certamenModalOption,
+                            selected && styles.certamenModalOptionSelected,
+                          ]}
+                          onPress={() => void seleccionarCertamen(id)}
+                          disabled={cargandoCriterios || eliminando}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons
+                            name={esRally ? 'trophy-outline' : 'bulb-outline'}
+                            size={23}
+                            color={selected ? '#15803d' : esRally ? '#a16207' : '#0369a1'}
+                          />
 
+                          <View style={styles.certamenModalOptionInfo}>
+                            <Text
+                              style={[
+                                styles.certamenModalOptionName,
+                                selected && styles.certamenModalOptionNameSelected,
+                              ]}
+                            >
+                              {nombreDeCertamen(cert)}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.certamenModalOptionType,
+                                selected && styles.certamenModalOptionTypeSelected,
+                              ]}
+                            >
+                              {tipo}
+                            </Text>
+                          </View>
+
+                          {selected ? (
+                            <Ionicons name="checkmark-circle" size={23} color="#15803d" />
+                          ) : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
+          </>
         )}
-
-
 
         <Text style={styles.sectionLabel}>2. Selecciona una categoría del certamen:</Text>
 
@@ -508,8 +562,6 @@ export default function RubricasIndexScreen() {
 
         )}
 
-
-
         <View style={styles.panelHeader}>
 
           <View style={styles.panelInfo}>
@@ -529,8 +581,6 @@ export default function RubricasIndexScreen() {
           </TouchableOpacity>
 
         </View>
-
-
 
         {cargandoCriterios ? (
 
@@ -602,8 +652,6 @@ export default function RubricasIndexScreen() {
 
       </ScrollView>
 
-
-
       <Modal visible={modalEliminarVisible} transparent animationType="fade" onRequestClose={() => setModalEliminarVisible(false)}>
 
         <View style={styles.modalBackdrop}><View style={styles.modalCard}>
@@ -630,15 +678,11 @@ export default function RubricasIndexScreen() {
 
       </Modal>
 
-
-
       <Modal visible={eliminando} transparent animationType="fade" onRequestClose={() => {}}>
 
         <View style={styles.modalBackdrop}><View style={styles.loadingCard}><ActivityIndicator size="large" color="#002b45" /><Text style={styles.loadingTitle}>Eliminando criterio...</Text><Text style={styles.loadingSubtitle}>Estamos procesando la solicitud. Espera un momento.</Text></View></View>
 
       </Modal>
-
-
 
       <Modal visible={modalResultado} transparent animationType="fade" onRequestClose={() => setModalResultado(false)}>
 
@@ -660,8 +704,6 @@ export default function RubricasIndexScreen() {
 
 }
 
-
-
 const styles = StyleSheet.create({
 
   page: { flex: 1, backgroundColor: '#f1f5f9' },
@@ -679,6 +721,91 @@ const styles = StyleSheet.create({
   subtitle: { color: '#64748b', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 5, maxWidth: 500 },
 
   sectionLabel: { color: '#334155', fontSize: 13, fontWeight: '800', marginBottom: 8, marginTop: 7 },
+  certamenSelectorCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 15,
+    marginBottom: 14,
+  },
+  certamenSelectorTitle: {
+    color: '#0f172a',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 7,
+  },
+  certamenSelectorDescription: {
+    color: '#64748b',
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 13,
+  },
+  certamenSeleccionado: {
+    minHeight: 88,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    gap: 12,
+  },
+  certamenSeleccionadoIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#e0f2fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  certamenSeleccionadoInfo: { flex: 1, minWidth: 0 },
+  certamenSeleccionadoNombre: { color: '#1e293b', fontSize: 15, fontWeight: '800' },
+  certamenSeleccionadoTipo: { color: '#64748b', fontSize: 12, marginTop: 3, fontWeight: '700' },
+  certamenCambiarTexto: { color: '#0369a1', fontSize: 11, marginTop: 5, fontWeight: '700' },
+  certamenModalCard: {
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '78%',
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 18,
+    elevation: 12,
+  },
+  certamenModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    marginBottom: 8,
+  },
+  certamenModalTitle: { color: '#0f172a', fontSize: 20, fontWeight: '800' },
+  closeModalButton: { padding: 4 },
+  certamenModalList: { flexGrow: 0 },
+  certamenModalOption: {
+    minHeight: 76,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    borderRadius: 12,
+  },
+  certamenModalOptionSelected: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#bbf7d0',
+  },
+  certamenModalOptionInfo: { flex: 1, minWidth: 0 },
+  certamenModalOptionName: { color: '#1e293b', fontSize: 15, fontWeight: '800' },
+  certamenModalOptionNameSelected: { color: '#166534' },
+  certamenModalOptionType: { color: '#64748b', fontSize: 12, marginTop: 4 },
+  certamenModalOptionTypeSelected: { color: '#15803d', fontWeight: '700' },
 
   loadingInline: { flexDirection: 'row', gap: 9, alignItems: 'center', paddingVertical: 12 },
 
