@@ -1,25 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-<<<<<<< HEAD
 // IMPORTANTE:
-
 // Usa la IP de la computadora donde está corriendo Laravel.
-
 // El celular y la computadora deben estar en la misma red Wi-Fi.
-
 const API = 'http://192.168.1.126:8000/api';
-
-type Datos = Record<string, any>;
-=======
-const API = 'http://192.168.1.174:8000/api';
->>>>>>> f74fa4b (Actualizacion de jurados, archivo y invitacion)
 
 type Datos = Record<string, any> | FormData;
 type Metodo = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /**
  * Construye los encabezados de cada petición de forma dinámica.
- * Si es FormData, deja que el navegador/react-native defina el boundary.
+ * Si es FormData, deja que el cliente defina el boundary automáticamente.
  */
 const getAuthHeaders = async (esFormData: boolean = false): Promise<Record<string, string>> => {
   const token = await AsyncStorage.getItem('userToken');
@@ -35,7 +26,6 @@ const getAuthHeaders = async (esFormData: boolean = false): Promise<Record<strin
     Authorization: `Bearer ${token}`,
   };
 
-  // Solo asignamos Content-Type si NO es un FormData (para permitir la subida de archivos)
   if (!esFormData) {
     headers['Content-Type'] = 'application/json';
   }
