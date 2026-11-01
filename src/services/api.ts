@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // El celular y la computadora deben estar en la misma red Wi-Fi.
 
-const API = 'http://192.168.1.122:8000/api';
+const API = 'http://192.168.1.126:8000/api';
 
 type Datos = Record<string, any>;
 

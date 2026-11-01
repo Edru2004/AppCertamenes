@@ -1,0 +1,918 @@
+
+import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
+import { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+
+import {
+    actualizarJurado,
+    getCertamenes,
+    getJurados,
+    getSalas,
+} from '../../../services/api';
+
+type Registro = Record<string, any>;
+
+const obtenerLista = (respuesta: any): Registro[] => {
+  if (Array.isArray(respuesta)) return respuesta;
+  if (Array.isArray(respuesta?.data)) return respuesta.data;
+  return [];
+};
+
+const idCertamen = (item: Registro) =>
+  Number(
+    item.Id_certamen ??
+    item.id_certamen ??
+    item.Id_Certamen ??
+    item.certamen?.Id_certamen ??
+    item.certamen?.id_certamen ??
+    item.Certamen?.Id_certamen ??
+    0
+  );
+const tipoCertamen = (item: Registro) =>
+  String(item.Tipo ?? item.Tipo_certamen ?? item.TipoCertamen ?? '')
+    .trim()
+    .toUpperCase();
+
+const idSala = (item: Registro): number | null => {
+  const valor = item.Id_sala ?? item.id_sala;
+  return valor == null ? null : Number(valor);
+};
+
+const nombreCertamen = (item: Registro) =>
+  String(item.Nombre ?? item.nombre ?? 'Certamen sin nombre');
+
+const esRally = (item: Registro) => tipoCertamen(item) === 'RALLY';
+
+export default function AsignacionJuradosScreen() {
+  const [certamenes, setCertamenes] = useState<Registro[]>([]);
+  const [certamenSeleccionado, setCertamenSeleccionado] =
+    useState<number | null>(null);
+
+  const [modalCertamenVisible, setModalCertamenVisible] = useState(false);
+
+  const [jurados, setJurados] = useState<Registro[]>([]);
+  const [salas, setSalas] = useState<Registro[]>([]);
+
+  const [juradoSeleccionado, setJuradoSeleccionado] =
+    useState<number | null>(null);
+  const [salaSeleccionada, setSalaSeleccionada] =
+    useState<number | null>(null);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [cargando, setCargando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+
+  const certamenActual = certamenes.find(
+    item => idCertamen(item) === certamenSeleccionado
+  );
+
+  // Cargar certámenes InnovaTec
+  useEffect(() => {
+    const iniciar = async () => {
+      try {
+        setCargando(true);
+
+        const respuesta = await getCertamenes();
+
+        const disponibles = obtenerLista(respuesta).filter(
+          item => tipoCertamen(item) === 'INNOVATEC'
+        );
+
+        setCertamenes(disponibles);
+
+        if (disponibles.length > 0) {
+          setCertamenSeleccionado(idCertamen(disponibles[0]));
+        }
+      } catch (error: any) {
+        Alert.alert(
+          'Error',
+          error?.message || 'No se pudieron cargar los certámenes.'
+        );
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    iniciar();
+  }, []);
+
+  // Cargar jurados y salas del certamen seleccionado
+  const cargarDatos = async (id: number) => {
+  try {
+    setCargando(true);
+
+    const [respuestaJurados, respuestaSalas] = await Promise.all([
+      getJurados(),
+      getSalas(id),
+    ]);
+
+    const listaJurados = obtenerLista(respuestaJurados);
+    const listaSalas = obtenerLista(respuestaSalas);
+
+    const juradosFiltrados = listaJurados.filter(
+      jurado => idCertamen(jurado) === Number(id)
+    );
+
+    const salasFiltradas = listaSalas.filter(
+      sala => idCertamen(sala) === Number(id)
+    );
+
+    setJurados(juradosFiltrados);
+    setSalas(salasFiltradas);
+
+  } catch (error: any) {
+    Alert.alert(
+      'Error',
+      error?.message || 'No se pudieron cargar los datos.'
+    );
+  } finally {
+    setCargando(false);
+  }
+};
+  useEffect(() => {
+    if (certamenSeleccionado !== null) {
+      setJuradoSeleccionado(null);
+      setSalaSeleccionada(null);
+      cargarDatos(certamenSeleccionado);
+    } else {
+      setJurados([]);
+      setSalas([]);
+    }
+  }, [certamenSeleccionado]);
+
+  // Seleccionar certamen
+  const seleccionarCertamen = (id: number) => {
+    setModalCertamenVisible(false);
+
+    if (id !== certamenSeleccionado) {
+      setCertamenSeleccionado(id);
+    }
+  };
+
+  // Abrir formulario de asignación
+  const abrirAsignacion = () => {
+    if (jurados.length === 0) {
+      Alert.alert(
+        'Aviso',
+        'No hay jurados registrados en este certamen.'
+      );
+      return;
+    }
+
+    if (salas.length === 0) {
+      Alert.alert(
+        'Aviso',
+        'No hay salas registradas en este certamen.'
+      );
+      return;
+    }
+
+    setJuradoSeleccionado(null);
+    setSalaSeleccionada(null);
+    setModalVisible(true);
+  };
+
+  // Guardar asignación
+  const guardarAsignacion = async () => {
+    if (!juradoSeleccionado || !salaSeleccionada) {
+      Alert.alert(
+        'Datos incompletos',
+        'Selecciona un jurado y una sala.'
+      );
+      return;
+    }
+
+    try {
+      setGuardando(true);
+
+      await actualizarJurado(juradoSeleccionado, {
+        Id_sala: salaSeleccionada,
+      });
+
+      setModalVisible(false);
+      setJuradoSeleccionado(null);
+      setSalaSeleccionada(null);
+
+      if (certamenSeleccionado !== null) {
+        await cargarDatos(certamenSeleccionado);
+      }
+
+      Alert.alert(
+        'Correcto',
+        'La sala se asignó al jurado correctamente.'
+      );
+    } catch (error: any) {
+      Alert.alert(
+        'Error',
+        error?.message || 'No se pudo asignar la sala.'
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  // Quitar sala asignada
+  const quitarSala = async (jurado: Registro) => {
+    Alert.alert(
+      'Quitar sala',
+      '¿Deseas quitar la sala asignada a este jurado?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Quitar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setGuardando(true);
+
+              await actualizarJurado(Number(jurado.Id_jurado), {
+                Id_sala: null,
+              });
+
+              if (certamenSeleccionado !== null) {
+                await cargarDatos(certamenSeleccionado);
+              }
+
+              Alert.alert('Correcto', 'Se quitó la sala del jurado.');
+            } catch (error: any) {
+              Alert.alert(
+                'Error',
+                error?.message || 'No se pudo quitar la sala.'
+              );
+            } finally {
+              setGuardando(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const nombreSala = (id: number | null) => {
+    if (!id) return 'Sin sala asignada';
+
+    return (
+      salas.find(sala => Number(sala.Id_sala) === id)?.Nombre ||
+      'Sala no encontrada'
+    );
+  };
+
+  // Selector visual de certámenes
+  const renderSelectorCertamen = () => (
+    <>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={styles.tarjetaCertamen}
+        onPress={() => setModalCertamenVisible(true)}
+        disabled={certamenes.length === 0}
+      >
+        <View style={styles.iconoCertamen}>
+          <Ionicons
+            name={
+              certamenActual && esRally(certamenActual)
+                ? 'trophy-outline'
+                : 'bulb-outline'
+            }
+            size={27}
+            color="#087B9B"
+          />
+        </View>
+
+        <View style={styles.infoCertamen}>
+          <Text style={styles.nombreCertamen} numberOfLines={1}>
+            {certamenActual
+              ? nombreCertamen(certamenActual)
+              : 'Cargando...'}
+          </Text>
+
+          <Text style={styles.tipoCertamen} numberOfLines={1}>
+            {certamenActual
+              ? esRally(certamenActual)
+                ? 'RALLY'
+                : 'INNOVATECNM'
+              : ''}
+          </Text>
+
+          <Text style={styles.indicacionCertamen} numberOfLines={1}>
+            Toca para cambiar de certamen
+          </Text>
+        </View>
+
+        <View style={styles.flechaCertamen}>
+          <Ionicons
+            name="chevron-down"
+            size={21}
+            color="#FFFFFF"
+          />
+        </View>
+      </TouchableOpacity>
+
+      {/* Modal para seleccionar certamen */}
+      <Modal
+        visible={modalCertamenVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalCertamenVisible(false)}
+      >
+        <View style={styles.fondoModalCertamen}>
+          <View style={styles.modalCertamen}>
+            <View style={styles.encabezadoModalCertamen}>
+              <Text style={styles.tituloModalCertamen}>
+                Seleccionar certamen
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => setModalCertamenVisible(false)}
+              >
+                <Ionicons name="close" size={30} color="#263449" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.listaCertamenes}
+            >
+              {certamenes.map(item => {
+                const id = idCertamen(item);
+                const seleccionado = id === certamenSeleccionado;
+                const rally = esRally(item);
+
+                return (
+                  <TouchableOpacity
+                    key={id}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.opcionCertamen,
+                      seleccionado && styles.opcionCertamenActiva,
+                    ]}
+                    onPress={() => seleccionarCertamen(id)}
+                  >
+                    <Ionicons
+                      name={
+                        rally ? 'trophy-outline' : 'bulb-outline'
+                      }
+                      size={32}
+                      color={seleccionado ? '#16834D' : '#087B9B'}
+                    />
+
+                    <View style={styles.infoOpcionCertamen}>
+                      <Text
+                        style={[
+                          styles.nombreOpcionCertamen,
+                          seleccionado && styles.textoOpcionActivo,
+                        ]}
+                      >
+                        {nombreCertamen(item)}
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.tipoOpcionCertamen,
+                          seleccionado && styles.textoOpcionActivo,
+                        ]}
+                      >
+                        {rally ? 'RALLY' : 'INNOVATECNM'}
+                      </Text>
+                    </View>
+
+                    {seleccionado && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={31}
+                        color="#16834D"
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+
+              {certamenes.length === 0 && (
+                <Text style={styles.sinCertamenes}>
+                  No hay certámenes InnovaTec registrados.
+                </Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+
+  return (
+    <View style={styles.contenedor}>
+      <ScrollView
+        contentContainerStyle={styles.contenido}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.titulo}>
+          Asignación de salas a jurados
+        </Text>
+
+        <Text style={styles.descripcion}>
+          Selecciona un jurado registrado y una sala existente.
+        </Text>
+
+        <Text style={styles.etiqueta}>
+          Certamen InnovaTec
+        </Text>
+
+        {renderSelectorCertamen()}
+
+        <TouchableOpacity
+          style={styles.botonPrincipal}
+          onPress={abrirAsignacion}
+          disabled={cargando || certamenSeleccionado === null}
+        >
+          <Ionicons
+            name="link-outline"
+            size={21}
+            color="#FFFFFF"
+          />
+          <Text style={styles.textoBoton}>
+            Asignar sala a jurado
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.encabezado}>
+          <Text style={styles.subtitulo}>
+            Jurados registrados
+          </Text>
+
+          <TouchableOpacity
+            onPress={() =>
+              certamenSeleccionado !== null &&
+              cargarDatos(certamenSeleccionado)
+            }
+            disabled={cargando || certamenSeleccionado === null}
+          >
+            <Ionicons
+              name="refresh"
+              size={25}
+              color="#2563EB"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {cargando ? (
+          <ActivityIndicator size="large" color="#0F766E" />
+        ) : jurados.length === 0 ? (
+          <View style={styles.vacio}>
+            <Ionicons
+              name="people-outline"
+              size={35}
+              color="#64748B"
+            />
+            <Text style={styles.descripcion}>
+              No hay jurados registrados en este certamen.
+            </Text>
+          </View>
+        ) : (
+          jurados.map(jurado => {
+            const salaActual = idSala(jurado);
+
+            return (
+              <View
+                key={jurado.Id_jurado}
+                style={styles.tarjeta}
+              >
+                <Text style={styles.nombre}>
+                  {jurado.Nombre_usuario ||
+                    jurado.Nombre ||
+                    'Jurado'}
+                </Text>
+
+                <Text style={styles.descripcion}>
+                  {jurado.Institucion || 'Sin institución'}
+                </Text>
+
+                <Text style={styles.estado}>
+                  {nombreSala(salaActual)}
+                </Text>
+
+                {salaActual !== null && (
+                  <TouchableOpacity
+                    style={styles.botonQuitar}
+                    onPress={() => quitarSala(jurado)}
+                    disabled={guardando}
+                  >
+                    <Text style={styles.textoBoton}>
+                      Quitar sala
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+
+      {/* Modal de asignación */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.fondoModal}>
+          <View style={styles.modal}>
+            <Text style={styles.tituloModal}>
+              Asignar sala a jurado
+            </Text>
+
+            <Text style={styles.etiqueta}>
+              Seleccionar jurado
+            </Text>
+
+            <View style={styles.selector}>
+              <Picker
+                selectedValue={juradoSeleccionado}
+                onValueChange={value =>
+                  setJuradoSeleccionado(
+                    value == null ? null : Number(value)
+                  )
+                }
+              >
+                <Picker.Item
+                  label="Selecciona un jurado"
+                  value={null}
+                />
+
+                {jurados.map(jurado => (
+                  <Picker.Item
+                    key={jurado.Id_jurado}
+                    label={`${
+                      jurado.Nombre_usuario ||
+                      jurado.Nombre ||
+                      'Jurado'
+                    } - ${jurado.Institucion || ''}`}
+                    value={Number(jurado.Id_jurado)}
+                  />
+                ))}
+              </Picker>
+            </View>
+
+            <Text style={styles.etiqueta}>
+              Seleccionar sala
+            </Text>
+
+            <View style={styles.selector}>
+              <Picker
+                selectedValue={salaSeleccionada}
+                onValueChange={value =>
+                  setSalaSeleccionada(
+                    value == null ? null : Number(value)
+                  )
+                }
+              >
+                <Picker.Item
+                  label="Selecciona una sala"
+                  value={null}
+                />
+
+                {salas.map(sala => (
+                  <Picker.Item
+                    key={sala.Id_sala}
+                    label={`${sala.Nombre} - ${
+                      sala.Ubicacion || 'Sin ubicación'
+                    }`}
+                    value={Number(sala.Id_sala)}
+                  />
+                ))}
+              </Picker>
+            </View>
+
+            <TouchableOpacity
+              style={styles.botonGuardar}
+              onPress={guardarAsignacion}
+              disabled={guardando}
+            >
+              <Text style={styles.textoBoton}>
+                {guardando
+                  ? 'Guardando...'
+                  : 'Guardar asignación'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.botonCancelar}
+              onPress={() => setModalVisible(false)}
+              disabled={guardando}
+            >
+              <Text style={styles.textoCancelar}>
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  contenedor: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+
+  contenido: {
+    padding: 18,
+    paddingBottom: 35,
+  },
+
+  titulo: {
+    fontSize: 23,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+
+  descripcion: {
+    color: '#64748B',
+    marginTop: 7,
+    marginBottom: 15,
+    fontSize: 15,
+  },
+
+  etiqueta: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#263449',
+    marginTop: 15,
+    marginBottom: 12,
+  },
+
+  // SELECTOR COMPACTO DE CERTAMEN
+  tarjetaCertamen: {
+    height: 94,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+
+  iconoCertamen: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
+  },
+
+  infoCertamen: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+
+  nombreCertamen: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111827',
+  },
+
+  tipoCertamen: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+
+  indicacionCertamen: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#087B8B',
+    marginTop: 3,
+  },
+
+  flechaCertamen: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#64748B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 5,
+  },
+
+  // MODAL DE CERTÁMENES
+  fondoModalCertamen: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.52)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 18,
+  },
+
+  modalCertamen: {
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '88%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+
+  encabezadoModalCertamen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+
+  tituloModalCertamen: {
+    fontSize: 23,
+    fontWeight: '800',
+    color: '#111827',
+    flex: 1,
+  },
+
+  listaCertamenes: {
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+
+  opcionCertamen: {
+    minHeight: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    borderRadius: 16,
+  },
+
+  opcionCertamenActiva: {
+    backgroundColor: '#E9FBF2',
+    borderBottomColor: '#B7EACD',
+  },
+
+  infoOpcionCertamen: {
+    flex: 1,
+  },
+
+  nombreOpcionCertamen: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#111827',
+  },
+
+  tipoOpcionCertamen: {
+    fontSize: 16,
+    color: '#64748B',
+    marginTop: 6,
+  },
+
+  textoOpcionActivo: {
+    color: '#16834D',
+  },
+
+  sinCertamenes: {
+    padding: 25,
+    textAlign: 'center',
+    color: '#64748B',
+    fontSize: 16,
+  },
+
+  // BOTONES Y LISTADO
+  botonPrincipal: {
+    backgroundColor: '#7c9f27',
+    padding: 17,
+    borderRadius: 17,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 25,
+  },
+
+  textoBoton: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+
+  encabezado: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  subtitulo: {
+    fontSize: 21,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+
+  tarjeta: {
+    backgroundColor: '#FFFFFF',
+    padding: 18,
+    borderRadius: 20,
+    marginBottom: 13,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+
+  nombre: {
+    fontSize: 19,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+
+  estado: {
+    color: '#15803D',
+    fontWeight: '700',
+    marginTop: 9,
+    fontSize: 16,
+  },
+
+  vacio: {
+    backgroundColor: '#FFFFFF',
+    padding: 22,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+
+  fondoModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+
+  modal: {
+    width: '100%',
+    maxWidth: 430,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+  },
+
+  tituloModal: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 15,
+  },
+
+  selector: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+  },
+
+  botonGuardar: {
+    backgroundColor: '#16A34A',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+
+  botonQuitar: {
+    backgroundColor: '#DC2626',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 13,
+  },
+
+  botonCancelar: {
+    padding: 13,
+    alignItems: 'center',
+    marginTop: 5,
+  },
+
+  textoCancelar: {
+    color: '#64748B',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+});
