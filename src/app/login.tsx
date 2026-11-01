@@ -87,11 +87,19 @@ export default function LoginScreen() {
         valorRol === 2 ||
         valorRol === '2';
 
+      const esJurado =
+        rol === 'jurado' ||
+        rol === 'juez' ||
+        rol === 'evaluador' ||
+        valorRol === 3 ||
+        valorRol === '3';
+
       console.log('¿Es Administrador?:', esAdministrador);
       console.log('¿Es Líder?:', esLider);
+      console.log('¿Es Jurado?:', esJurado);
 
       // Verificación de acceso
-      if (!esAdministrador && !esLider) {
+      if (!esAdministrador && !esLider && !esJurado) {
         Alert.alert(
           'Rol no reconocido',
           `El rol "${valorRol || 'sin rol'}" no tiene un panel configurado.`
@@ -116,6 +124,8 @@ export default function LoginScreen() {
         router.replace('/(admin)/seleccion' as any);
       } else if (esLider) {
         router.replace('/(lider)' as any);
+      }else if (esJurado) {
+        router.replace('/(jurado)' as any);
       }
     } catch (error: any) {
       const mensaje = error?.message || 'No se pudo conectar al servidor';
