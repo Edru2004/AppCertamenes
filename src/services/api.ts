@@ -318,10 +318,19 @@ export const eliminarSala = async (id: number) => {
 
 // ==========================================
 
-export const getEquipos = async (idCertamen?: number) => {
 
-  return peticion(rutaConCertamen('/equipos', idCertamen));
+export const getEquipos = async (idCertamen?: number, idLider?: number) => {
+  let url = '/equipos';
+  const params: string[] = [];
 
+  if (idCertamen) params.push(`id_certamen=${idCertamen}`);
+  if (idLider) params.push(`id_lider=${idLider}`);
+
+  if (params.length > 0) {
+    url += `?${params.join('&')}`;
+  }
+
+  return peticion(url);
 };
 
 export const crearEquipo = async (data: Datos) => {

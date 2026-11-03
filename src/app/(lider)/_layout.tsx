@@ -24,7 +24,7 @@ export default function LiderLayout() {
         }}
       />
       <Drawer.Screen
-        name="equipos"
+        name="misEquipos"
         options={{
           title: 'Mi Equipo',
           headerTitle: 'Gestión de Mi Equipo',

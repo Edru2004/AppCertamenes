@@ -357,10 +357,10 @@ export default function CustomDrawer(props: any) {
                 </Text>
               </TouchableOpacity>
 
-              {/* Mi equipo */}
+              {/* Mis equipos */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(lider)/equipos')}
+                onPress={() => navegar('/(lider)/misEquipos')}
               >
                 <View style={styles.iconCircle}>
                   <Ionicons
@@ -371,7 +371,7 @@ export default function CustomDrawer(props: any) {
                 </View>
 
                 <Text style={styles.menuText}>
-                  Mi Equipo
+                  Mis Equipos
                 </Text>
               </TouchableOpacity>
             </>
