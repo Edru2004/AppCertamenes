@@ -341,7 +341,15 @@ export default function UsuarioForm() {
             Información de la cuenta
           </Text>
 
-         
+          <CampoFormulario
+            titulo="Nombre de usuario "
+            valor={datos.Usuario}
+            onChangeText={(valor) =>
+              cambiarCampo('Usuario', valor)
+            }
+            placeholder="Ej. juan_perez"
+          />
+
           <CampoFormulario
             titulo="Nombre *"
             valor={datos.Nombre}
@@ -351,7 +359,14 @@ export default function UsuarioForm() {
             placeholder="Nombre"
           />
 
-        
+          <CampoFormulario
+            titulo="Segundo nombre"
+            valor={datos.Nom}
+            onChangeText={(valor) =>
+              cambiarCampo('Nom', valor)
+            }
+            placeholder="Segundo nombre (opcional)"
+          />
 
           <CampoFormulario
             titulo="Apellido paterno"
