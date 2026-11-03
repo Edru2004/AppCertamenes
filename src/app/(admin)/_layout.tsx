@@ -54,5 +54,12 @@ export default function AdminLayout() {
       name: 'Rubricas',
       options: { title: 'Rúbricas', headerTitle: 'Gestión de Rúbricas' },
     }),
+    createElement(Drawer.Screen, {
+  name: 'usuarios',
+  options: {
+    title: 'Usuarios',
+    headerTitle: 'Gestión de Usuarios',
+  },
+}),
   );
 }

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // IMPORTANTE:
 // Usa la IP de la computadora donde está corriendo Laravel.
 // El celular y la computadora deben estar en la misma red Wi-Fi.
-const API = 'http://192.168.1.126:8000/api';
+const API = 'http://192.168.1.134:8000/api';
 
 type Datos = Record<string, any> | FormData;
 type Metodo = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -233,6 +233,36 @@ export const actualizarUsuario = async (id: number, data: Datos) => {
 export const eliminarUsuario = async (id: number) => {
   return peticion(`/usuarios/${id}`, 'DELETE');
 };
+
+// ==========================================
+// GESTIÓN INDEPENDIENTE DE USUARIOS
+// ==========================================
+
+// Consultar usuarios sin cargar relaciones de otras tablas.
+export const getUsuariosCatalogo = async () => {
+  return peticion('/usuarios/catalogo');
+};
+
+// Registrar usuario desde el módulo de administración.
+export const crearUsuarioAdmin = async (data: Datos) => {
+  return peticion('/usuarios/administracion', 'POST', data);
+};
+
+// Actualizar usuario desde el módulo de administración.
+export const actualizarUsuarioAdmin = async (
+  id: number,
+  data: Datos
+) => {
+  return peticion(`/usuarios/administracion/${id}`, 'PUT', data);
+};
+
+// Eliminar usuario desde el módulo de administración.
+export const eliminarUsuarioAdmin = async (id: number) => {
+  return peticion(`/usuarios/administracion/${id}`, 'DELETE');
+};
+
+
+
 
 // ==========================================
 // DESAFÍOS
@@ -485,4 +515,7 @@ export const actualizarPregunta = async (id: number, data: Datos) => {
 
 export const eliminarPregunta = async (id: number) => {
   return peticion(`/preguntas/${id}`, 'DELETE');
+
+
+  
 };

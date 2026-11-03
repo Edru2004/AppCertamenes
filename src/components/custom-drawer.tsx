@@ -376,6 +376,22 @@ export default function CustomDrawer(props: any) {
               </TouchableOpacity>
             </>
           )}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navegar('/(admin)/usuarios')}
+          >
+            <View style={styles.iconCircle}>
+              <Ionicons
+                name="people-circle-outline"
+                size={22}
+                color="#002b49"
+              />
+            </View>
+
+            <Text style={styles.menuText}>
+              Usuarios
+            </Text>
+          </TouchableOpacity>
 
           {/* Cerrar sesión */}
           <TouchableOpacity
@@ -404,6 +420,8 @@ export default function CustomDrawer(props: any) {
               Cerrar Sesión
             </Text>
           </TouchableOpacity>
+
+      
         </View>
       </DrawerContentScrollView>
     </View>
