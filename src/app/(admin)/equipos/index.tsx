@@ -155,8 +155,12 @@ export default function EquiposIndexScreen() {
 
   };
   const listHeader = (
-
-    <View>
+  <View style={styles.centeredContainer}>
+      <Ionicons
+        name="people-circle-outline"
+        size={45} // Ajustado de 425 a 72 para dar un tamaño adecuado de encabezado
+        color="#002b45"
+      />
       <Text style={styles.headerTitle}>Panel de Gestión de Equipos</Text>
 
       <Text style={styles.label}>Certamen activo</Text>
@@ -509,6 +513,13 @@ export default function EquiposIndexScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f7fa', padding: 15 },
+  
+  // ── AÑADE ESTA SECCIÓN ──────────────────────────────────────────
+  centeredContainer: {
+    alignItems: 'center',       // Centra icono, título y elementos horizontalmente
+    width: '100%',
+    marginBottom: 12,
+  },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#002b45', marginBottom: 12 },
   label: { fontSize: 12, fontWeight: 'bold', color: '#475569', marginBottom: 6 },
   certamenSelector: { backgroundColor: '#fff', borderRadius: 10, padding: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#dbe4ee', gap: 10, marginBottom: 12 },
