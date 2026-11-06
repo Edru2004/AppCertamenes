@@ -1,7 +1,7 @@
-
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { useEffect, useState } from 'react';
+
 import {
     ActivityIndicator,
     Alert,
@@ -23,883 +23,1284 @@ import {
 type Registro = Record<string, any>;
 
 const obtenerLista = (respuesta: any): Registro[] => {
-    if (Array.isArray(respuesta)) return respuesta;
-    if (Array.isArray(respuesta?.data)) return respuesta.data;
-    return [];
+  if (Array.isArray(respuesta)) return respuesta;
+  if (Array.isArray(respuesta?.data)) return respuesta.data;
+  return [];
 };
 
 const idCertamen = (item: Registro) =>
   Number(
     item.Id_certamen ??
-    item.id_certamen ??
-    item.Id_Certamen ??
-    item.certamen?.Id_certamen ??
-    item.certamen?.id_certamen ??
-    item.Certamen?.Id_certamen ??
-    0
+      item.id_certamen ??
+      item.Id_Certamen ??
+      item.certamen?.Id_certamen ??
+      item.certamen?.id_certamen ??
+      item.Certamen?.Id_certamen ??
+      0
   );
+
 const tipoCertamen = (item: Registro) =>
-    String(item.Tipo ?? item.Tipo_certamen ?? item.TipoCertamen ?? '')
-        .trim()
-        .toUpperCase();
+  String(
+    item.Tipo ??
+      item.Tipo_certamen ??
+      item.TipoCertamen ??
+      ''
+  )
+    .trim()
+    .toUpperCase();
 
 const idSala = (item: Registro): number | null => {
-    const valor = item.Id_sala ?? item.id_sala;
-    return valor == null ? null : Number(valor);
+  const valor = item.Id_sala ?? item.id_sala;
+  return valor == null ? null : Number(valor);
 };
 
 const nombreCertamen = (item: Registro) =>
-    String(item.Nombre ?? item.nombre ?? 'Certamen sin nombre');
+  String(item.Nombre ?? item.nombre ?? 'Certamen sin nombre');
 
-const esRally = (item: Registro) => tipoCertamen(item) === 'RALLY';
+const esRally = (item: Registro) =>
+  tipoCertamen(item) === 'RALLY';
 
 export default function AsignacionEquiposScreen() {
-    const [certamenes, setCertamenes] = useState<Registro[]>([]);
-    const [certamenSeleccionado, setCertamenSeleccionado] =
-        useState<number | null>(null);
-    const [modalCertamenVisible, setModalCertamenVisible] = useState(false);
+  const [certamenes, setCertamenes] = useState<Registro[]>([]);
+  const [certamenSeleccionado, setCertamenSeleccionado] =
+    useState<number | null>(null);
 
-    const [equipos, setEquipos] = useState<Registro[]>([]);
-    const [salas, setSalas] = useState<Registro[]>([]);
+  const [modalCertamenVisible, setModalCertamenVisible] =
+    useState(false);
 
-    // Estado corregido: el setter se llama setEquipoSeleccionado
-    const [equipoSeleccionado, setEquipoSeleccionado] =
-        useState<number | null>(null);
+  const [equipos, setEquipos] = useState<Registro[]>([]);
+  const [salas, setSalas] = useState<Registro[]>([]);
 
-    const [salaSeleccionada, setSalaSeleccionada] =
-        useState<number | null>(null);
+  const [equipoSeleccionado, setEquipoSeleccionado] =
+    useState<number | null>(null);
 
-    const [modalVisible, setModalVisible] = useState(false);
-    const [cargando, setCargando] = useState(false);
-    const [guardando, setGuardando] = useState(false);
+  const [salaSeleccionada, setSalaSeleccionada] =
+    useState<number | null>(null);
 
-    const certamenActual = certamenes.find(
-        item => idCertamen(item) === certamenSeleccionado
-    );
+  const [modalVisible, setModalVisible] = useState(false);
 
-    // Cargar certámenes
-    useEffect(() => {
-        const iniciar = async () => {
-            try {
-                setCargando(true);
+  const [cargando, setCargando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
 
-                const respuesta = await getCertamenes();
+  const certamenActual = certamenes.find(
+    (item) => idCertamen(item) === certamenSeleccionado
+  );
 
-                const disponibles = obtenerLista(respuesta).filter(
-                    item => tipoCertamen(item) === 'INNOVATEC'
-                );
+  // =========================================================
+  // CARGAR CERTÁMENES
+  // =========================================================
 
-                setCertamenes(disponibles);
+  useEffect(() => {
+    const iniciar = async () => {
+      try {
+        setCargando(true);
 
-                if (disponibles.length > 0) {
-                    setCertamenSeleccionado(idCertamen(disponibles[0]));
-                }
-            } catch (error: any) {
-                Alert.alert(
-                    'Error',
-                    error?.message || 'No se pudieron cargar los certámenes.'
-                );
-            } finally {
-                setCargando(false);
-            }
-        };
+        const respuesta = await getCertamenes();
 
-        iniciar();
-    }, []);
+        const disponibles = obtenerLista(respuesta).filter(
+          (item) => tipoCertamen(item) === 'INNOVATEC'
+        );
 
-    // Cargar equipos y salas del certamen
-  const cargarDatos = async (id: number) => {
-  try {
-    setCargando(true);
+        setCertamenes(disponibles);
 
-    const [respuestaEquipos, respuestaSalas] = await Promise.all([
-      getEquipos(id),
-      getSalas(id),
-    ]);
-
-    // Laravel ya devuelve los equipos filtrados por certamen.
-    setEquipos(obtenerLista(respuestaEquipos));
-
-    // Mantener el filtrado de salas.
-    setSalas(
-      obtenerLista(respuestaSalas).filter(
-        sala => idCertamen(sala) === Number(id)
-      )
-    );
-
-  } catch (error: any) {
-    Alert.alert(
-      'Error',
-      error?.message || 'No se pudieron cargar los datos.'
-    );
-  } finally {
-    setCargando(false);
-  }
-};
-
-    useEffect(() => {
-        if (certamenSeleccionado !== null) {
-            setEquipoSeleccionado(null);
-            setSalaSeleccionada(null);
-            cargarDatos(certamenSeleccionado);
-        } else {
-            setEquipos([]);
-            setSalas([]);
+        if (disponibles.length > 0) {
+          setCertamenSeleccionado(
+            idCertamen(disponibles[0])
+          );
         }
-    }, [certamenSeleccionado]);
-
-    // Cambiar certamen
-    const seleccionarCertamen = (id: number) => {
-        setModalCertamenVisible(false);
-
-        if (id !== certamenSeleccionado) {
-            setCertamenSeleccionado(id);
-        }
-    };
-
-    // Abrir asignación
-    const abrirAsignacion = () => {
-        if (equipos.length === 0) {
-            Alert.alert(
-                'Aviso',
-                'No hay equipos registrados en este certamen.'
-            );
-            return;
-        }
-
-        if (salas.length === 0) {
-            Alert.alert(
-                'Aviso',
-                'No hay salas registradas en este certamen.'
-            );
-            return;
-        }
-
-        setEquipoSeleccionado(null);
-        setSalaSeleccionada(null);
-        setModalVisible(true);
-    };
-
-    // Guardar asignación
-    const guardarAsignacion = async () => {
-        if (!equipoSeleccionado || !salaSeleccionada) {
-            Alert.alert(
-                'Datos incompletos',
-                'Selecciona un equipo y una sala.'
-            );
-            return;
-        }
-
-        try {
-            setGuardando(true);
-
-            await actualizarEquipo(equipoSeleccionado, {
-                Id_sala: salaSeleccionada,
-            });
-
-            setModalVisible(false);
-            setEquipoSeleccionado(null);
-            setSalaSeleccionada(null);
-
-            if (certamenSeleccionado !== null) {
-                await cargarDatos(certamenSeleccionado);
-            }
-
-            Alert.alert(
-                'Correcto',
-                'La sala se asignó al equipo correctamente.'
-            );
-        } catch (error: any) {
-            Alert.alert(
-                'Error',
-                error?.message || 'No se pudo asignar la sala.'
-            );
-        } finally {
-            setGuardando(false);
-        }
-    };
-
-    // Quitar sala
-    const quitarSala = async (equipo: Registro) => {
+      } catch (error: any) {
         Alert.alert(
-            'Quitar sala',
-            '¿Deseas quitar la sala asignada a este equipo?',
-            [
-                { text: 'Cancelar', style: 'cancel' },
+          'Error',
+          error?.message ||
+            'No se pudieron cargar los certámenes.'
+        );
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    iniciar();
+  }, []);
+
+  // =========================================================
+  // CARGAR EQUIPOS Y SALAS
+  // =========================================================
+
+  const cargarDatos = async (id: number) => {
+    try {
+      setCargando(true);
+
+      const [
+        respuestaEquipos,
+        respuestaSalas,
+      ] = await Promise.all([
+        getEquipos(id),
+        getSalas(id),
+      ]);
+
+      // Laravel ya devuelve los equipos filtrados
+      // por certamen.
+      setEquipos(obtenerLista(respuestaEquipos));
+
+      // Mantener únicamente las salas
+      // pertenecientes al certamen seleccionado.
+      setSalas(
+        obtenerLista(respuestaSalas).filter(
+          (sala) =>
+            idCertamen(sala) === Number(id)
+        )
+      );
+    } catch (error: any) {
+      Alert.alert(
+        'Error',
+        error?.message ||
+          'No se pudieron cargar los datos.'
+      );
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // =========================================================
+  // CAMBIO DE CERTAMEN
+  // =========================================================
+
+  useEffect(() => {
+    if (certamenSeleccionado !== null) {
+      setEquipoSeleccionado(null);
+      setSalaSeleccionada(null);
+
+      cargarDatos(certamenSeleccionado);
+    } else {
+      setEquipos([]);
+      setSalas([]);
+    }
+  }, [certamenSeleccionado]);
+
+  const seleccionarCertamen = (id: number) => {
+    setModalCertamenVisible(false);
+
+    if (id !== certamenSeleccionado) {
+      setCertamenSeleccionado(id);
+    }
+  };
+
+  // =========================================================
+  // ABRIR MODAL DE ASIGNACIÓN
+  // =========================================================
+
+  const abrirAsignacion = () => {
+    if (equipos.length === 0) {
+      Alert.alert(
+        'Aviso',
+        'No hay equipos registrados en este certamen.'
+      );
+      return;
+    }
+
+    if (salas.length === 0) {
+      Alert.alert(
+        'Aviso',
+        'No hay salas registradas en este certamen.'
+      );
+      return;
+    }
+
+    setEquipoSeleccionado(null);
+    setSalaSeleccionada(null);
+    setModalVisible(true);
+  };
+
+  // =========================================================
+  // GUARDAR ASIGNACIÓN
+  // =========================================================
+
+  const guardarAsignacion = async () => {
+    if (
+      !equipoSeleccionado ||
+      !salaSeleccionada
+    ) {
+      Alert.alert(
+        'Datos incompletos',
+        'Selecciona un equipo y una sala.'
+      );
+      return;
+    }
+
+    try {
+      setGuardando(true);
+
+      await actualizarEquipo(
+        equipoSeleccionado,
+        {
+          Id_sala: salaSeleccionada,
+        }
+      );
+
+      setModalVisible(false);
+      setEquipoSeleccionado(null);
+      setSalaSeleccionada(null);
+
+      if (certamenSeleccionado !== null) {
+        await cargarDatos(certamenSeleccionado);
+      }
+
+      Alert.alert(
+        'Correcto',
+        'La sala se asignó al equipo correctamente.'
+      );
+    } catch (error: any) {
+      Alert.alert(
+        'Error',
+        error?.message ||
+          'No se pudo asignar la sala.'
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  // =========================================================
+  // QUITAR SALA
+  // =========================================================
+
+  const quitarSala = async (
+    equipo: Registro
+  ) => {
+    Alert.alert(
+      'Quitar sala',
+      '¿Deseas quitar la sala asignada a este equipo?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+
+        {
+          text: 'Quitar',
+          style: 'destructive',
+
+          onPress: async () => {
+            try {
+              setGuardando(true);
+
+              await actualizarEquipo(
+                Number(equipo.Id_equipo),
                 {
-                    text: 'Quitar',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            setGuardando(true);
+                  Id_sala: null,
+                }
+              );
 
-                            await actualizarEquipo(Number(equipo.Id_equipo), {
-                                Id_sala: null,
-                            });
+              if (
+                certamenSeleccionado !== null
+              ) {
+                await cargarDatos(
+                  certamenSeleccionado
+                );
+              }
 
-                            if (certamenSeleccionado !== null) {
-                                await cargarDatos(certamenSeleccionado);
-                            }
-
-                            Alert.alert('Correcto', 'Se quitó la sala del equipo.');
-                        } catch (error: any) {
-                            Alert.alert(
-                                'Error',
-                                error?.message || 'No se pudo quitar la sala.'
-                            );
-                        } finally {
-                            setGuardando(false);
-                        }
-                    },
-                },
-            ]
-        );
-    };
-
-    const nombreSala = (id: number | null) => {
-        if (!id) return 'Sin sala asignada';
-
-        return (
-            salas.find(sala => Number(sala.Id_sala) === id)?.Nombre ||
-            'Sala no encontrada'
-        );
-    };
-
-    // Selector visual de certámenes
-    const renderSelectorCertamen = () => (
-        <>
-            <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.tarjetaCertamen}
-                onPress={() => setModalCertamenVisible(true)}
-                disabled={certamenes.length === 0}
-            >
-                <View style={styles.iconoCertamen}>
-                    <Ionicons
-                        name={
-                            certamenActual && esRally(certamenActual)
-                                ? 'trophy-outline'
-                                : 'bulb-outline'
-                        }
-                        size={27}
-                        color="#087B9B"
-                    />
-                </View>
-
-                <View style={styles.infoCertamen}>
-                    <Text style={styles.nombreCertamen} numberOfLines={1}>
-                        {certamenActual
-                            ? nombreCertamen(certamenActual)
-                            : 'Cargando...'}
-                    </Text>
-
-                    <Text style={styles.tipoCertamen} numberOfLines={1}>
-                        {certamenActual
-                            ? esRally(certamenActual)
-                                ? 'RALLY'
-                                : 'INNOVATECNM'
-                            : ''}
-                    </Text>
-
-                    <Text style={styles.indicacionCertamen} numberOfLines={1}>
-                        Toca para cambiar de certamen
-                    </Text>
-                </View>
-
-                <View style={styles.flechaCertamen}>
-                    <Ionicons
-                        name="chevron-down"
-                        size={21}
-                        color="#FFFFFF"
-                    />
-                </View>
-            </TouchableOpacity>
-
-            <Modal
-                visible={modalCertamenVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setModalCertamenVisible(false)}
-            >
-                <View style={styles.fondoModalCertamen}>
-                    <View style={styles.modalCertamen}>
-                        <View style={styles.encabezadoModalCertamen}>
-                            <Text style={styles.tituloModalCertamen}>
-                                Seleccionar certamen
-                            </Text>
-
-                            <TouchableOpacity
-                                onPress={() => setModalCertamenVisible(false)}
-                            >
-                                <Ionicons name="close" size={30} color="#263449" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={styles.listaCertamenes}
-                        >
-                            {certamenes.map(item => {
-                                const id = idCertamen(item);
-                                const seleccionado = id === certamenSeleccionado;
-                                const rally = esRally(item);
-
-                                return (
-                                    <TouchableOpacity
-                                        key={id}
-                                        activeOpacity={0.8}
-                                        style={[
-                                            styles.opcionCertamen,
-                                            seleccionado && styles.opcionCertamenActiva,
-                                        ]}
-                                        onPress={() => seleccionarCertamen(id)}
-                                    >
-                                        <Ionicons
-                                            name={rally ? 'trophy-outline' : 'bulb-outline'}
-                                            size={32}
-                                            color={seleccionado ? '#16834D' : '#087B9B'}
-                                        />
-
-                                        <View style={styles.infoOpcionCertamen}>
-                                            <Text
-                                                style={[
-                                                    styles.nombreOpcionCertamen,
-                                                    seleccionado && styles.textoOpcionActivo,
-                                                ]}
-                                            >
-                                                {nombreCertamen(item)}
-                                            </Text>
-
-                                            <Text
-                                                style={[
-                                                    styles.tipoOpcionCertamen,
-                                                    seleccionado && styles.textoOpcionActivo,
-                                                ]}
-                                            >
-                                                {rally ? 'RALLY' : 'INNOVATECNM'}
-                                            </Text>
-                                        </View>
-
-                                        {seleccionado && (
-                                            <Ionicons
-                                                name="checkmark-circle"
-                                                size={31}
-                                                color="#16834D"
-                                            />
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })}
-
-                            {certamenes.length === 0 && (
-                                <Text style={styles.sinCertamenes}>
-                                    No hay certámenes InnovaTec registrados.
-                                </Text>
-                            )}
-                        </ScrollView>
-                    </View>
-                </View>
-            </Modal>
-        </>
+              Alert.alert(
+                'Correcto',
+                'Se quitó la sala del equipo.'
+              );
+            } catch (error: any) {
+              Alert.alert(
+                'Error',
+                error?.message ||
+                  'No se pudo quitar la sala.'
+              );
+            } finally {
+              setGuardando(false);
+            }
+          },
+        },
+      ]
     );
+  };
+
+  // =========================================================
+  // OBTENER NOMBRE DE SALA
+  // =========================================================
+
+  const nombreSala = (
+    id: number | null
+  ) => {
+    if (!id) {
+      return 'Sin sala asignada';
+    }
 
     return (
-        <View style={styles.contenedor}>
-            <ScrollView
-                contentContainerStyle={styles.contenido}
-                showsVerticalScrollIndicator={false}
-            >
-                <Text style={styles.titulo}>
-                    Asignación de salas a equipos
-                </Text>
-                <View style={styles.iconoInstitucion}>
-                    <Ionicons
-                        name="school-outline"
-                        size={38}
-                        color="#0F766E"
-                    />
-                </View>
-                <Text style={styles.etiqueta}>
-                    Certamen InnovaTec
-                </Text>
-
-                {renderSelectorCertamen()}
-
-                <TouchableOpacity
-                    style={styles.botonPrincipal}
-                    onPress={abrirAsignacion}
-                    disabled={cargando || certamenSeleccionado === null}
-                >
-                    <Ionicons name="link-outline" size={21} color="#FFFFFF" />
-                    <Text style={styles.textoBoton}>
-                        Asignar sala a equipo
-                    </Text>
-                </TouchableOpacity>
-
-                <View style={styles.encabezado}>
-                    <Text style={styles.subtitulo}>
-                        Equipos registrados
-                    </Text>
-
-                    <TouchableOpacity
-                        onPress={() =>
-                            certamenSeleccionado !== null &&
-                            cargarDatos(certamenSeleccionado)
-                        }
-                        disabled={cargando || certamenSeleccionado === null}
-                    >
-                        <Ionicons name="refresh" size={25} color="#2563EB" />
-                    </TouchableOpacity>
-                </View>
-
-                {cargando ? (
-                    <ActivityIndicator size="large" color="#0F766E" />
-                ) : equipos.length === 0 ? (
-                    <View style={styles.vacio}>
-                        <Ionicons
-                            name="people-outline"
-                            size={35}
-                            color="#64748B"
-                        />
-                        <Text style={styles.descripcion}>
-                            No hay equipos registrados en este certamen.
-                        </Text>
-                    </View>
-                ) : (
-                    equipos.map(equipo => {
-                        const salaActual = idSala(equipo);
-
-                        return (
-                            <View
-                                key={equipo.Id_equipo}
-                                style={styles.tarjeta}
-                            >
-                                <Text style={styles.nombre}>
-                                    {equipo.Nombre || 'Equipo'}
-                                </Text>
-
-                                <Text style={styles.estado}>
-                                    {nombreSala(salaActual)}
-                                </Text>
-
-                                {salaActual !== null && (
-                                    <TouchableOpacity
-                                        style={styles.botonQuitar}
-                                        onPress={() => quitarSala(equipo)}
-                                        disabled={guardando}
-                                    >
-                                        <Text style={styles.textoBoton}>
-                                            Quitar sala
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        );
-                    })
-                )}
-            </ScrollView>
-
-            {/* Modal para asignar sala */}
-            <Modal
-                visible={modalVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.fondoModal}>
-                    <View style={styles.modal}>
-                        <Text style={styles.tituloModal}>
-                            Asignar sala a equipo
-                        </Text>
-
-                        <Text style={styles.etiqueta}>
-                            Seleccionar equipo
-                        </Text>
-
-                        <View style={styles.selector}>
-                            <Picker
-                                selectedValue={equipoSeleccionado}
-                                onValueChange={(value) => {
-                                    setEquipoSeleccionado(
-                                        value == null ? null : Number(value)
-                                    );
-                                }}
-                            >
-                                <Picker.Item
-                                    label="Selecciona un equipo"
-                                    value={null}
-                                />
-
-                                {equipos.map(equipo => (
-                                    <Picker.Item
-                                        key={equipo.Id_equipo}
-                                        label={
-                                            equipo.Nombre ||
-                                            `Equipo ${equipo.Id_equipo}`
-                                        }
-                                        value={Number(equipo.Id_equipo)}
-                                    />
-                                ))}
-                            </Picker>
-                        </View>
-
-                        <Text style={styles.etiqueta}>
-                            Seleccionar sala
-                        </Text>
-
-                        <View style={styles.selector}>
-                            <Picker
-                                selectedValue={salaSeleccionada}
-                                onValueChange={(value) => {
-                                    setSalaSeleccionada(
-                                        value == null ? null : Number(value)
-                                    );
-                                }}
-                            >
-                                <Picker.Item
-                                    label="Selecciona una sala"
-                                    value={null}
-                                />
-
-                                {salas.map(sala => (
-                                    <Picker.Item
-                                        key={sala.Id_sala}
-                                        label={`${sala.Nombre} - ${sala.Ubicacion || 'Sin ubicación'
-                                            }`}
-                                        value={Number(sala.Id_sala)}
-                                    />
-                                ))}
-                            </Picker>
-                        </View>
-
-                        <TouchableOpacity
-                            style={styles.botonGuardar}
-                            onPress={guardarAsignacion}
-                            disabled={guardando}
-                        >
-                            <Text style={styles.textoBoton}>
-                                {guardando
-                                    ? 'Guardando...'
-                                    : 'Guardar asignación'}
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.botonCancelar}
-                            onPress={() => setModalVisible(false)}
-                            disabled={guardando}
-                        >
-                            <Text style={styles.textoCancelar}>
-                                Cancelar
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-        </View>
+      salas.find(
+        (sala) =>
+          Number(sala.Id_sala) === id
+      )?.Nombre ||
+      'Sala no encontrada'
     );
+  };
+
+  // =========================================================
+  // SELECTOR DE CERTAMEN
+  // =========================================================
+
+  const renderSelectorCertamen = () => (
+    <>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={styles.tarjetaCertamen}
+        onPress={() =>
+          setModalCertamenVisible(true)
+        }
+        disabled={certamenes.length === 0}
+      >
+        {/* ÍCONO DEL CERTAMEN */}
+        <View style={styles.iconoCertamen}>
+          <Ionicons
+            name={
+              certamenActual &&
+              esRally(certamenActual)
+                ? 'trophy-outline'
+                : 'bulb-outline'
+            }
+            size={27}
+            color="#087B9B"
+          />
+        </View>
+
+        {/* INFORMACIÓN */}
+        <View style={styles.infoCertamen}>
+          <Text
+            style={styles.nombreCertamen}
+            numberOfLines={1}
+          >
+            {certamenActual
+              ? nombreCertamen(
+                  certamenActual
+                )
+              : 'Cargando...'}
+          </Text>
+
+          <Text
+            style={styles.tipoCertamen}
+            numberOfLines={1}
+          >
+            {certamenActual
+              ? esRally(
+                  certamenActual
+                )
+                ? 'RALLY'
+                : 'INNOVATECNM'
+              : ''}
+          </Text>
+
+          <Text
+            style={styles.indicacionCertamen}
+            numberOfLines={1}
+          >
+            Toca para cambiar de certamen
+          </Text>
+        </View>
+
+        {/* FLECHA */}
+        <View style={styles.flechaCertamen}>
+          <Ionicons
+            name="chevron-down"
+            size={21}
+            color="#FFFFFF"
+          />
+        </View>
+      </TouchableOpacity>
+
+      {/* =====================================================
+          MODAL PARA SELECCIONAR CERTAMEN
+          ===================================================== */}
+
+      <Modal
+        visible={modalCertamenVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setModalCertamenVisible(false)
+        }
+      >
+        <View
+          style={styles.fondoModalCertamen}
+        >
+          <View
+            style={styles.modalCertamen}
+          >
+            <View
+              style={
+                styles.encabezadoModalCertamen
+              }
+            >
+              <Text
+                style={
+                  styles.tituloModalCertamen
+                }
+              >
+                Seleccionar certamen
+              </Text>
+
+              <TouchableOpacity
+                onPress={() =>
+                  setModalCertamenVisible(
+                    false
+                  )
+                }
+              >
+                <Ionicons
+                  name="close"
+                  size={30}
+                  color="#263449"
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={
+                false
+              }
+              contentContainerStyle={
+                styles.listaCertamenes
+              }
+            >
+              {certamenes.map((item) => {
+                const id =
+                  idCertamen(item);
+
+                const seleccionado =
+                  id ===
+                  certamenSeleccionado;
+
+                const rally =
+                  esRally(item);
+
+                return (
+                  <TouchableOpacity
+                    key={id}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.opcionCertamen,
+                      seleccionado &&
+                        styles.opcionCertamenActiva,
+                    ]}
+                    onPress={() =>
+                      seleccionarCertamen(
+                        id
+                      )
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        rally
+                          ? 'trophy-outline'
+                          : 'bulb-outline'
+                      }
+                      size={32}
+                      color={
+                        seleccionado
+                          ? '#16834D'
+                          : '#087B9B'
+                      }
+                    />
+
+                    <View
+                      style={
+                        styles.infoOpcionCertamen
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.nombreOpcionCertamen,
+                          seleccionado &&
+                            styles.textoOpcionActivo,
+                        ]}
+                      >
+                        {nombreCertamen(
+                          item
+                        )}
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.tipoOpcionCertamen,
+                          seleccionado &&
+                            styles.textoOpcionActivo,
+                        ]}
+                      >
+                        {rally
+                          ? 'RALLY'
+                          : 'INNOVATECNM'}
+                      </Text>
+                    </View>
+
+                    {seleccionado && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={31}
+                        color="#16834D"
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+
+              {certamenes.length === 0 && (
+                <Text
+                  style={
+                    styles.sinCertamenes
+                  }
+                >
+                  No hay certámenes InnovaTec
+                  registrados.
+                </Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+
+  // =========================================================
+  // PANTALLA
+  // =========================================================
+
+  return (
+    <View style={styles.contenedor}>
+      <ScrollView
+        contentContainerStyle={
+          styles.contenido
+        }
+        showsVerticalScrollIndicator={
+          false
+        }
+      >
+
+        {/* =================================================
+            ENCABEZADO CENTRADO
+            ================================================= */}
+
+        <View
+          style={
+            styles.encabezadoPrincipal
+          }
+        >
+          <View
+            style={
+              styles.iconoInstitucion
+            }
+          >
+            <Ionicons
+              name="school-outline"
+              size={38}
+              color="#0F766E"
+            />
+          </View>
+
+          <Text
+            style={styles.titulo}
+          >
+            Asignación de salas a equipos
+          </Text>
+        </View>
+
+        {/* CERTAMEN */}
+        <Text
+          style={styles.etiqueta}
+        >
+          Certamen InnovaTec
+        </Text>
+
+        {/* SELECTOR */}
+        {renderSelectorCertamen()}
+
+        {/* =================================================
+            BOTÓN ASIGNAR SALA
+            ================================================= */}
+
+        <TouchableOpacity
+          style={
+            styles.botonPrincipal
+          }
+          onPress={
+            abrirAsignacion
+          }
+          disabled={
+            cargando ||
+            certamenSeleccionado ===
+              null
+          }
+        >
+          <Ionicons
+            name="link-outline"
+            size={21}
+            color="#FFFFFF"
+          />
+
+          <Text
+            style={
+              styles.textoBoton
+            }
+          >
+            Asignar sala a equipo
+          </Text>
+        </TouchableOpacity>
+
+        {/* =================================================
+            EQUIPOS REGISTRADOS
+            ================================================= */}
+
+        <View
+          style={styles.encabezado}
+        >
+          <Text
+            style={styles.subtitulo}
+          >
+            Equipos registrados
+          </Text>
+
+          <TouchableOpacity
+            onPress={() =>
+              certamenSeleccionado !==
+                null &&
+              cargarDatos(
+                certamenSeleccionado
+              )
+            }
+            disabled={
+              cargando ||
+              certamenSeleccionado ===
+                null
+            }
+          >
+            <Ionicons
+              name="refresh"
+              size={25}
+              color="#2563EB"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* =================================================
+            CARGANDO
+            ================================================= */}
+
+        {cargando ? (
+          <ActivityIndicator
+            size="large"
+            color="#0F766E"
+          />
+        ) : equipos.length === 0 ? (
+
+          /* SIN EQUIPOS */
+
+          <View
+            style={styles.vacio}
+          >
+            <Ionicons
+              name="people-outline"
+              size={35}
+              color="#64748B"
+            />
+
+            <Text
+              style={
+                styles.descripcion
+              }
+            >
+              No hay equipos registrados
+              en este certamen.
+            </Text>
+          </View>
+
+        ) : (
+
+          /* =================================================
+             LISTA DE EQUIPOS
+             ================================================= */
+
+          equipos.map((equipo) => {
+            const salaActual =
+              idSala(equipo);
+
+            return (
+              <View
+                key={
+                  equipo.Id_equipo
+                }
+                style={styles.tarjeta}
+              >
+                <Text
+                  style={
+                    styles.nombre
+                  }
+                >
+                  {equipo.Nombre ||
+                    'Equipo'}
+                </Text>
+
+                <Text
+                  style={
+                    styles.estado
+                  }
+                >
+                  {nombreSala(
+                    salaActual
+                  )}
+                </Text>
+
+                {salaActual !==
+                  null && (
+                  <TouchableOpacity
+                    style={
+                      styles.botonQuitar
+                    }
+                    onPress={() =>
+                      quitarSala(
+                        equipo
+                      )
+                    }
+                    disabled={
+                      guardando
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.textoBoton
+                      }
+                    >
+                      Quitar sala
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+
+      {/* =====================================================
+          MODAL PARA ASIGNAR SALA
+          ===================================================== */}
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setModalVisible(false)
+        }
+      >
+        <View
+          style={styles.fondoModal}
+        >
+          <View
+            style={styles.modal}
+          >
+            <Text
+              style={
+                styles.tituloModal
+              }
+            >
+              Asignar sala a equipo
+            </Text>
+
+            {/* EQUIPO */}
+
+            <Text
+              style={styles.etiqueta}
+            >
+              Seleccionar equipo
+            </Text>
+
+            <View
+              style={styles.selector}
+            >
+              <Picker
+                selectedValue={
+                  equipoSeleccionado
+                }
+                onValueChange={(
+                  value
+                ) => {
+                  setEquipoSeleccionado(
+                    value == null
+                      ? null
+                      : Number(
+                          value
+                        )
+                  );
+                }}
+              >
+                <Picker.Item
+                  label="Selecciona un equipo"
+                  value={null}
+                />
+
+                {equipos.map(
+                  (equipo) => (
+                    <Picker.Item
+                      key={
+                        equipo.Id_equipo
+                      }
+                      label={
+                        equipo.Nombre ||
+                        `Equipo ${equipo.Id_equipo}`
+                      }
+                      value={Number(
+                        equipo.Id_equipo
+                      )}
+                    />
+                  )
+                )}
+              </Picker>
+            </View>
+
+            {/* SALA */}
+
+            <Text
+              style={styles.etiqueta}
+            >
+              Seleccionar sala
+            </Text>
+
+            <View
+              style={styles.selector}
+            >
+              <Picker
+                selectedValue={
+                  salaSeleccionada
+                }
+                onValueChange={(
+                  value
+                ) => {
+                  setSalaSeleccionada(
+                    value == null
+                      ? null
+                      : Number(
+                          value
+                        )
+                  );
+                }}
+              >
+                <Picker.Item
+                  label="Selecciona una sala"
+                  value={null}
+                />
+
+                {salas.map(
+                  (sala) => (
+                    <Picker.Item
+                      key={
+                        sala.Id_sala
+                      }
+                      label={`${sala.Nombre} - ${
+                        sala.Ubicacion ||
+                        'Sin ubicación'
+                      }`}
+                      value={Number(
+                        sala.Id_sala
+                      )}
+                    />
+                  )
+                )}
+              </Picker>
+            </View>
+
+            {/* GUARDAR */}
+
+            <TouchableOpacity
+              style={
+                styles.botonGuardar
+              }
+              onPress={
+                guardarAsignacion
+              }
+              disabled={
+                guardando
+              }
+            >
+              <Text
+                style={
+                  styles.textoBoton
+                }
+              >
+                {guardando
+                  ? 'Guardando...'
+                  : 'Guardar asignación'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* CANCELAR */}
+
+            <TouchableOpacity
+              style={
+                styles.botonCancelar
+              }
+              onPress={() =>
+                setModalVisible(
+                  false
+                )
+              }
+              disabled={
+                guardando
+              }
+            >
+              <Text
+                style={
+                  styles.textoCancelar
+                }
+              >
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
 }
 
+// =========================================================
+// ESTILOS
+// =========================================================
+
 const styles = StyleSheet.create({
-    contenedor: {
-        flex: 1,
-        backgroundColor: '#F8FAFC',
-    },
+  contenedor: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
 
-    contenido: {
-        padding: 18,
-        paddingBottom: 35,
-    },
+  contenido: {
+    padding: 18,
+    paddingBottom: 35,
+  },
 
-    titulo: {
-        fontSize: 23,
-        fontWeight: 'bold',
-        color: '#1E293B',
-    },
+  // =======================================================
+  // ENCABEZADO CENTRADO
+  // =======================================================
 
-    descripcion: {
-        color: '#64748B',
-        marginTop: 7,
-        marginBottom: 15,
-        fontSize: 15,
-    },
+  encabezadoPrincipal: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
 
-    etiqueta: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#263449',
-        marginTop: 15,
-        marginBottom: 12,
-    },
+  iconoInstitucion: {
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
 
-    // Selector compacto de certamen
-    tarjetaCertamen: {
-        height: 94,
-        backgroundColor: '#F8FAFC',
-        borderWidth: 1.5,
-        borderColor: '#CBD5E1',
-        borderRadius: 18,
-        paddingHorizontal: 10,
-        paddingVertical: 7,
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
+  titulo: {
+   fontSize: 23, fontWeight: '800', color: '#002b45', textAlign: 'center'
+  },
 
-    iconoCertamen: {
-        width: 46,
-        height: 46,
-        borderRadius: 13,
-        backgroundColor: '#E0F2FE',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 9,
-    },
+  descripcion: {
+    color: '#64748B',
+    marginTop: 7,
+    marginBottom: 15,
+    fontSize: 15,
+  },
 
-    infoCertamen: {
-        flex: 1,
-        minWidth: 0,
-        justifyContent: 'center',
-    },
+  etiqueta: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#263449',
+    marginTop: 15,
+    marginBottom: 12,
+  },
 
-    nombreCertamen: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: '#111827',
-    },
+  // =======================================================
+  // SELECTOR DE CERTAMEN
+  // =======================================================
 
-    tipoCertamen: {
-        fontSize: 10,
-        color: '#64748B',
-        marginTop: 2,
-    },
+  tarjetaCertamen: {
+    height: 94,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
 
-    indicacionCertamen: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: '#087B8B',
-        marginTop: 3,
-    },
+  iconoCertamen: {
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
+  },
 
-    flechaCertamen: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        backgroundColor: '#64748B',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginLeft: 5,
-    },
+  infoCertamen: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
 
-    // Modal de certámenes
-    fondoModalCertamen: {
-        flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.52)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 18,
-    },
+  nombreCertamen: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
 
-    modalCertamen: {
-        width: '100%',
-        maxWidth: 520,
-        maxHeight: '88%',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 32,
-        paddingHorizontal: 24,
-        paddingTop: 25,
-        paddingBottom: 15,
-    },
+  tipoCertamen: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 2,
+  },
 
-    encabezadoModalCertamen: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingBottom: 22,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
-    },
+  indicacionCertamen: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#087B8B',
+    marginTop: 3,
+  },
 
-    tituloModalCertamen: {
-        fontSize: 25,
-        fontWeight: '800',
-        color: '#111827',
-        flex: 1,
-    },
+  flechaCertamen: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#64748B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 5,
+  },
 
-    listaCertamenes: {
-        paddingTop: 12,
-        paddingBottom: 10,
-    },
+  // =======================================================
+  // MODAL DE CERTÁMENES
+  // =======================================================
 
-    opcionCertamen: {
-        minHeight: 100,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 14,
-        paddingHorizontal: 14,
-        paddingVertical: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
-        borderRadius: 18,
-    },
-iconoInstitucion: {
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginTop: 10,
-  marginBottom: 12,
-},
-    opcionCertamenActiva: {
-        backgroundColor: '#E9FBF2',
-        borderBottomColor: '#B7EACD',
-    },
+  fondoModalCertamen: {
+    flex: 1,
+    backgroundColor:
+      'rgba(15, 23, 42, 0.52)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 18,
+  },
 
-    infoOpcionCertamen: {
-        flex: 1,
-    },
+  modalCertamen: {
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '88%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 25,
+    paddingBottom: 15,
+  },
 
-    nombreOpcionCertamen: {
-        fontSize: 19,
-        fontWeight: '800',
-        color: '#111827',
-    },
+  encabezadoModalCertamen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
+    paddingBottom: 22,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
 
-    tipoOpcionCertamen: {
-        fontSize: 16,
-        color: '#64748B',
-        marginTop: 6,
-    },
+  tituloModalCertamen: {
+    fontSize: 25,
+    fontWeight: '800',
+    color: '#111827',
+    flex: 1,
+  },
 
-    textoOpcionActivo: {
-        color: '#16834D',
-    },
+  listaCertamenes: {
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
 
-    sinCertamenes: {
-        padding: 25,
-        textAlign: 'center',
-        color: '#64748B',
-        fontSize: 16,
-    },
+  opcionCertamen: {
+    minHeight: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    borderRadius: 18,
+  },
 
-    // Botones y tarjetas
-    botonPrincipal: {
-        backgroundColor: '#7c9f27',
-        padding: 17,
-        borderRadius: 17,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 10,
-        marginBottom: 25,
-    },
+  opcionCertamenActiva: {
+    backgroundColor: '#E9FBF2',
+    borderBottomColor: '#B7EACD',
+  },
 
-    textoBoton: {
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-        fontSize: 16,
-        textAlign: 'center',
-    },
+  infoOpcionCertamen: {
+    flex: 1,
+  },
 
-    encabezado: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
+  nombreOpcionCertamen: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#111827',
+  },
 
-    subtitulo: {
-        fontSize: 21,
-        fontWeight: 'bold',
-        color: '#1E293B',
-    },
+  tipoOpcionCertamen: {
+    fontSize: 16,
+    color: '#64748B',
+    marginTop: 6,
+  },
 
-    tarjeta: {
-        backgroundColor: '#FFFFFF',
-        padding: 18,
-        borderRadius: 20,
-        marginBottom: 13,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
+  textoOpcionActivo: {
+    color: '#16834D',
+  },
 
-    nombre: {
-        fontSize: 19,
-        fontWeight: 'bold',
-        color: '#1E293B',
-    },
+  sinCertamenes: {
+    padding: 25,
+    textAlign: 'center',
+    color: '#64748B',
+    fontSize: 16,
+  },
 
-    estado: {
-        color: '#15803D',
-        fontWeight: '700',
-        marginTop: 9,
-        fontSize: 16,
-    },
+  // =======================================================
+  // BOTÓN PRINCIPAL
+  // =======================================================
 
-    vacio: {
-        backgroundColor: '#FFFFFF',
-        padding: 22,
-        borderRadius: 16,
-        alignItems: 'center',
-    },
+  botonPrincipal: {
+    backgroundColor: '#7C9F27',
+    padding: 17,
+    borderRadius: 17,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 25,
+  },
 
-    // Modal de asignación
-    fondoModal: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.55)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
+  textoBoton: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
+  },
 
-    modal: {
-        width: '100%',
-        maxWidth: 430,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 20,
-    },
+  // =======================================================
+  // ENCABEZADO DE EQUIPOS
+  // =======================================================
 
-    tituloModal: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#1E293B',
-        marginBottom: 15,
-    },
+  encabezado: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
 
-    selector: {
-        borderWidth: 1,
-        borderColor: '#CBD5E1',
-        borderRadius: 12,
-        marginBottom: 12,
-        overflow: 'hidden',
-        backgroundColor: '#FFFFFF',
-    },
+  subtitulo: {
+    fontSize: 21,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
 
-    botonGuardar: {
-        backgroundColor: '#16A34A',
-        padding: 15,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 8,
-    },
+  // =======================================================
+  // TARJETAS DE EQUIPOS
+  // =======================================================
 
-    botonQuitar: {
-        backgroundColor: '#DC2626',
-        padding: 12,
-        borderRadius: 10,
-        alignItems: 'center',
-        marginTop: 13,
-    },
+  tarjeta: {
+    backgroundColor: '#FFFFFF',
+    padding: 18,
+    borderRadius: 20,
+    marginBottom: 13,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
 
-    botonCancelar: {
-        padding: 13,
-        alignItems: 'center',
-        marginTop: 5,
-    },
+  nombre: {
+    fontSize: 19,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
 
-    textoCancelar: {
-        color: '#64748B',
-        fontWeight: '600',
-        fontSize: 16,
-    },
+  estado: {
+    color: '#15803D',
+    fontWeight: '700',
+    marginTop: 9,
+    fontSize: 16,
+  },
+
+  vacio: {
+    backgroundColor: '#FFFFFF',
+    padding: 22,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+
+  // =======================================================
+  // MODAL DE ASIGNACIÓN
+  // =======================================================
+
+  fondoModal: {
+    flex: 1,
+    backgroundColor:
+      'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+
+  modal: {
+    width: '100%',
+    maxWidth: 430,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+  },
+
+  tituloModal: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 15,
+  },
+
+  selector: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+  },
+
+  botonGuardar: {
+    backgroundColor: '#16A34A',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+
+  botonQuitar: {
+    backgroundColor: '#DC2626',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 13,
+  },
+
+  botonCancelar: {
+    padding: 13,
+    alignItems: 'center',
+    marginTop: 5,
+  },
+
+  textoCancelar: {
+    color: '#64748B',
+    fontWeight: '600',
+    fontSize: 16,
+  },
 });

@@ -1,23 +1,23 @@
-
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { useEffect, useState } from 'react';
+
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import {
-    actualizarJurado,
-    getCertamenes,
-    getJurados,
-    getSalas,
+  actualizarJurado,
+  getCertamenes,
+  getJurados,
+  getSalas,
 } from '../../../services/api';
 
 type Registro = Record<string, any>;
@@ -28,18 +28,24 @@ const obtenerLista = (respuesta: any): Registro[] => {
   return [];
 };
 
-const idCertamen = (item: Registro) =>
+const idCertamen = (item: Registro): number =>
   Number(
     item.Id_certamen ??
-    item.id_certamen ??
-    item.Id_Certamen ??
-    item.certamen?.Id_certamen ??
-    item.certamen?.id_certamen ??
-    item.Certamen?.Id_certamen ??
-    0
+      item.id_certamen ??
+      item.Id_Certamen ??
+      item.certamen?.Id_certamen ??
+      item.certamen?.id_certamen ??
+      item.Certamen?.Id_certamen ??
+      0
   );
+
 const tipoCertamen = (item: Registro) =>
-  String(item.Tipo ?? item.Tipo_certamen ?? item.TipoCertamen ?? '')
+  String(
+    item.Tipo ??
+      item.Tipo_certamen ??
+      item.TipoCertamen ??
+      ''
+  )
     .trim()
     .toUpperCase();
 
@@ -51,20 +57,23 @@ const idSala = (item: Registro): number | null => {
 const nombreCertamen = (item: Registro) =>
   String(item.Nombre ?? item.nombre ?? 'Certamen sin nombre');
 
-const esRally = (item: Registro) => tipoCertamen(item) === 'RALLY';
+const esRally = (item: Registro) =>
+  tipoCertamen(item) === 'RALLY';
 
 export default function AsignacionJuradosScreen() {
   const [certamenes, setCertamenes] = useState<Registro[]>([]);
   const [certamenSeleccionado, setCertamenSeleccionado] =
     useState<number | null>(null);
 
-  const [modalCertamenVisible, setModalCertamenVisible] = useState(false);
+  const [modalCertamenVisible, setModalCertamenVisible] =
+    useState(false);
 
   const [jurados, setJurados] = useState<Registro[]>([]);
   const [salas, setSalas] = useState<Registro[]>([]);
 
   const [juradoSeleccionado, setJuradoSeleccionado] =
     useState<number | null>(null);
+
   const [salaSeleccionada, setSalaSeleccionada] =
     useState<number | null>(null);
 
@@ -73,10 +82,13 @@ export default function AsignacionJuradosScreen() {
   const [guardando, setGuardando] = useState(false);
 
   const certamenActual = certamenes.find(
-    item => idCertamen(item) === certamenSeleccionado
+    (item) => idCertamen(item) === certamenSeleccionado
   );
 
-  // Cargar certámenes InnovaTec
+  // =========================================================
+  // CARGAR CERTÁMENES INNOVATEC
+  // =========================================================
+
   useEffect(() => {
     const iniciar = async () => {
       try {
@@ -85,18 +97,21 @@ export default function AsignacionJuradosScreen() {
         const respuesta = await getCertamenes();
 
         const disponibles = obtenerLista(respuesta).filter(
-          item => tipoCertamen(item) === 'INNOVATEC'
+          (item) => tipoCertamen(item) === 'INNOVATEC'
         );
 
         setCertamenes(disponibles);
 
         if (disponibles.length > 0) {
-          setCertamenSeleccionado(idCertamen(disponibles[0]));
+          setCertamenSeleccionado(
+            idCertamen(disponibles[0])
+          );
         }
       } catch (error: any) {
         Alert.alert(
           'Error',
-          error?.message || 'No se pudieron cargar los certámenes.'
+          error?.message ||
+            'No se pudieron cargar los certámenes.'
         );
       } finally {
         setCargando(false);
@@ -106,43 +121,62 @@ export default function AsignacionJuradosScreen() {
     iniciar();
   }, []);
 
-  // Cargar jurados y salas del certamen seleccionado
+  // =========================================================
+  // CARGAR JURADOS Y SALAS
+  // =========================================================
+
   const cargarDatos = async (id: number) => {
-  try {
-    setCargando(true);
+    try {
+      setCargando(true);
 
-    const [respuestaJurados, respuestaSalas] = await Promise.all([
-      getJurados(),
-      getSalas(id),
-    ]);
+      const [
+        respuestaJurados,
+        respuestaSalas,
+      ] = await Promise.all([
+        getJurados(),
+        getSalas(id),
+      ]);
 
-    const listaJurados = obtenerLista(respuestaJurados);
-    const listaSalas = obtenerLista(respuestaSalas);
+      const listaJurados =
+        obtenerLista(respuestaJurados);
 
-    const juradosFiltrados = listaJurados.filter(
-      jurado => idCertamen(jurado) === Number(id)
-    );
+      const listaSalas =
+        obtenerLista(respuestaSalas);
 
-    const salasFiltradas = listaSalas.filter(
-      sala => idCertamen(sala) === Number(id)
-    );
+      const juradosFiltrados =
+        listaJurados.filter(
+          (jurado) =>
+            idCertamen(jurado) === Number(id)
+        );
 
-    setJurados(juradosFiltrados);
-    setSalas(salasFiltradas);
+      const salasFiltradas =
+        listaSalas.filter(
+          (sala) =>
+            idCertamen(sala) === Number(id)
+        );
 
-  } catch (error: any) {
-    Alert.alert(
-      'Error',
-      error?.message || 'No se pudieron cargar los datos.'
-    );
-  } finally {
-    setCargando(false);
-  }
-};
+      setJurados(juradosFiltrados);
+      setSalas(salasFiltradas);
+    } catch (error: any) {
+      Alert.alert(
+        'Error',
+        error?.message ||
+          'No se pudieron cargar los datos.'
+      );
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // =========================================================
+  // CUANDO CAMBIA EL CERTAMEN
+  // =========================================================
+
   useEffect(() => {
     if (certamenSeleccionado !== null) {
       setJuradoSeleccionado(null);
       setSalaSeleccionada(null);
+
       cargarDatos(certamenSeleccionado);
     } else {
       setJurados([]);
@@ -150,7 +184,10 @@ export default function AsignacionJuradosScreen() {
     }
   }, [certamenSeleccionado]);
 
-  // Seleccionar certamen
+  // =========================================================
+  // SELECCIONAR CERTAMEN
+  // =========================================================
+
   const seleccionarCertamen = (id: number) => {
     setModalCertamenVisible(false);
 
@@ -159,7 +196,10 @@ export default function AsignacionJuradosScreen() {
     }
   };
 
-  // Abrir formulario de asignación
+  // =========================================================
+  // ABRIR MODAL DE ASIGNACIÓN
+  // =========================================================
+
   const abrirAsignacion = () => {
     if (jurados.length === 0) {
       Alert.alert(
@@ -182,9 +222,15 @@ export default function AsignacionJuradosScreen() {
     setModalVisible(true);
   };
 
-  // Guardar asignación
+  // =========================================================
+  // GUARDAR ASIGNACIÓN
+  // =========================================================
+
   const guardarAsignacion = async () => {
-    if (!juradoSeleccionado || !salaSeleccionada) {
+    if (
+      !juradoSeleccionado ||
+      !salaSeleccionada
+    ) {
       Alert.alert(
         'Datos incompletos',
         'Selecciona un jurado y una sala.'
@@ -195,16 +241,21 @@ export default function AsignacionJuradosScreen() {
     try {
       setGuardando(true);
 
-      await actualizarJurado(juradoSeleccionado, {
-        Id_sala: salaSeleccionada,
-      });
+      await actualizarJurado(
+        juradoSeleccionado,
+        {
+          Id_sala: salaSeleccionada,
+        }
+      );
 
       setModalVisible(false);
       setJuradoSeleccionado(null);
       setSalaSeleccionada(null);
 
       if (certamenSeleccionado !== null) {
-        await cargarDatos(certamenSeleccionado);
+        await cargarDatos(
+          certamenSeleccionado
+        );
       }
 
       Alert.alert(
@@ -214,20 +265,29 @@ export default function AsignacionJuradosScreen() {
     } catch (error: any) {
       Alert.alert(
         'Error',
-        error?.message || 'No se pudo asignar la sala.'
+        error?.message ||
+          'No se pudo asignar la sala.'
       );
     } finally {
       setGuardando(false);
     }
   };
 
-  // Quitar sala asignada
-  const quitarSala = async (jurado: Registro) => {
+  // =========================================================
+  // QUITAR SALA ASIGNADA
+  // =========================================================
+
+  const quitarSala = async (
+    jurado: Registro
+  ) => {
     Alert.alert(
       'Quitar sala',
       '¿Deseas quitar la sala asignada a este jurado?',
       [
-        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
         {
           text: 'Quitar',
           style: 'destructive',
@@ -235,19 +295,30 @@ export default function AsignacionJuradosScreen() {
             try {
               setGuardando(true);
 
-              await actualizarJurado(Number(jurado.Id_jurado), {
-                Id_sala: null,
-              });
+              await actualizarJurado(
+                Number(jurado.Id_jurado),
+                {
+                  Id_sala: null,
+                }
+              );
 
-              if (certamenSeleccionado !== null) {
-                await cargarDatos(certamenSeleccionado);
+              if (
+                certamenSeleccionado !== null
+              ) {
+                await cargarDatos(
+                  certamenSeleccionado
+                );
               }
 
-              Alert.alert('Correcto', 'Se quitó la sala del jurado.');
+              Alert.alert(
+                'Correcto',
+                'Se quitó la sala del jurado.'
+              );
             } catch (error: any) {
               Alert.alert(
                 'Error',
-                error?.message || 'No se pudo quitar la sala.'
+                error?.message ||
+                  'No se pudo quitar la sala.'
               );
             } finally {
               setGuardando(false);
@@ -258,28 +329,45 @@ export default function AsignacionJuradosScreen() {
     );
   };
 
-  const nombreSala = (id: number | null) => {
-    if (!id) return 'Sin sala asignada';
+  // =========================================================
+  // OBTENER NOMBRE DE SALA
+  // =========================================================
+
+  const nombreSala = (
+    id: number | null
+  ) => {
+    if (!id) {
+      return 'Sin sala asignada';
+    }
 
     return (
-      salas.find(sala => Number(sala.Id_sala) === id)?.Nombre ||
+      salas.find(
+        (sala) =>
+          Number(sala.Id_sala) === id
+      )?.Nombre ||
       'Sala no encontrada'
     );
   };
 
-  // Selector visual de certámenes
+  // =========================================================
+  // SELECTOR DE CERTAMEN
+  // =========================================================
+
   const renderSelectorCertamen = () => (
     <>
       <TouchableOpacity
         activeOpacity={0.85}
         style={styles.tarjetaCertamen}
-        onPress={() => setModalCertamenVisible(true)}
+        onPress={() =>
+          setModalCertamenVisible(true)
+        }
         disabled={certamenes.length === 0}
       >
         <View style={styles.iconoCertamen}>
           <Ionicons
             name={
-              certamenActual && esRally(certamenActual)
+              certamenActual &&
+              esRally(certamenActual)
                 ? 'trophy-outline'
                 : 'bulb-outline'
             }
@@ -289,13 +377,21 @@ export default function AsignacionJuradosScreen() {
         </View>
 
         <View style={styles.infoCertamen}>
-          <Text style={styles.nombreCertamen} numberOfLines={1}>
+          <Text
+            style={styles.nombreCertamen}
+            numberOfLines={1}
+          >
             {certamenActual
-              ? nombreCertamen(certamenActual)
+              ? nombreCertamen(
+                  certamenActual
+                )
               : 'Cargando...'}
           </Text>
 
-          <Text style={styles.tipoCertamen} numberOfLines={1}>
+          <Text
+            style={styles.tipoCertamen}
+            numberOfLines={1}
+          >
             {certamenActual
               ? esRally(certamenActual)
                 ? 'RALLY'
@@ -303,7 +399,10 @@ export default function AsignacionJuradosScreen() {
               : ''}
           </Text>
 
-          <Text style={styles.indicacionCertamen} numberOfLines={1}>
+          <Text
+            style={styles.indicacionCertamen}
+            numberOfLines={1}
+          >
             Toca para cambiar de certamen
           </Text>
         </View>
@@ -317,35 +416,70 @@ export default function AsignacionJuradosScreen() {
         </View>
       </TouchableOpacity>
 
-      {/* Modal para seleccionar certamen */}
+      {/* MODAL PARA SELECCIONAR CERTAMEN */}
+
       <Modal
         visible={modalCertamenVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setModalCertamenVisible(false)}
+        onRequestClose={() =>
+          setModalCertamenVisible(false)
+        }
       >
-        <View style={styles.fondoModalCertamen}>
-          <View style={styles.modalCertamen}>
-            <View style={styles.encabezadoModalCertamen}>
-              <Text style={styles.tituloModalCertamen}>
+        <View
+          style={
+            styles.fondoModalCertamen
+          }
+        >
+          <View
+            style={styles.modalCertamen}
+          >
+            <View
+              style={
+                styles.encabezadoModalCertamen
+              }
+            >
+              <Text
+                style={
+                  styles.tituloModalCertamen
+                }
+              >
                 Seleccionar certamen
               </Text>
 
               <TouchableOpacity
-                onPress={() => setModalCertamenVisible(false)}
+                onPress={() =>
+                  setModalCertamenVisible(
+                    false
+                  )
+                }
               >
-                <Ionicons name="close" size={30} color="#263449" />
+                <Ionicons
+                  name="close"
+                  size={30}
+                  color="#263449"
+                />
               </TouchableOpacity>
             </View>
 
             <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listaCertamenes}
+              showsVerticalScrollIndicator={
+                false
+              }
+              contentContainerStyle={
+                styles.listaCertamenes
+              }
             >
-              {certamenes.map(item => {
-                const id = idCertamen(item);
-                const seleccionado = id === certamenSeleccionado;
-                const rally = esRally(item);
+              {certamenes.map((item) => {
+                const id =
+                  idCertamen(item);
+
+                const seleccionado =
+                  id ===
+                  certamenSeleccionado;
+
+                const rally =
+                  esRally(item);
 
                 return (
                   <TouchableOpacity
@@ -353,35 +487,56 @@ export default function AsignacionJuradosScreen() {
                     activeOpacity={0.8}
                     style={[
                       styles.opcionCertamen,
-                      seleccionado && styles.opcionCertamenActiva,
+                      seleccionado &&
+                        styles.opcionCertamenActiva,
                     ]}
-                    onPress={() => seleccionarCertamen(id)}
+                    onPress={() =>
+                      seleccionarCertamen(
+                        id
+                      )
+                    }
                   >
                     <Ionicons
                       name={
-                        rally ? 'trophy-outline' : 'bulb-outline'
+                        rally
+                          ? 'trophy-outline'
+                          : 'bulb-outline'
                       }
                       size={32}
-                      color={seleccionado ? '#16834D' : '#087B9B'}
+                      color={
+                        seleccionado
+                          ? '#16834D'
+                          : '#087B9B'
+                      }
                     />
 
-                    <View style={styles.infoOpcionCertamen}>
+                    <View
+                      style={
+                        styles.infoOpcionCertamen
+                      }
+                    >
                       <Text
                         style={[
                           styles.nombreOpcionCertamen,
-                          seleccionado && styles.textoOpcionActivo,
+                          seleccionado &&
+                            styles.textoOpcionActivo,
                         ]}
                       >
-                        {nombreCertamen(item)}
+                        {nombreCertamen(
+                          item
+                        )}
                       </Text>
 
                       <Text
                         style={[
                           styles.tipoOpcionCertamen,
-                          seleccionado && styles.textoOpcionActivo,
+                          seleccionado &&
+                            styles.textoOpcionActivo,
                         ]}
                       >
-                        {rally ? 'RALLY' : 'INNOVATECNM'}
+                        {rally
+                          ? 'RALLY'
+                          : 'INNOVATECNM'}
                       </Text>
                     </View>
 
@@ -397,8 +552,13 @@ export default function AsignacionJuradosScreen() {
               })}
 
               {certamenes.length === 0 && (
-                <Text style={styles.sinCertamenes}>
-                  No hay certámenes InnovaTec registrados.
+                <Text
+                  style={
+                    styles.sinCertamenes
+                  }
+                >
+                  No hay certámenes
+                  InnovaTec registrados.
                 </Text>
               )}
             </ScrollView>
@@ -408,19 +568,45 @@ export default function AsignacionJuradosScreen() {
     </>
   );
 
+  // =========================================================
+  // PANTALLA PRINCIPAL
+  // =========================================================
+
   return (
     <View style={styles.contenedor}>
       <ScrollView
-        contentContainerStyle={styles.contenido}
+        contentContainerStyle={
+          styles.contenido
+        }
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.titulo}>
-          Asignación de salas a jurados
-        </Text>
 
-        <Text style={styles.descripcion}>
-          Selecciona un jurado registrado y una sala existente.
-        </Text>
+        {/* ENCABEZADO CENTRADO */}
+
+        <View style={styles.header}>
+          <View
+            style={styles.headerIcon}
+          >
+            <Ionicons
+              name="people-outline"
+              size={40}
+              color="#0F766E"
+            />
+          </View>
+
+          <Text style={styles.titulo}>
+            Asignación de salas a jurados
+          </Text>
+
+          <Text
+            style={styles.descripcion}
+          >
+            Selecciona un jurado registrado
+            y una sala existente.
+          </Text>
+        </View>
+
+        {/* CERTAMEN */}
 
         <Text style={styles.etiqueta}>
           Certamen InnovaTec
@@ -428,32 +614,53 @@ export default function AsignacionJuradosScreen() {
 
         {renderSelectorCertamen()}
 
+        {/* BOTÓN ASIGNAR */}
+
         <TouchableOpacity
           style={styles.botonPrincipal}
           onPress={abrirAsignacion}
-          disabled={cargando || certamenSeleccionado === null}
+          disabled={
+            cargando ||
+            certamenSeleccionado === null
+          }
         >
           <Ionicons
             name="link-outline"
             size={21}
             color="#FFFFFF"
           />
-          <Text style={styles.textoBoton}>
+
+          <Text
+            style={styles.textoBoton}
+          >
             Asignar sala a jurado
           </Text>
         </TouchableOpacity>
 
-        <View style={styles.encabezado}>
-          <Text style={styles.subtitulo}>
+        {/* LISTADO DE JURADOS */}
+
+        <View
+          style={styles.encabezado}
+        >
+          <Text
+            style={styles.subtitulo}
+          >
             Jurados registrados
           </Text>
 
           <TouchableOpacity
             onPress={() =>
-              certamenSeleccionado !== null &&
-              cargarDatos(certamenSeleccionado)
+              certamenSeleccionado !==
+                null &&
+              cargarDatos(
+                certamenSeleccionado
+              )
             }
-            disabled={cargando || certamenSeleccionado === null}
+            disabled={
+              cargando ||
+              certamenSeleccionado ===
+                null
+            }
           >
             <Ionicons
               name="refresh"
@@ -464,48 +671,85 @@ export default function AsignacionJuradosScreen() {
         </View>
 
         {cargando ? (
-          <ActivityIndicator size="large" color="#0F766E" />
+          <ActivityIndicator
+            size="large"
+            color="#0F766E"
+          />
         ) : jurados.length === 0 ? (
-          <View style={styles.vacio}>
+          <View
+            style={styles.vacio}
+          >
             <Ionicons
               name="people-outline"
               size={35}
               color="#64748B"
             />
-            <Text style={styles.descripcion}>
-              No hay jurados registrados en este certamen.
+
+            <Text
+              style={
+                styles.descripcion
+              }
+            >
+              No hay jurados registrados
+              en este certamen.
             </Text>
           </View>
         ) : (
-          jurados.map(jurado => {
-            const salaActual = idSala(jurado);
+          jurados.map((jurado) => {
+            const salaActual =
+              idSala(jurado);
 
             return (
               <View
-                key={jurado.Id_jurado}
+                key={
+                  jurado.Id_jurado
+                }
                 style={styles.tarjeta}
               >
-                <Text style={styles.nombre}>
+                <Text
+                  style={styles.nombre}
+                >
                   {jurado.Nombre_usuario ||
                     jurado.Nombre ||
                     'Jurado'}
                 </Text>
 
-                <Text style={styles.descripcion}>
-                  {jurado.Institucion || 'Sin institución'}
+                <Text
+                  style={
+                    styles.descripcion
+                  }
+                >
+                  {jurado.Institucion ||
+                    'Sin institución'}
                 </Text>
 
-                <Text style={styles.estado}>
-                  {nombreSala(salaActual)}
+                <Text
+                  style={styles.estado}
+                >
+                  {nombreSala(
+                    salaActual
+                  )}
                 </Text>
 
                 {salaActual !== null && (
                   <TouchableOpacity
-                    style={styles.botonQuitar}
-                    onPress={() => quitarSala(jurado)}
-                    disabled={guardando}
+                    style={
+                      styles.botonQuitar
+                    }
+                    onPress={() =>
+                      quitarSala(
+                        jurado
+                      )
+                    }
+                    disabled={
+                      guardando
+                    }
                   >
-                    <Text style={styles.textoBoton}>
+                    <Text
+                      style={
+                        styles.textoBoton
+                      }
+                    >
                       Quitar sala
                     </Text>
                   </TouchableOpacity>
@@ -516,29 +760,63 @@ export default function AsignacionJuradosScreen() {
         )}
       </ScrollView>
 
-      {/* Modal de asignación */}
+      {/* =====================================================
+          MODAL DE ASIGNACIÓN
+      ===================================================== */}
+
       <Modal
         visible={modalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() =>
+          setModalVisible(false)
+        }
       >
-        <View style={styles.fondoModal}>
+        <View
+          style={styles.fondoModal}
+        >
           <View style={styles.modal}>
-            <Text style={styles.tituloModal}>
-              Asignar sala a jurado
-            </Text>
 
-            <Text style={styles.etiqueta}>
+            <View
+              style={
+                styles.modalHeader
+              }
+            >
+              <Ionicons
+                name="people-outline"
+                size={28}
+                color="#0F766E"
+              />
+
+              <Text
+                style={
+                  styles.tituloModal
+                }
+              >
+                Asignar sala a jurado
+              </Text>
+            </View>
+
+            {/* JURADO */}
+
+            <Text
+              style={styles.etiqueta}
+            >
               Seleccionar jurado
             </Text>
 
-            <View style={styles.selector}>
+            <View
+              style={styles.selector}
+            >
               <Picker
-                selectedValue={juradoSeleccionado}
-                onValueChange={value =>
+                selectedValue={
+                  juradoSeleccionado
+                }
+                onValueChange={(value) =>
                   setJuradoSeleccionado(
-                    value == null ? null : Number(value)
+                    value == null
+                      ? null
+                      : Number(value)
                   )
                 }
               >
@@ -547,30 +825,47 @@ export default function AsignacionJuradosScreen() {
                   value={null}
                 />
 
-                {jurados.map(jurado => (
-                  <Picker.Item
-                    key={jurado.Id_jurado}
-                    label={`${
-                      jurado.Nombre_usuario ||
-                      jurado.Nombre ||
-                      'Jurado'
-                    } - ${jurado.Institucion || ''}`}
-                    value={Number(jurado.Id_jurado)}
-                  />
-                ))}
+                {jurados.map(
+                  (jurado) => (
+                    <Picker.Item
+                      key={
+                        jurado.Id_jurado
+                      }
+                      label={`${jurado.Nombre_usuario ||
+                        jurado.Nombre ||
+                        'Jurado'} - ${
+                        jurado.Institucion ||
+                        ''
+                      }`}
+                      value={Number(
+                        jurado.Id_jurado
+                      )}
+                    />
+                  )
+                )}
               </Picker>
             </View>
 
-            <Text style={styles.etiqueta}>
+            {/* SALA */}
+
+            <Text
+              style={styles.etiqueta}
+            >
               Seleccionar sala
             </Text>
 
-            <View style={styles.selector}>
+            <View
+              style={styles.selector}
+            >
               <Picker
-                selectedValue={salaSeleccionada}
-                onValueChange={value =>
+                selectedValue={
+                  salaSeleccionada
+                }
+                onValueChange={(value) =>
                   setSalaSeleccionada(
-                    value == null ? null : Number(value)
+                    value == null
+                      ? null
+                      : Number(value)
                   )
                 }
               >
@@ -579,39 +874,69 @@ export default function AsignacionJuradosScreen() {
                   value={null}
                 />
 
-                {salas.map(sala => (
-                  <Picker.Item
-                    key={sala.Id_sala}
-                    label={`${sala.Nombre} - ${
-                      sala.Ubicacion || 'Sin ubicación'
-                    }`}
-                    value={Number(sala.Id_sala)}
-                  />
-                ))}
+                {salas.map(
+                  (sala) => (
+                    <Picker.Item
+                      key={
+                        sala.Id_sala
+                      }
+                      label={`${sala.Nombre} - ${
+                        sala.Ubicacion ||
+                        'Sin ubicación'
+                      }`}
+                      value={Number(
+                        sala.Id_sala
+                      )}
+                    />
+                  )
+                )}
               </Picker>
             </View>
 
+            {/* GUARDAR */}
+
             <TouchableOpacity
-              style={styles.botonGuardar}
-              onPress={guardarAsignacion}
+              style={
+                styles.botonGuardar
+              }
+              onPress={
+                guardarAsignacion
+              }
               disabled={guardando}
             >
-              <Text style={styles.textoBoton}>
+              <Text
+                style={
+                  styles.textoBoton
+                }
+              >
                 {guardando
                   ? 'Guardando...'
                   : 'Guardar asignación'}
               </Text>
             </TouchableOpacity>
 
+            {/* CANCELAR */}
+
             <TouchableOpacity
-              style={styles.botonCancelar}
-              onPress={() => setModalVisible(false)}
+              style={
+                styles.botonCancelar
+              }
+              onPress={() =>
+                setModalVisible(
+                  false
+                )
+              }
               disabled={guardando}
             >
-              <Text style={styles.textoCancelar}>
+              <Text
+                style={
+                  styles.textoCancelar
+                }
+              >
                 Cancelar
               </Text>
             </TouchableOpacity>
+
           </View>
         </View>
       </Modal>
@@ -630,10 +955,29 @@ const styles = StyleSheet.create({
     paddingBottom: 35,
   },
 
+  // =========================================================
+  // ENCABEZADO CENTRADO
+  // =========================================================
+
+  header: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+
+  headerIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#E6F4F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+
   titulo: {
-    fontSize: 23,
-    fontWeight: 'bold',
-    color: '#1E293B',
+    fontSize: 23, fontWeight: '800', color: '#002b45', textAlign: 'center'
   },
 
   descripcion: {
@@ -641,7 +985,13 @@ const styles = StyleSheet.create({
     marginTop: 7,
     marginBottom: 15,
     fontSize: 15,
+    textAlign: 'center',
+    width: '100%',
   },
+
+  // =========================================================
+  // ETIQUETAS
+  // =========================================================
 
   etiqueta: {
     fontSize: 17,
@@ -651,7 +1001,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // SELECTOR COMPACTO DE CERTAMEN
+  // =========================================================
+  // SELECTOR DE CERTAMEN
+  // =========================================================
+
   tarjetaCertamen: {
     height: 94,
     backgroundColor: '#F8FAFC',
@@ -710,10 +1063,14 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
 
-  // MODAL DE CERTÁMENES
+  // =========================================================
+  // MODAL CERTAMENES
+  // =========================================================
+
   fondoModalCertamen: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.52)',
+    backgroundColor:
+      'rgba(15, 23, 42, 0.52)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 18,
@@ -733,7 +1090,8 @@ const styles = StyleSheet.create({
   encabezadoModalCertamen: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
     paddingBottom: 18,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
@@ -795,9 +1153,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // BOTONES Y LISTADO
+  // =========================================================
+  // BOTÓN PRINCIPAL
+  // =========================================================
+
   botonPrincipal: {
-    backgroundColor: '#7c9f27',
+    backgroundColor: '#7C9F27',
     padding: 17,
     borderRadius: 17,
     flexDirection: 'row',
@@ -814,9 +1175,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // =========================================================
+  // LISTADO
+  // =========================================================
+
   encabezado: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
@@ -856,9 +1222,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  // =========================================================
+  // MODAL DE ASIGNACIÓN
+  // =========================================================
+
   fondoModal: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor:
+      'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -872,11 +1243,18 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 15,
+  },
+
   tituloModal: {
     fontSize: 22,
     fontWeight: 'bold',
     color: '#1E293B',
-    marginBottom: 15,
+    flex: 1,
   },
 
   selector: {
