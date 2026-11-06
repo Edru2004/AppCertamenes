@@ -8,7 +8,7 @@ import { fetch as expoFetch } from 'expo/fetch';
 
 // El celular y la computadora deben estar en la misma red Wi-Fi.
 
-const API = 'http://192.168.1.134:8000/api';
+const API = 'http://10.2.40.64:8000/api';
 
 type Datos = Record<string, any> | FormData;
 
