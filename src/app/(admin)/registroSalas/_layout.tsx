@@ -1,16 +1,35 @@
-import { Stack } from 'expo-router';
+// @ts-nocheck
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
 
 export default function RegistroSalasLayout() {
   return (
-    <Stack
+    <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: '#002b45' },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' },
+        headerShown: false,
+        tabBarActiveTintColor: '#002b45',
+        tabBarInactiveTintColor: '#888',
+        tabBarStyle: { height: 60, paddingBottom: 8 },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Gestión de Salas' }} />
-      <Stack.Screen name="form" options={{ title: 'Formulario de Sala' }} />
-    </Stack>
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Gestión',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="form"
+        options={{
+          title: 'Nuevo / Editar',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-add-outline" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
   );
 }

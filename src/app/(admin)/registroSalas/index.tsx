@@ -7,7 +7,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import {
-
   ActivityIndicator,
 
   Modal,
@@ -23,7 +22,6 @@ import {
   TouchableOpacity,
 
   View,
-
 } from 'react-native';
 
 import { eliminarSala, getCertamenes, getSalas } from '../../../services/api';
@@ -245,7 +243,7 @@ export default function SalasIndexScreen() {
 
           <View style={styles.headerIcon}>
 
-            <Ionicons name="business-outline" size={26} color="#fff" />
+            <Ionicons name="business-outline" size={26} color="#fff"  />
             
 
           </View>
@@ -624,11 +622,15 @@ const styles = StyleSheet.create({
 
   contentContainer: { padding: 16, paddingBottom: 40, flexGrow: 1 },
 
-  header: { marginBottom: 15 },
+  header: { marginBottom: 15,
+    alignItems: 'center', 
+    justifyContent: 'center',
+    width: '100%'
+   },
 
   headerIcon: { width: 52, height: 52, borderRadius: 15, backgroundColor: '#002b45', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
 
-  title: { fontSize: 23, fontWeight: '800', color: '#002b45' },
+  title: { fontSize: 23, fontWeight: '800', color: '#002b45', textAlign: 'center' },
 
   subtitle: { color: '#64748b', fontSize: 13, lineHeight: 19, marginTop: 5 },
 
