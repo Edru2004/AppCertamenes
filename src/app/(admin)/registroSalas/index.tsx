@@ -1,118 +1,81 @@
 // @ts-nocheck
 
 import { Ionicons } from '@expo/vector-icons';
-
 import { useFocusEffect, useRouter } from 'expo-router';
-
 import { useCallback, useState } from 'react';
-
 import {
   ActivityIndicator,
-
   Modal,
-
   ScrollView,
-
   StyleSheet,
-
   Text,
-
   TextInput,
-
   TouchableOpacity,
-
   View,
 } from 'react-native';
-
 import { eliminarSala, getCertamenes, getSalas } from '../../../services/api';
 
 
 
 const list = (value: any): any[] =>
-
   Array.isArray(value) ? value : Array.isArray(value?.data) ? value.data : Array.isArray(value?.salas) ? value.salas : [];
-
-const idCert = (item: any) => Number(item?.Id_certamen ?? item?.Id_Certamen ?? item?.id_certamen ?? item?.id);
-
-const typeOf = (item: any) => String(item?.Tipo ?? item?.tipo ?? '').trim().toUpperCase();
-
+const idCert = (item: any) =>
+  Number(item?.Id_certamen ?? item?.Id_Certamen ?? item?.id_certamen ?? item?.id);
+const typeOf = (item: any) =>
+  String(item?.Tipo ?? item?.tipo ?? '').trim().toUpperCase();
 const isInnova = (item: any) => ['INNOVATEC', 'INNOVATECNM'].includes(typeOf(item));
+const idSala = (item: any) =>
+  Number(item?.Id_sala ?? item?.id_sala ?? item?.id ?? 0);
 
-const idSala = (item: any) => Number(item?.Id_sala ?? item?.id_sala ?? item?.id);
+const nombreSala = (item: any) =>
+  String(item?.Nombre ?? item?.nombre ?? 'Sin nombre');
 
-const nombreSala = (item: any) => String(item?.Nombre ?? item?.nombre ?? 'Sin nombre');
+const ubicacionSala = (item: any) =>
+  String(item?.Ubicacion ?? item?.ubicacion ?? 'Sin ubicación');
 
-const ubicacionSala = (item: any) => String(item?.Ubicacion ?? item?.ubicacion ?? 'Sin ubicación');
-
-
+const encargadoSala = (item: any) =>
+  String(item?.Encargado ?? item?.encargado ?? 'Sin encargado');
 
 type Resultado = { visible: boolean; titulo: string; mensaje: string; exito: boolean };
 
 
 
 export default function SalasIndexScreen() {
-
   const router = useRouter();
-
   const [certamenes, setCertamenes] = useState<any[]>([]);
-
   const [idCertamenSel, setIdCertamenSel] = useState<number | null>(null);
-
   const [salas, setSalas] = useState<any[]>([]);
-
   const [busqueda, setBusqueda] = useState('');
-
   const [cargando, setCargando] = useState(true);
-
   const [eliminando, setEliminando] = useState(false);
-
   const [modalConfirmacion, setModalConfirmacion] = useState(false);
-
   const [salaPendiente, setSalaPendiente] = useState<any>(null);
-
   const [resultado, setResultado] = useState<Resultado>({ visible: false, titulo: '', mensaje: '', exito: false });
   const [modalCertamenesVisible, setModalCertamenesVisible] = useState(false);
 
 
-
   const mostrarResultado = (titulo: string, mensaje: string, exito = false) =>
-
     setResultado({ visible: true, titulo, mensaje, exito });
-
   const certamenSeleccionado = certamenes.find((item) => idCert(item) === Number(idCertamenSel));
 
 
 
   const cargar = useCallback(async (requestedId?: number | null, texto = '', mostrarCarga = true) => {
-
     if (mostrarCarga) setCargando(true);
-
     try {
-
       const [certResp, salasResp] = await Promise.all([
-
         getCertamenes(),
-
         getSalas(requestedId ?? undefined),
-
       ]);
 
       const innova = list(certResp).filter(isInnova);
-
       setCertamenes(innova);
-
       const actual = innova.find((item: any) => idCert(item) === Number(requestedId)) ?? innova[0] ?? null;
-
       const chosenId = actual ? idCert(actual) : null;
-
       setIdCertamenSel(chosenId);
-
       const term = texto.trim().toLocaleLowerCase();
-
       const filtradas = list(salasResp).filter((sala: any) => {
-
         const idPadre = Number(sala?.Id_certamen ?? sala?.Id_Certamen ?? sala?.id_certamen);
-
         const sameCertamen = chosenId != null && idPadre === chosenId;
 
         const matchText = !term || nombreSala(sala).toLocaleLowerCase().includes(term) || ubicacionSala(sala).toLocaleLowerCase().includes(term);
@@ -166,17 +129,16 @@ export default function SalasIndexScreen() {
     router.push({
 
       pathname: '/registroSalas/form' as any,
-
       params: {
-
         id: String(idSala(sala)),
-
-        idCertamen: String(sala.Id_certamen ?? sala.id_certamen ?? idCertamenSel),
-
+        idCertamen: String(
+          sala.Id_certamen ??
+          sala.id_certamen ??
+          idCertamenSel
+        ),
         nombre: nombreSala(sala),
-
         ubicacion: ubicacionSala(sala),
-
+        encargado: encargadoSala(sala),
       },
 
     });
@@ -184,7 +146,6 @@ export default function SalasIndexScreen() {
 
 
   const confirmarEliminacion = async () => {
-
     if (!salaPendiente || eliminando) return;
 
     const pending = salaPendiente;
@@ -243,8 +204,8 @@ export default function SalasIndexScreen() {
 
           <View style={styles.headerIcon}>
 
-            <Ionicons name="business-outline" size={26} color="#fff"  />
-            
+            <Ionicons name="business-outline" size={26} color="#fff" />
+
 
           </View>
 
@@ -421,6 +382,21 @@ export default function SalasIndexScreen() {
                   <Text style={styles.locationValue}>{ubicacionSala(sala)}</Text>
 
                 </View>
+                <View style={styles.locationRow}>
+                  <Ionicons
+                    name="person-outline"
+                    size={17}
+                    color="#64748b"
+                  />
+
+                  <Text style={styles.locationLabel}>
+                    Encargado:
+                  </Text>
+
+                  <Text style={styles.locationValue}>
+                    {encargadoSala(sala)}
+                  </Text>
+                </View>
 
                 <Text style={styles.parentText}>Certamen: {certamenSeleccionado.Nombre ?? 'InnovaTecNM'}</Text>
 
@@ -558,7 +534,7 @@ export default function SalasIndexScreen() {
 
 
 
-      <Modal visible={eliminando} transparent animationType="fade" onRequestClose={() => {}}>
+      <Modal visible={eliminando} transparent animationType="fade" onRequestClose={() => { }}>
 
         <View style={styles.modalBackdrop}>
 
@@ -622,11 +598,12 @@ const styles = StyleSheet.create({
 
   contentContainer: { padding: 16, paddingBottom: 40, flexGrow: 1 },
 
-  header: { marginBottom: 15,
-    alignItems: 'center', 
+  header: {
+    marginBottom: 15,
+    alignItems: 'center',
     justifyContent: 'center',
     width: '100%'
-   },
+  },
 
   headerIcon: { width: 52, height: 52, borderRadius: 15, backgroundColor: '#002b45', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
 
@@ -716,7 +693,6 @@ const styles = StyleSheet.create({
   editButton: { backgroundColor: '#0284c7' },
 
   deleteButton: { backgroundColor: '#dc2626' },
-
   actionText: { color: '#fff', fontWeight: '800', fontSize: 12 },
 
   modalBackdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(15,23,42,0.48)', padding: 20 },
@@ -729,20 +705,39 @@ const styles = StyleSheet.create({
 
   modalMessage: { color: '#475569', fontSize: 13, lineHeight: 19, textAlign: 'center', marginBottom: 14 },
 
-  modalActions: { flexDirection: 'row', gap: 9 },
+  modalActions: {
+    flexDirection: 'row', gap: 9
+  },
 
-  modalButton: { minHeight: 42, flex: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  modalButton: {
+    minHeight: 42,
+    flex: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12
+  },
+  cancelButton: {
+    backgroundColor: '#e2e8f0'
+  },
+  cancelText: {
+    color: '#334155', fontWeight: '800'
+  },
+  confirmButton: {
+    backgroundColor: '#002b45'
+  },
 
-  cancelButton: { backgroundColor: '#e2e8f0' },
-
-  cancelText: { color: '#334155', fontWeight: '800' },
-
-  confirmButton: { backgroundColor: '#002b45' },
-
-  loadingCard: { width: '100%', maxWidth: 330, backgroundColor: '#fff', borderRadius: 15, padding: 24, alignItems: 'center', gap: 12 },
+  loadingCard: {
+    width: '100%',
+    maxWidth: 330,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 24,
+    alignItems: 'center',
+    gap: 12
+  },
 
   successIcon: { backgroundColor: '#dcfce7' },
-
   errorIcon: { backgroundColor: '#fee2e2' },
 
 });
