@@ -2,41 +2,560 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 
 import {
+  ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+import {
+  getFormularioEvaluacion,
+  guardarEvaluacionJurado,
+} from '../../services/api';
+
 export default function EvaluarEquipo() {
   const router = useRouter();
-
   const params = useLocalSearchParams();
 
-  const nombreEquipo =
-    String(params?.nombreEquipo || 'Equipo');
+  const idEquipo = String(params?.idEquipo || '');
+  const nombreEquipo = String(params?.nombreEquipo || 'Equipo');
 
-  const idEquipo =
-    String(params?.idEquipo || '');
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+
+  const [equipo, setEquipo] = useState<any>(null);
+  const [categorias, setCategorias] = useState<any[]>([]);
+
+  const [respuestas, setRespuestas] = useState<{
+    [key: string]: string;
+  }>({});
+
+  const [comentarios, setComentarios] = useState('');
+
+  // ============================================================
+  // CARGAR FORMULARIO
+  // ============================================================
+
+  useEffect(() => {
+    cargarFormulario();
+  }, [idEquipo]);
+
+  const cargarFormulario = async () => {
+    try {
+      if (!idEquipo || isNaN(Number(idEquipo))) {
+        Alert.alert(
+          'Error',
+          'No se recibió un ID de equipo válido.'
+        );
+        return;
+      }
+
+      setCargando(true);
+
+      console.log('================================');
+      console.log('CARGANDO EVALUACIÓN');
+      console.log('ID EQUIPO:', Number(idEquipo));
+      console.log('================================');
+
+      const respuesta = await getFormularioEvaluacion(
+        Number(idEquipo)
+      );
+
+      console.log(
+        'FORMULARIO RECIBIDO:',
+        JSON.stringify(respuesta, null, 2)
+      );
+
+      setEquipo(respuesta?.equipo || null);
+
+      const categoriasRecibidas = Array.isArray(
+        respuesta?.categorias
+      )
+        ? respuesta.categorias
+        : [];
+
+      setCategorias(categoriasRecibidas);
+
+      // ========================================================
+      // SI YA EXISTE UNA EVALUACIÓN, CARGARLA
+      // ========================================================
+
+      if (respuesta?.evaluacion) {
+        setComentarios(
+          respuesta.evaluacion.Comentarios || ''
+        );
+
+        const respuestasIniciales: any = {};
+
+        if (
+          Array.isArray(
+            respuesta.evaluacion.preguntas
+          )
+        ) {
+          respuesta.evaluacion.preguntas.forEach(
+            (pregunta: any) => {
+              respuestasIniciales[
+                String(pregunta.Id_rubrica)
+              ] = String(
+                pregunta.Valor ?? ''
+              );
+            }
+          );
+        }
+
+        setRespuestas(respuestasIniciales);
+      }
+
+    } catch (error: any) {
+      console.error(
+        '================================'
+      );
+
+      console.error(
+        'ERROR AL CARGAR EVALUACIÓN:',
+        error
+      );
+
+      console.error(
+        'MENSAJE:',
+        error?.message
+      );
+
+      console.error(
+        '================================'
+      );
+
+      Alert.alert(
+        'Error',
+        error?.message ||
+          'No se pudo cargar la rúbrica de evaluación.'
+      );
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // ============================================================
+  // CAMBIAR RESPUESTA
+  // ============================================================
+
+  const cambiarRespuesta = (
+    idRubrica: number,
+    valor: string
+  ) => {
+    setRespuestas((prev) => ({
+      ...prev,
+      [String(idRubrica)]: valor,
+    }));
+  };
+
+  // ============================================================
+  // CALCULAR TOTAL
+  // ============================================================
+
+  const calcularTotal = () => {
+    let total = 0;
+
+    categorias.forEach((categoria) => {
+      const rubricas = Array.isArray(
+        categoria?.rubricas
+      )
+        ? categoria.rubricas
+        : [];
+
+      rubricas.forEach((rubrica: any) => {
+        const valor = Number(
+          respuestas[
+            String(rubrica.Id_rubrica)
+          ]
+        );
+
+        if (!isNaN(valor)) {
+          total += valor;
+        }
+      });
+    });
+
+    return total;
+  };
+
+  // ============================================================
+  // CALCULAR MÁXIMO
+  // ============================================================
+
+  const calcularMaximo = () => {
+    let maximo = 0;
+
+    categorias.forEach((categoria) => {
+      const rubricas = Array.isArray(
+        categoria?.rubricas
+      )
+        ? categoria.rubricas
+        : [];
+
+      rubricas.forEach((rubrica: any) => {
+        const valorMax = Number(
+          rubrica?.Valor_Max || 0
+        );
+
+        if (!isNaN(valorMax)) {
+          maximo += valorMax;
+        }
+      });
+    });
+
+    return maximo;
+  };
+
+  // ============================================================
+  // VALIDAR FORMULARIO
+  // ============================================================
+
+  const validarFormulario = () => {
+    if (!idEquipo || isNaN(Number(idEquipo))) {
+      Alert.alert(
+        'Error',
+        'El ID del equipo no es válido.'
+      );
+
+      return false;
+    }
+
+    if (
+      !Array.isArray(categorias) ||
+      categorias.length === 0
+    ) {
+      Alert.alert(
+        'Sin rúbrica',
+        'No hay categorías o criterios de evaluación disponibles.'
+      );
+
+      return false;
+    }
+
+    for (const categoria of categorias) {
+      const rubricas = Array.isArray(
+        categoria?.rubricas
+      )
+        ? categoria.rubricas
+        : [];
+
+      for (const rubrica of rubricas) {
+        const valorTexto =
+          respuestas[
+            String(rubrica.Id_rubrica)
+          ];
+
+        // ------------------------------------------------------
+        // RESPUESTA VACÍA
+        // ------------------------------------------------------
+
+        if (
+          valorTexto === undefined ||
+          valorTexto === null ||
+          String(valorTexto).trim() === ''
+        ) {
+          Alert.alert(
+            'Evaluación incompleta',
+            `Debes responder el criterio:\n\n${rubrica.Pregunta}`
+          );
+
+          return false;
+        }
+
+        const valor = Number(valorTexto);
+        const valorMax = Number(
+          rubrica.Valor_Max
+        );
+
+        // ------------------------------------------------------
+        // NO NUMÉRICO
+        // ------------------------------------------------------
+
+        if (isNaN(valor)) {
+          Alert.alert(
+            'Valor inválido',
+            `La respuesta de "${rubrica.Pregunta}" debe ser numérica.`
+          );
+
+          return false;
+        }
+
+        // ------------------------------------------------------
+        // MENOR QUE CERO
+        // ------------------------------------------------------
+
+        if (valor < 0) {
+          Alert.alert(
+            'Valor inválido',
+            `El valor de "${rubrica.Pregunta}" no puede ser menor que 0.`
+          );
+
+          return false;
+        }
+
+        // ------------------------------------------------------
+        // MAYOR AL MÁXIMO
+        // ------------------------------------------------------
+
+        if (
+          !isNaN(valorMax) &&
+          valor > valorMax
+        ) {
+          Alert.alert(
+            'Valor inválido',
+            `El criterio "${rubrica.Pregunta}" tiene un máximo de ${valorMax}.`
+          );
+
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  // ============================================================
+  // GUARDAR EVALUACIÓN
+  // ============================================================
+
+  const guardar = async () => {
+    if (!validarFormulario()) {
+      return;
+    }
+
+    try {
+      setGuardando(true);
+
+      const respuestasArray: {
+        Id_rubrica: number;
+        Valor: number;
+      }[] = [];
+
+      // --------------------------------------------------------
+      // CONSTRUIR RESPUESTAS
+      // --------------------------------------------------------
+
+      categorias.forEach((categoria) => {
+        const rubricas = Array.isArray(
+          categoria?.rubricas
+        )
+          ? categoria.rubricas
+          : [];
+
+        rubricas.forEach((rubrica: any) => {
+          const idRubrica = Number(
+            rubrica.Id_rubrica
+          );
+
+          const valor = Number(
+            respuestas[
+              String(idRubrica)
+            ]
+          );
+
+          respuestasArray.push({
+            Id_rubrica: idRubrica,
+            Valor: valor,
+          });
+        });
+      });
+
+      // --------------------------------------------------------
+      // DATOS QUE SE ENVÍAN A LARAVEL
+      // --------------------------------------------------------
+
+      const datos = {
+        Id_equipo: Number(idEquipo),
+        Comentarios:
+          comentarios.trim(),
+        respuestas:
+          respuestasArray,
+      };
+
+      console.log('================================');
+      console.log('GUARDANDO EVALUACIÓN');
+      console.log('ID EQUIPO:', Number(idEquipo));
+      console.log(
+        'NOMBRE EQUIPO:',
+        nombreEquipo
+      );
+
+      console.log(
+        'RESPUESTAS:',
+        JSON.stringify(
+          respuestasArray,
+          null,
+          2
+        )
+      );
+
+      console.log(
+        'DATOS COMPLETOS:',
+        JSON.stringify(
+          datos,
+          null,
+          2
+        )
+      );
+
+      console.log('================================');
+
+      // --------------------------------------------------------
+      // ENVIAR A LARAVEL
+      // --------------------------------------------------------
+
+      const respuesta =
+        await guardarEvaluacionJurado(
+          datos
+        );
+
+      console.log(
+        '================================'
+      );
+
+      console.log(
+        'RESPUESTA DE LARAVEL:',
+        JSON.stringify(
+          respuesta,
+          null,
+          2
+        )
+      );
+
+      console.log(
+        '================================'
+      );
+
+      // --------------------------------------------------------
+      // ÉXITO
+      // --------------------------------------------------------
+
+      Alert.alert(
+        'Evaluación guardada',
+        'La evaluación del equipo se guardó correctamente.',
+        [
+          {
+            text: 'Aceptar',
+            onPress: () => {
+              router.back();
+            },
+          },
+        ]
+      );
+
+    } catch (error: any) {
+      console.error(
+        '================================'
+      );
+
+      console.error(
+        'ERROR AL GUARDAR EVALUACIÓN:',
+        error
+      );
+
+      console.error(
+        'MENSAJE:',
+        error?.message
+      );
+
+      console.error(
+        '================================'
+      );
+
+      // --------------------------------------------------------
+      // MOSTRAR EL ERROR REAL DEL SERVIDOR
+      // --------------------------------------------------------
+
+      let mensaje =
+        error?.message ||
+        'No se pudo guardar la evaluación.';
+
+      // Evitar que aparezca un objeto completo
+      if (
+        typeof mensaje !== 'string'
+      ) {
+        mensaje =
+          'Laravel rechazó la evaluación.';
+      }
+
+      Alert.alert(
+        'No se pudo guardar',
+        mensaje
+      );
+
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  // ============================================================
+  // TOTALES
+  // ============================================================
+
+  const total = calcularTotal();
+  const maximo = calcularMaximo();
+
+  const porcentaje =
+    maximo > 0
+      ? ((total / maximo) * 100).toFixed(1)
+      : '0';
+
+  // ============================================================
+  // CARGANDO
+  // ============================================================
+
+  if (cargando) {
+    return (
+      <View
+        style={styles.loadingPage}
+      >
+        <ActivityIndicator
+          size="large"
+          color="#0879AD"
+        />
+
+        <Text
+          style={styles.loadingText}
+        >
+          Cargando rúbrica...
+        </Text>
+      </View>
+    );
+  }
+
+  // ============================================================
+  // PANTALLA
+  // ============================================================
 
   return (
     <View style={styles.page}>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={
+          styles.container
+        }
       >
 
+        {/* ================================================== */}
         {/* HEADER */}
+        {/* ================================================== */}
 
         <View style={styles.header}>
 
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() =>
+              router.back()
+            }
           >
             <Ionicons
               name="arrow-back"
@@ -45,25 +564,37 @@ export default function EvaluarEquipo() {
             />
           </TouchableOpacity>
 
-          <View style={styles.headerText}>
-
-            <Text style={styles.kicker}>
+          <View
+            style={styles.headerText}
+          >
+            <Text
+              style={styles.kicker}
+            >
               EVALUACIÓN
             </Text>
 
-            <Text style={styles.title}>
-              {nombreEquipo}
+            <Text
+              style={styles.title}
+              numberOfLines={1}
+            >
+              {equipo?.Nombre ||
+                nombreEquipo}
             </Text>
-
           </View>
 
         </View>
 
+        {/* ================================================== */}
         {/* EQUIPO */}
+        {/* ================================================== */}
 
-        <View style={styles.teamCard}>
+        <View
+          style={styles.teamCard}
+        >
 
-          <View style={styles.teamIcon}>
+          <View
+            style={styles.teamIcon}
+          >
             <Ionicons
               name="people"
               size={32}
@@ -71,172 +602,395 @@ export default function EvaluarEquipo() {
             />
           </View>
 
-          <View style={styles.teamInfo}>
+          <View
+            style={styles.teamInfo}
+          >
 
-            <Text style={styles.teamLabel}>
+            <Text
+              style={styles.teamLabel}
+            >
               EQUIPO A EVALUAR
             </Text>
 
-            <Text style={styles.teamName}>
-              {nombreEquipo}
+            <Text
+              style={styles.teamName}
+              numberOfLines={2}
+            >
+              {equipo?.Nombre ||
+                nombreEquipo}
             </Text>
 
-            {idEquipo ? (
-              <Text style={styles.teamId}>
-                ID del equipo: {idEquipo}
-              </Text>
-            ) : null}
+            <Text
+              style={styles.teamId}
+            >
+              ID del equipo: {idEquipo}
+            </Text>
 
           </View>
 
         </View>
 
+        {/* ================================================== */}
         {/* TÍTULO */}
+        {/* ================================================== */}
 
-        <Text style={styles.sectionTitle}>
+        <Text
+          style={styles.sectionTitle}
+        >
           Rúbrica de evaluación
         </Text>
 
-        <Text style={styles.description}>
-          Selecciona la calificación correspondiente
-          para cada criterio de evaluación.
+        <Text
+          style={styles.description}
+        >
+          Evalúa cada criterio de acuerdo con
+          los valores establecidos en la
+          rúbrica.
         </Text>
 
-        {/* CRITERIO 1 */}
+        {/* ================================================== */}
+        {/* CATEGORÍAS */}
+        {/* ================================================== */}
 
-        <View style={styles.criterionCard}>
+        {categorias.length === 0 ? (
 
-          <Text style={styles.criterionNumber}>
-            CRITERIO 1
-          </Text>
+          <View
+            style={styles.emptyCard}
+          >
 
-          <Text style={styles.criterionTitle}>
-            Propuesta e innovación
-          </Text>
+            <Ionicons
+              name="document-text-outline"
+              size={42}
+              color="#94A3B8"
+            />
 
-          <Text style={styles.criterionDescription}>
-            Evalúa la calidad, creatividad y grado de
-            innovación de la propuesta presentada.
-          </Text>
+            <Text
+              style={styles.emptyTitle}
+            >
+              No hay rúbrica disponible
+            </Text>
 
-          <View style={styles.scoreRow}>
-
-            {[1, 2, 3, 4, 5].map((valor) => (
-              <TouchableOpacity
-                key={valor}
-                style={styles.scoreButton}
-              >
-                <Text style={styles.scoreText}>
-                  {valor}
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-          </View>
-
-        </View>
-
-        {/* CRITERIO 2 */}
-
-        <View style={styles.criterionCard}>
-
-          <Text style={styles.criterionNumber}>
-            CRITERIO 2
-          </Text>
-
-          <Text style={styles.criterionTitle}>
-            Impacto de la solución
-          </Text>
-
-          <Text style={styles.criterionDescription}>
-            Evalúa el impacto potencial de la solución
-            propuesta frente al problema planteado.
-          </Text>
-
-          <View style={styles.scoreRow}>
-
-            {[1, 2, 3, 4, 5].map((valor) => (
-              <TouchableOpacity
-                key={valor}
-                style={styles.scoreButton}
-              >
-                <Text style={styles.scoreText}>
-                  {valor}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <Text
+              style={styles.emptyText}
+            >
+              No se encontraron categorías o
+              criterios de evaluación para
+              este certamen.
+            </Text>
 
           </View>
 
-        </View>
+        ) : (
 
-        {/* CRITERIO 3 */}
+          categorias.map(
+            (
+              categoria: any,
+              index: number
+            ) => {
 
-        <View style={styles.criterionCard}>
+              const rubricas =
+                Array.isArray(
+                  categoria?.rubricas
+                )
+                  ? categoria.rubricas
+                  : [];
 
-          <Text style={styles.criterionNumber}>
-            CRITERIO 3
-          </Text>
+              return (
+                <View
+                  key={
+                    categoria.Id_categoria ||
+                    `categoria-${index}`
+                  }
+                  style={
+                    styles.categoryCard
+                  }
+                >
 
-          <Text style={styles.criterionTitle}>
-            Viabilidad
-          </Text>
+                  {/* ====================================== */}
+                  {/* CATEGORÍA */}
+                  {/* ====================================== */}
 
-          <Text style={styles.criterionDescription}>
-            Evalúa la posibilidad de implementar la
-            solución propuesta.
-          </Text>
+                  <View
+                    style={
+                      styles.categoryHeader
+                    }
+                  >
 
-          <View style={styles.scoreRow}>
+                    <View
+                      style={
+                        styles.categoryBadge
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.categoryBadgeText
+                        }
+                      >
+                        {index + 1}
+                      </Text>
+                    </View>
 
-            {[1, 2, 3, 4, 5].map((valor) => (
-              <TouchableOpacity
-                key={valor}
-                style={styles.scoreButton}
+                    <View
+                      style={
+                        styles.categoryInfo
+                      }
+                    >
+
+                      <Text
+                        style={
+                          styles.categoryTitle
+                        }
+                      >
+                        {categoria.Nombre ||
+                          `Categoría ${
+                            index + 1
+                          }`}
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.categoryCount
+                        }
+                      >
+                        {rubricas.length}{' '}
+                        {rubricas.length ===
+                        1
+                          ? 'criterio'
+                          : 'criterios'}
+                      </Text>
+
+                    </View>
+
+                  </View>
+
+                  {/* ====================================== */}
+                  {/* PREGUNTAS */}
+                  {/* ====================================== */}
+
+                  {rubricas.map(
+                    (
+                      rubrica: any,
+                      rubricaIndex: number
+                    ) => {
+
+                      const idRubrica =
+                        Number(
+                          rubrica.Id_rubrica
+                        );
+
+                      const valorMax =
+                        Number(
+                          rubrica?.Valor_Max ||
+                            0
+                        );
+
+                      return (
+                        <View
+                          key={
+                            idRubrica
+                          }
+                          style={
+                            styles.criterionCard
+                          }
+                        >
+
+                          <Text
+                            style={
+                              styles.criterionNumber
+                            }
+                          >
+                            CRITERIO{' '}
+                            {rubricaIndex +
+                              1}
+                          </Text>
+
+                          <Text
+                            style={
+                              styles.criterionTitle
+                            }
+                          >
+                            {rubrica.Pregunta}
+                          </Text>
+
+                          <Text
+                            style={
+                              styles.maxText
+                            }
+                          >
+                            Valor máximo:{' '}
+                            {valorMax}
+                          </Text>
+
+                          <View
+                            style={
+                              styles.inputRow
+                            }
+                          >
+
+                            <TextInput
+                              style={
+                                styles.scoreInput
+                              }
+                              value={
+                                respuestas[
+                                  String(
+                                    idRubrica
+                                  )
+                                ] || ''
+                              }
+                              onChangeText={(
+                                texto
+                              ) =>
+                                cambiarRespuesta(
+                                  idRubrica,
+                                  texto
+                                )
+                              }
+                              keyboardType="decimal-pad"
+                              placeholder="0"
+                              placeholderTextColor="#94A3B8"
+                              maxLength={8}
+                            />
+
+                            <Text
+                              style={
+                                styles.maxLabel
+                              }
+                            >
+                              / {valorMax}
+                            </Text>
+
+                          </View>
+
+                        </View>
+                      );
+                    }
+                  )}
+
+                </View>
+              );
+            }
+          )
+        )}
+
+        {/* ================================================== */}
+        {/* RESUMEN */}
+        {/* ================================================== */}
+
+        <View
+          style={styles.totalCard}
+        >
+
+          <View>
+
+            <Text
+              style={styles.totalLabel}
+            >
+              PUNTAJE TOTAL
+            </Text>
+
+            <Text
+              style={styles.totalValue}
+            >
+              {total.toFixed(2)}
+
+              <Text
+                style={styles.totalMax}
               >
-                <Text style={styles.scoreText}>
-                  {valor}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                {' '}
+                / {maximo.toFixed(2)}
+              </Text>
+            </Text>
 
           </View>
 
-        </View>
+          <View
+            style={
+              styles.percentageBox
+            }
+          >
 
-        {/* COMENTARIOS */}
-
-        <View style={styles.commentsCard}>
-
-          <Text style={styles.commentsTitle}>
-            Comentarios del jurado
-          </Text>
-
-          <View style={styles.commentsBox}>
-
-            <Text style={styles.commentsPlaceholder}>
-              Escribe aquí tus observaciones...
+            <Text
+              style={
+                styles.percentageText
+              }
+            >
+              {porcentaje}%
             </Text>
 
           </View>
 
         </View>
 
-        {/* GUARDAR */}
+        {/* ================================================== */}
+        {/* COMENTARIOS */}
+        {/* ================================================== */}
 
-        <TouchableOpacity
-          style={styles.saveButton}
-          activeOpacity={0.85}
+        <View
+          style={styles.commentsCard}
         >
 
-          <Ionicons
-            name="checkmark-circle-outline"
-            size={24}
-            color="#FFFFFF"
+          <Text
+            style={
+              styles.commentsTitle
+            }
+          >
+            Comentarios del jurado
+          </Text>
+
+          <TextInput
+            style={
+              styles.commentsInput
+            }
+            value={comentarios}
+            onChangeText={
+              setComentarios
+            }
+            placeholder="Escribe aquí tus observaciones..."
+            placeholderTextColor="#94A3B8"
+            multiline
+            textAlignVertical="top"
           />
 
-          <Text style={styles.saveText}>
-            Guardar evaluación
+        </View>
+
+        {/* ================================================== */}
+        {/* GUARDAR */}
+        {/* ================================================== */}
+
+        <TouchableOpacity
+          style={[
+            styles.saveButton,
+            guardando &&
+              styles.saveButtonDisabled,
+          ]}
+          activeOpacity={0.85}
+          disabled={guardando}
+          onPress={guardar}
+        >
+
+          {guardando ? (
+
+            <ActivityIndicator
+              color="#FFFFFF"
+            />
+
+          ) : (
+
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={24}
+              color="#FFFFFF"
+            />
+
+          )}
+
+          <Text
+            style={styles.saveText}
+          >
+            {guardando
+              ? 'Guardando...'
+              : 'Guardar evaluación'}
           </Text>
 
         </TouchableOpacity>
@@ -247,16 +1001,33 @@ export default function EvaluarEquipo() {
   );
 }
 
-const styles = StyleSheet.create({
+// ============================================================
+// ESTILOS
+// ============================================================
 
+const styles = StyleSheet.create({
   page: {
     flex: 1,
     backgroundColor: '#F1F5F9',
   },
 
+  loadingPage: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  loadingText: {
+    marginTop: 12,
+    color: '#64748B',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
   container: {
     padding: 18,
-    paddingBottom: 40,
+    paddingBottom: 50,
   },
 
   header: {
@@ -349,13 +1120,60 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
-  criterionCard: {
+  categoryCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#DBE3EE',
-    padding: 17,
-    marginBottom: 14,
+    padding: 16,
+    marginBottom: 16,
+  },
+
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+
+  categoryBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: '#063B52',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  categoryBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+
+  categoryInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  categoryTitle: {
+    color: '#172033',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+
+  categoryCount: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  criterionCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 15,
+    marginTop: 10,
   },
 
   criterionNumber: {
@@ -366,38 +1184,90 @@ const styles = StyleSheet.create({
 
   criterionTitle: {
     color: '#172033',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '900',
+    lineHeight: 21,
     marginTop: 5,
   },
 
-  criterionDescription: {
+  maxText: {
     color: '#64748B',
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 6,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 7,
   },
 
-  scoreRow: {
+  inputRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
+    alignItems: 'center',
+    marginTop: 12,
   },
 
-  scoreButton: {
-    width: 48,
+  scoreInput: {
+    width: 100,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: '#E0F2FE',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#BAE6FD',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 13,
+    paddingHorizontal: 14,
+    color: '#063B52',
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
   },
 
-  scoreText: {
-    color: '#063B52',
-    fontSize: 17,
+  maxLabel: {
+    color: '#64748B',
+    fontSize: 16,
+    fontWeight: '800',
+    marginLeft: 8,
+  },
+
+  totalCard: {
+    backgroundColor: '#063B52',
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 5,
+    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  totalLabel: {
+    color: '#B8D6E3',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+
+  totalValue: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+
+  totalMax: {
+    color: '#B8D6E3',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  percentageBox: {
+    minWidth: 75,
+    height: 55,
+    borderRadius: 15,
+    backgroundColor: '#0879AD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+
+  percentageText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '900',
   },
 
@@ -416,7 +1286,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 
-  commentsBox: {
+  commentsInput: {
     height: 120,
     borderRadius: 13,
     backgroundColor: '#F8FAFC',
@@ -424,11 +1294,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     marginTop: 12,
     padding: 13,
-  },
-
-  commentsPlaceholder: {
-    color: '#94A3B8',
-    fontSize: 12,
+    color: '#172033',
+    fontSize: 13,
   },
 
   saveButton: {
@@ -441,6 +1308,10 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
+  saveButtonDisabled: {
+    opacity: 0.65,
+  },
+
   saveText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -448,4 +1319,28 @@ const styles = StyleSheet.create({
     marginLeft: 9,
   },
 
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#DBE3EE',
+    padding: 30,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+
+  emptyTitle: {
+    color: '#172033',
+    fontSize: 17,
+    fontWeight: '900',
+    marginTop: 12,
+  },
+
+  emptyText: {
+    color: '#64748B',
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginTop: 6,
+  },
 });

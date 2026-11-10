@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 
 import { getMisAsignacionesJurado } from '../../services/api';
-
 export default function EquiposJurado() {
   const router = useRouter();
 

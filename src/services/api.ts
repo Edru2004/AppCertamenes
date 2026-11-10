@@ -822,7 +822,27 @@ export const getMisAsignacionesJurado = async () =>
 // PERFIL PROFESIONAL DEL JURADO
 
 // ==========================================
+// ==========================================
+// EVALUACIÓN DE JURADO
+// ==========================================
 
+export const getFormularioEvaluacion = async (
+  idEquipo: number
+) => {
+  return peticion(`/jurado/evaluacion/${idEquipo}`);
+};
+
+
+export const guardarEvaluacionJurado = async (data: {
+  Id_equipo: number;
+  Comentarios?: string;
+  respuestas: {
+    Id_rubrica: number;
+    Valor: number;
+  }[];
+}) => {
+  return peticion('/jurado/evaluacion', 'POST', data);
+};
 export const getMiPerfilJurado = async () => {
 
   return peticion('/jurado/perfil');
