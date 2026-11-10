@@ -134,9 +134,28 @@ export default function JuradosIndexScreen() {
           </View>
         )}
 
-        <TouchableOpacity style={styles.newButton} onPress={() => router.push({ pathname: '/gesJurados/form' as any, params: { idCertamen: String(idCertamenSel ?? '') } })} disabled={!idCertamenSel || eliminando}>
-          <Ionicons name="add-circle-outline" size={20} color="#fff" />
-          <Text style={styles.newButtonText}>Nuevo jurado</Text>
+        <TouchableOpacity
+          style={styles.newButton}
+          onPress={() =>
+            router.push({
+              pathname: '/gesJurados/form' as any,
+              params: {
+                idCertamen: String(idCertamenSel ?? ''),
+                juradoEditar: '',
+              },
+            })
+          }
+          disabled={!idCertamenSel || eliminando}
+        >
+          <Ionicons
+            name="add-circle-outline"
+            size={20}
+            color="#fff"
+          />
+
+          <Text style={styles.newButtonText}>
+            Nuevo jurado
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.searchBox}>

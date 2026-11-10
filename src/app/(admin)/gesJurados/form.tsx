@@ -1,222 +1,488 @@
 // @ts-nocheck
 
 import { Ionicons } from '@expo/vector-icons';
-
 import * as DocumentPicker from 'expo-document-picker';
-
 import { useLocalSearchParams, useRouter } from 'expo-router';
-
 import { useEffect, useMemo, useState } from 'react';
 
 import {
-
   ActivityIndicator,
   Linking,
-
   Modal,
-
   ScrollView,
-
   StyleSheet,
-
   Text,
-
   TextInput,
-
   TouchableOpacity,
-
-  View
-
+  View,
 } from 'react-native';
 
 import {
-
   actualizarJurado,
-
   crearJurado,
-
   getCertamenes,
-
+  getPerfilJuradoPorUsuario,
   getSalas,
-
   getUsuariosParaJurado,
-  getPerfilJuradoPorUsuario
-
 } from '../../../services/api';
 
 
+// ======================================================
+// FUNCIONES AUXILIARES
+// ======================================================
 
 const extraerLista = (respuesta: any): any[] => {
-
   if (Array.isArray(respuesta)) return respuesta;
 
-  if (Array.isArray(respuesta?.data)) return respuesta.data;
+  if (Array.isArray(respuesta?.data)) {
+    return respuesta.data;
+  }
 
-  if (Array.isArray(respuesta?.data?.data)) return respuesta.data.data;
+  if (Array.isArray(respuesta?.data?.data)) {
+    return respuesta.data.data;
+  }
 
-  if (Array.isArray(respuesta?.usuarios)) return respuesta.usuarios;
+  if (Array.isArray(respuesta?.usuarios)) {
+    return respuesta.usuarios;
+  }
 
-  if (Array.isArray(respuesta?.certamenes)) return respuesta.certamenes;
+  if (Array.isArray(respuesta?.certamenes)) {
+    return respuesta.certamenes;
+  }
 
-  if (Array.isArray(respuesta?.salas)) return respuesta.salas;
+  if (Array.isArray(respuesta?.salas)) {
+    return respuesta.salas;
+  }
 
   return [];
-
 };
 
-const primerValor = (valor: any) => Array.isArray(valor) ? valor[0] : valor;
 
-const idCertamenDe = (item: any) => Number(item?.Id_certamen ?? item?.Id_Certamen ?? item?.id_certamen ?? item?.idCertamen ?? item?.id);
+const primerValor = (valor: any) =>
+  Array.isArray(valor) ? valor[0] : valor;
 
-const idUsuarioDe = (item: any) => Number(item?.Id_usuario ?? item?.id_usuario ?? item?.id);
 
-const idSalaDe = (item: any) => Number(item?.Id_sala ?? item?.id_sala ?? item?.id);
+const idCertamenDe = (item: any) =>
+  Number(
+    item?.Id_certamen ??
+    item?.Id_Certamen ??
+    item?.id_certamen ??
+    item?.idCertamen ??
+    item?.id
+  );
 
-const nombreUsuarioDe = (item: any) => String(item?.Nombre ?? item?.nombre ?? item?.name ?? item?.Usuario ?? `Usuario #${idUsuarioDe(item)}`);
+
+const idUsuarioDe = (item: any) =>
+  Number(
+    item?.Id_usuario ??
+    item?.id_usuario ??
+    item?.id
+  );
+
+
+const idSalaDe = (item: any) =>
+  Number(
+    item?.Id_sala ??
+    item?.id_sala ??
+    item?.id
+  );
+
+
+const nombreUsuarioDe = (item: any) =>
+  String(
+    item?.Nombre ??
+    item?.nombre ??
+    item?.name ??
+    item?.Usuario ??
+    `Usuario #${idUsuarioDe(item)}`
+  );
+
 
 const tipoVisible = (tipo: any) => {
+  const t = String(tipo ?? '')
+    .trim()
+    .toUpperCase();
 
-  const t = String(tipo ?? '').trim().toUpperCase();
+  if (t === 'RALLY') {
+    return 'Rally';
+  }
 
-  if (t === 'RALLY') return 'Rally';
-
-  if (t === 'INNOVATEC' || t === 'INNOVATECNM') return 'InnovaTecNM';
+  if (
+    t === 'INNOVATEC' ||
+    t === 'INNOVATECNM'
+  ) {
+    return 'InnovaTecNM';
+  }
 
   return t || 'Tipo no especificado';
-
 };
 
-const esInnova = (certamen: any) => ['INNOVATEC', 'INNOVATECNM'].includes(String(certamen?.Tipo ?? certamen?.tipo ?? '').trim().toUpperCase());
+
+const esInnova = (certamen: any) => {
+  const tipo = String(
+    certamen?.Tipo ??
+    certamen?.tipo ??
+    ''
+  )
+    .trim()
+    .toUpperCase();
+
+  return (
+    tipo === 'INNOVATEC' ||
+    tipo === 'INNOVATECNM'
+  );
+};
 
 
+// ======================================================
+// COMPONENTE
+// ======================================================
 
-const resultadoInicial = { visible: false, titulo: '', mensaje: '', exito: false };
-
+const resultadoInicial = {
+  visible: false,
+  titulo: '',
+  mensaje: '',
+  exito: false,
+};
 
 
 export default function JuradoFormScreen() {
 
   const router = useRouter();
 
-  const params = useLocalSearchParams<{ juradoEditar?: string; idCertamen?: string }>();
-
-  const juradoParam = primerValor(params.juradoEditar);
-
-  const idCertamenParam = primerValor(params.idCertamen);
-
-  const [idJurado, setIdJurado] = useState<number | null>(null);
-
-  const [certamenes, setCertamenes] = useState<any[]>([]);
-
-  const [usuarios, setUsuarios] = useState<any[]>([]);
-
-  const [salas, setSalas] = useState<any[]>([]);
-
-  const [idCertamen, setIdCertamen] = useState<number | null>(idCertamenParam ? Number(idCertamenParam) : null);
-
-  const [idUsuario, setIdUsuario] = useState<number | null>(null);
-
-  const [idSala, setIdSala] = useState<number | null>(null);
-
-  const [institucion, setInstitucion] = useState('');
-
-  const [puesto, setPuesto] = useState('');
-
-  const [sexo, setSexo] = useState('');
-
-  const [areaParticipacion, setAreaParticipacion] = useState('');
-
-  const [areaEspecializada, setAreaEspecializada] = useState('');
+  const params =
+    useLocalSearchParams<{
+      juradoEditar?: string;
+      idCertamen?: string;
+    }>();
 
 
+  // ====================================================
+  // PARAMETROS
+  // ====================================================
 
-  // Guardamos el objeto completo del archivo
+  const juradoParam =
+    primerValor(params.juradoEditar);
 
-  const [curriculumArchivo, setCurriculumArchivo] = useState<{ uri: string; name: string; mimeType?: string; ruta?: string; esRemoto?: boolean } | null>(null);
-  const [cargandoPerfil, setCargandoPerfil] = useState(false);
-  const [perfilEncontrado, setPerfilEncontrado] = useState(false);
-
-  const [invitacionTexto, setInvitacionTexto] = useState('');
-
-
-
-  const [busquedaUsuario, setBusquedaUsuario] = useState('');
-
-  const [selectorUsuario, setSelectorUsuario] = useState(false);
-
-  const [selectorSala, setSelectorSala] = useState(false);
-
-  const [cargando, setCargando] = useState(true);
-
-  const [cargandoSalas, setCargandoSalas] = useState(false);
-
-  const [guardando, setGuardando] = useState(false);
-
-  const [confirmarVisible, setConfirmarVisible] = useState(false);
-
-  const [resultado, setResultado] = useState(resultadoInicial);
+  const idCertamenParam =
+    primerValor(params.idCertamen);
 
 
+  // ====================================================
+  // ESTADOS PRINCIPALES
+  // ====================================================
 
-  const certamenSeleccionado = certamenes.find((item) => idCertamenDe(item) === Number(idCertamen)) ?? null;
+  const [idJurado, setIdJurado] =
+    useState<number | null>(null);
 
-  const esCertamenInnova = esInnova(certamenSeleccionado);
+  const [certamenes, setCertamenes] =
+    useState<any[]>([]);
 
-  const usuarioSeleccionado = usuarios.find((item) => idUsuarioDe(item) === Number(idUsuario)) ?? null;
+  const [usuarios, setUsuarios] =
+    useState<any[]>([]);
 
-  const salaSeleccionada = salas.find((item) => idSalaDe(item) === Number(idSala)) ?? null;
+  const [salas, setSalas] =
+    useState<any[]>([]);
 
 
+  const [idCertamen, setIdCertamen] =
+    useState<number | null>(
+      idCertamenParam
+        ? Number(idCertamenParam)
+        : null
+    );
+
+
+  const [idUsuario, setIdUsuario] =
+    useState<number | null>(null);
+
+
+  const [idSala, setIdSala] =
+    useState<number | null>(null);
+
+
+  // ====================================================
+  // DATOS PROFESIONALES
+  // ====================================================
+
+  const [institucion, setInstitucion] =
+    useState('');
+
+  const [puesto, setPuesto] =
+    useState('');
+
+  const [sexo, setSexo] =
+    useState('');
+
+  const [areaParticipacion, setAreaParticipacion] =
+    useState('');
+
+  const [areaEspecializada, setAreaEspecializada] =
+    useState('');
+
+
+  // ====================================================
+  // CURRICULUM
+  // ====================================================
+
+  const [
+    curriculumArchivo,
+    setCurriculumArchivo
+  ] = useState<{
+    uri: string;
+    name: string;
+    mimeType?: string;
+    ruta?: string;
+    esRemoto?: boolean;
+  } | null>(null);
+
+
+  const [cargandoPerfil, setCargandoPerfil] =
+    useState(false);
+
+  const [perfilEncontrado, setPerfilEncontrado] =
+    useState(false);
+
+
+  // ====================================================
+  // INVITACION
+  // ====================================================
+
+  const [invitacionTexto, setInvitacionTexto] =
+    useState('');
+
+
+  // ====================================================
+  // SELECTORES
+  // ====================================================
+
+  const [busquedaUsuario, setBusquedaUsuario] =
+    useState('');
+
+  const [selectorUsuario, setSelectorUsuario] =
+    useState(false);
+
+
+  const [busquedaCertamen, setBusquedaCertamen] =
+    useState('');
+
+  const [selectorCertamen, setSelectorCertamen] =
+    useState(false);
+
+
+  const [selectorSala, setSelectorSala] =
+    useState(false);
+
+
+  // ====================================================
+  // ESTADOS GENERALES
+  // ====================================================
+
+  const [cargando, setCargando] =
+    useState(true);
+
+  const [cargandoSalas, setCargandoSalas] =
+    useState(false);
+
+  const [guardando, setGuardando] =
+    useState(false);
+
+  const [confirmarVisible, setConfirmarVisible] =
+    useState(false);
+
+  const [resultado, setResultado] =
+    useState(resultadoInicial);
+
+
+  // ====================================================
+  // ELEMENTOS SELECCIONADOS
+  // ====================================================
+
+  const certamenSeleccionado =
+    certamenes.find(
+      (item) =>
+        idCertamenDe(item) ===
+        Number(idCertamen)
+    ) ?? null;
+
+
+  const esCertamenInnova =
+    esInnova(certamenSeleccionado);
+
+
+  const usuarioSeleccionado =
+    usuarios.find(
+      (item) =>
+        idUsuarioDe(item) ===
+        Number(idUsuario)
+    ) ?? null;
+
+
+  const salaSeleccionada =
+    salas.find(
+      (item) =>
+        idSalaDe(item) ===
+        Number(idSala)
+    ) ?? null;
+
+
+  // ====================================================
+  // USUARIOS FILTRADOS
+  // ====================================================
 
   const usuariosFiltrados = useMemo(() => {
 
-    const termino = busquedaUsuario.trim().toLocaleLowerCase();
-
-    if (!termino) return usuarios;
-
-    return usuarios.filter((item) => [nombreUsuarioDe(item), item?.Correo, item?.email, item?.Usuario].some((v) => String(v ?? '').toLocaleLowerCase().includes(termino)));
-
-  }, [usuarios, busquedaUsuario]);
+    const termino =
+      busquedaUsuario
+        .trim()
+        .toLocaleLowerCase();
 
 
+    if (!termino) {
+      return usuarios;
+    }
 
-  const mostrarResultado = (titulo: string, mensaje: string, exito = false) => setResultado({ visible: true, titulo, mensaje, exito });
+
+    return usuarios.filter((item) => {
+
+      const valores = [
+        nombreUsuarioDe(item),
+        item?.Correo,
+        item?.email,
+        item?.Usuario,
+      ];
 
 
+      return valores.some((v) =>
+        String(v ?? '')
+          .toLocaleLowerCase()
+          .includes(termino)
+      );
+
+    });
+
+  }, [
+    usuarios,
+    busquedaUsuario,
+  ]);
+
+
+  // ====================================================
+  // CERTAMENES FILTRADOS
+  // ====================================================
+
+  const certamenesFiltrados = useMemo(() => {
+
+    const termino =
+      busquedaCertamen
+        .trim()
+        .toLocaleLowerCase();
+
+
+    if (!termino) {
+      return certamenes;
+    }
+
+
+    return certamenes.filter((item) => {
+
+      const nombre =
+        String(
+          item?.Nombre ??
+          item?.nombre ??
+          ''
+        ).toLocaleLowerCase();
+
+
+      const tipo =
+        String(
+          item?.Tipo ??
+          item?.tipo ??
+          ''
+        ).toLocaleLowerCase();
+
+
+      return (
+        nombre.includes(termino) ||
+        tipo.includes(termino)
+      );
+
+    });
+
+  }, [
+    certamenes,
+    busquedaCertamen,
+  ]);
+
+
+  // ====================================================
+  // RESULTADO
+  // ====================================================
+
+  const mostrarResultado = (
+    titulo: string,
+    mensaje: string,
+    exito = false
+  ) => {
+
+    setResultado({
+      visible: true,
+      titulo,
+      mensaje,
+      exito,
+    });
+
+  };
+
+
+  // ====================================================
+  // SELECCIONAR PDF
+  // ====================================================
 
   const seleccionarPdf = async () => {
 
     try {
 
-      const res = await DocumentPicker.getDocumentAsync({
-
-        type: 'application/pdf',
-
-        copyToCacheDirectory: true,
-
-      });
+      const res =
+        await DocumentPicker.getDocumentAsync({
+          type: 'application/pdf',
+          copyToCacheDirectory: true,
+        });
 
 
+      if (
+        !res.canceled &&
+        res.assets &&
+        res.assets.length > 0
+      ) {
 
-      if (!res.canceled && res.assets && res.assets.length > 0) {
+        const archivo =
+          res.assets[0];
 
-        const archivo = res.assets[0];
 
-        if (archivo.mimeType === 'application/pdf' || archivo.name?.toLowerCase().endsWith('.pdf')) {
+        if (
+          archivo.mimeType ===
+            'application/pdf' ||
+          archivo.name
+            ?.toLowerCase()
+            .endsWith('.pdf')
+        ) {
 
           setCurriculumArchivo({
-
             uri: archivo.uri,
-
             name: archivo.name,
-
-            mimeType: archivo.mimeType || 'application/pdf',
-
+            mimeType:
+              archivo.mimeType ||
+              'application/pdf',
           });
 
         } else {
 
-          mostrarResultado('Formato no válido', 'El archivo seleccionado debe ser en formato PDF.', false);
+          mostrarResultado(
+            'Formato no válido',
+            'El archivo seleccionado debe ser en formato PDF.',
+            false
+          );
 
         }
 
@@ -224,75 +490,233 @@ export default function JuradoFormScreen() {
 
     } catch (error: any) {
 
-      mostrarResultado('Error', 'No se pudo seleccionar el archivo.', false);
+      mostrarResultado(
+        'Error',
+        'No se pudo seleccionar el archivo.',
+        false
+      );
 
     }
 
   };
 
 
+  // ====================================================
+  // CARGAR DATOS INICIALES
+  // ====================================================
 
   useEffect(() => {
 
     let activo = true;
 
+
     const cargar = async () => {
 
       setCargando(true);
+
 
       try {
 
         let original: any = null;
 
+
         if (juradoParam) {
 
-          try { original = JSON.parse(String(juradoParam)); } catch { original = null; }
+          try {
+
+            original =
+              JSON.parse(
+                String(juradoParam)
+              );
+
+          } catch {
+
+            original = null;
+
+          }
 
         }
 
-        const [respCertamenes, respUsuarios] = await Promise.all([getCertamenes(), getUsuariosParaJurado()]);
 
-        if (!activo) return;
+        // ==============================================
+        // NUEVO JURADO
+        // ==============================================
 
-        const listaCertamenes = extraerLista(respCertamenes).filter((x) => Number.isFinite(idCertamenDe(x)) && idCertamenDe(x) > 0);
+        if (!juradoParam) {
 
-        const listaUsuarios = extraerLista(respUsuarios).filter((x) => Number.isFinite(idUsuarioDe(x)) && idUsuarioDe(x) > 0);
+          setIdJurado(null);
 
-        setCertamenes(listaCertamenes);
+          setIdUsuario(null);
 
-        setUsuarios(listaUsuarios);
+          setIdSala(null);
+
+          setInstitucion('');
+
+          setPuesto('');
+
+          setSexo('');
+
+          setAreaParticipacion('');
+
+          setAreaEspecializada('');
+
+          setInvitacionTexto('');
+
+          setCurriculumArchivo(null);
+
+          setPerfilEncontrado(false);
+
+        }
 
 
+        // ==============================================
+        // CARGAR CERTAMENES Y USUARIOS
+        // ==============================================
+
+        const [
+          respCertamenes,
+          respUsuarios
+        ] = await Promise.all([
+          getCertamenes(),
+          getUsuariosParaJurado(),
+        ]);
+
+
+        if (!activo) {
+          return;
+        }
+
+
+        const listaCertamenes =
+          extraerLista(
+            respCertamenes
+          ).filter(
+            (x) =>
+              Number.isFinite(
+                idCertamenDe(x)
+              ) &&
+              idCertamenDe(x) > 0
+          );
+
+
+        const listaUsuarios =
+          extraerLista(
+            respUsuarios
+          ).filter(
+            (x) =>
+              Number.isFinite(
+                idUsuarioDe(x)
+              ) &&
+              idUsuarioDe(x) > 0
+          );
+
+
+        setCertamenes(
+          listaCertamenes
+        );
+
+        setUsuarios(
+          listaUsuarios
+        );
+
+
+        // ==============================================
+        // SI ESTAMOS EDITANDO
+        // ==============================================
 
         if (original) {
 
-          setIdJurado(Number(original.Id_jurado) || null);
+          setIdJurado(
+            Number(
+              original.Id_jurado
+            ) || null
+          );
 
-          setIdUsuario(Number(original.Id_usuario) || null);
 
-          setIdSala(original.Id_sala == null || original.Id_sala === '' ? null : Number(original.Id_sala));
+          setIdUsuario(
+            Number(
+              original.Id_usuario
+            ) || null
+          );
 
-          setInstitucion(String(original.Institucion ?? ''));
 
-          setPuesto(String(original.Puesto ?? original.puesto ?? ''));
+          setIdSala(
+            original.Id_sala == null ||
+            original.Id_sala === ''
+              ? null
+              : Number(
+                  original.Id_sala
+                )
+          );
 
-          setSexo(String(original.Sexo ?? original.sexo ?? ''));
 
-          setAreaParticipacion(String(original.Area_participacion ?? ''));
+          setInstitucion(
+            String(
+              original.Institucion ??
+              ''
+            )
+          );
 
-          setAreaEspecializada(String(original.Area_especializada ?? ''));
 
-          setInvitacionTexto(String(original.Invitacion ?? ''));
+          setPuesto(
+            String(
+              original.Puesto ??
+              original.puesto ??
+              ''
+            )
+          );
+
+
+          setSexo(
+            String(
+              original.Sexo ??
+              original.sexo ??
+              ''
+            )
+          );
+
+
+          setAreaParticipacion(
+            String(
+              original.Area_participacion ??
+              ''
+            )
+          );
+
+
+          setAreaEspecializada(
+            String(
+              original.Area_especializada ??
+              ''
+            )
+          );
+
+
+          setInvitacionTexto(
+            String(
+              original.Invitacion ??
+              ''
+            )
+          );
+
 
           if (original.Curriculum) {
 
             setCurriculumArchivo({
 
-              uri: original.Curriculum,
+              uri:
+                original.Curriculum,
 
-              name: String(original.Curriculum).split('/').pop() || 'Curriculum.pdf',
+              name:
+                String(
+                  original.Curriculum
+                )
+                  .split('/')
+                  .pop() ||
+                'Curriculum.pdf',
 
-              mimeType: 'application/pdf'
+              mimeType:
+                'application/pdf',
 
             });
 
@@ -300,93 +724,297 @@ export default function JuradoFormScreen() {
 
         }
 
-        const idOriginal = Number(original?.Id_certamen ?? original?.id_certamen ?? original?.certamen?.Id_certamen ?? idCertamenParam);
 
-        const porDefecto = listaCertamenes.find((x) => idCertamenDe(x) === idOriginal)
+        // ==============================================
+        // DETERMINAR CERTAMEN
+        // ==============================================
 
-          ?? listaCertamenes.find((x) => String(x.Tipo ?? x.tipo).toUpperCase() === 'RALLY')
+        const idOriginal =
+          Number(
+            original?.Id_certamen ??
+            original?.id_certamen ??
+            original?.certamen?.Id_certamen ??
+            idCertamenParam
+          );
 
-          ?? listaCertamenes[0]
 
-          ?? null;
+        const porDefecto =
+          listaCertamenes.find(
+            (x) =>
+              idCertamenDe(x) ===
+              idOriginal
+          )
+          ??
+          listaCertamenes.find(
+            (x) =>
+              String(
+                x.Tipo ??
+                x.tipo
+              ).toUpperCase() ===
+              'RALLY'
+          )
+          ??
+          listaCertamenes[0]
+          ??
+          null;
 
-        setIdCertamen(porDefecto ? idCertamenDe(porDefecto) : null);
+
+        setIdCertamen(
+          porDefecto
+            ? idCertamenDe(
+                porDefecto
+              )
+            : null
+        );
 
       } catch (error: any) {
 
-        if (activo) mostrarResultado('Error', error?.message || 'No se pudieron cargar los datos.', false);
+        if (activo) {
+
+          mostrarResultado(
+            'Error',
+            error?.message ||
+              'No se pudieron cargar los datos.',
+            false
+          );
+
+        }
 
       } finally {
 
-        if (activo) setCargando(false);
+        if (activo) {
+          setCargando(false);
+        }
 
       }
 
     };
 
+
     void cargar();
 
-    return () => { activo = false; };
 
-  }, [juradoParam, idCertamenParam]);
+    return () => {
+      activo = false;
+    };
+
+  }, [
+    juradoParam,
+    idCertamenParam,
+  ]);
 
 
+  // ====================================================
+  // CARGAR PERFIL PROFESIONAL
+  // ====================================================
 
   useEffect(() => {
+
     let activo = true;
+
+
     const cargarPerfil = async () => {
-      if (!idUsuario) { setPerfilEncontrado(false); return; }
+
+      if (!idUsuario) {
+
+        setPerfilEncontrado(false);
+
+        return;
+
+      }
+
+
       setCargandoPerfil(true);
+
       setPerfilEncontrado(false);
+
+
       setInstitucion('');
+
       setPuesto('');
+
       setSexo('');
+
       setAreaParticipacion('');
+
       setAreaEspecializada('');
+
       setCurriculumArchivo(null);
+
+
       try {
-        const respuesta = await getPerfilJuradoPorUsuario(Number(idUsuario));
-        if (!activo) return;
-        if (!respuesta?.completo || !respuesta?.perfil) {
-          setInstitucion(''); setPuesto(''); setSexo('');
-          setAreaParticipacion(''); setAreaEspecializada('');
-          setCurriculumArchivo(null); setPerfilEncontrado(false);
+
+        const respuesta =
+          await getPerfilJuradoPorUsuario(
+            Number(idUsuario)
+          );
+
+
+        if (!activo) {
           return;
         }
-        const perfil = respuesta.perfil;
-        setInstitucion(String(perfil.Institucion ?? ''));
-        setPuesto(String(perfil.Puesto ?? ''));
-        setSexo(String(perfil.Sexo ?? ''));
-        setAreaParticipacion(String(perfil.Area_participacion ?? ''));
-        setAreaEspecializada(String(perfil.Area_especializada ?? ''));
-        if (perfil.Curriculum) {
-          setCurriculumArchivo({
-            uri: respuesta.curriculum_url || '',
-            ruta: String(perfil.Curriculum),
-            name: String(perfil.Curriculum).split('/').pop() || 'Curriculum.pdf',
-            mimeType: 'application/pdf',
-            esRemoto: true,
-          });
-        } else { setCurriculumArchivo(null); }
-        setPerfilEncontrado(true);
-      } catch (error: any) {
-        if (activo) {
-          console.log('Error recuperando perfil profesional:', error);
-          mostrarResultado('No se pudo cargar el perfil', error?.message || 'No fue posible consultar los datos profesionales de este usuario.', false);
+
+
+        if (
+          !respuesta?.completo ||
+          !respuesta?.perfil
+        ) {
+
+          setInstitucion('');
+
+          setPuesto('');
+
+          setSexo('');
+
+          setAreaParticipacion('');
+
+          setAreaEspecializada('');
+
+          setCurriculumArchivo(null);
+
+          setPerfilEncontrado(false);
+
+          return;
+
         }
-      } finally { if (activo) setCargandoPerfil(false); }
+
+
+        const perfil =
+          respuesta.perfil;
+
+
+        setInstitucion(
+          String(
+            perfil.Institucion ??
+            ''
+          )
+        );
+
+
+        setPuesto(
+          String(
+            perfil.Puesto ??
+            ''
+          )
+        );
+
+
+        setSexo(
+          String(
+            perfil.Sexo ??
+            ''
+          )
+        );
+
+
+        setAreaParticipacion(
+          String(
+            perfil.Area_participacion ??
+            ''
+          )
+        );
+
+
+        setAreaEspecializada(
+          String(
+            perfil.Area_especializada ??
+            ''
+          )
+        );
+
+
+        if (perfil.Curriculum) {
+
+          setCurriculumArchivo({
+
+            uri:
+              respuesta.curriculum_url ||
+              '',
+
+            ruta:
+              String(
+                perfil.Curriculum
+              ),
+
+            name:
+              String(
+                perfil.Curriculum
+              )
+                .split('/')
+                .pop() ||
+              'Curriculum.pdf',
+
+            mimeType:
+              'application/pdf',
+
+            esRemoto: true,
+
+          });
+
+        } else {
+
+          setCurriculumArchivo(null);
+
+        }
+
+
+        setPerfilEncontrado(true);
+
+      } catch (error: any) {
+
+        if (activo) {
+
+          console.log(
+            'Error recuperando perfil profesional:',
+            error
+          );
+
+
+          mostrarResultado(
+            'No se pudo cargar el perfil',
+            error?.message ||
+              'No fue posible consultar los datos profesionales de este usuario.',
+            false
+          );
+
+        }
+
+      } finally {
+
+        if (activo) {
+          setCargandoPerfil(false);
+        }
+
+      }
+
     };
+
+
     void cargarPerfil();
-    return () => { activo = false; };
+
+
+    return () => {
+      activo = false;
+    };
+
   }, [idUsuario]);
+
+
+  // ====================================================
+  // CARGAR SALAS
+  // ====================================================
 
   useEffect(() => {
 
     let activo = true;
+
 
     const cargarSalasCertamen = async () => {
 
-      if (!idCertamen || !esCertamenInnova) {
+      if (
+        !idCertamen ||
+        !esCertamenInnova
+      ) {
 
         setSalas([]);
 
@@ -396,171 +1024,346 @@ export default function JuradoFormScreen() {
 
       }
 
+
       setCargandoSalas(true);
+
 
       try {
 
-        const respuesta = await getSalas(idCertamen);
+        const respuesta =
+          await getSalas(
+            idCertamen
+          );
+
 
         if (activo) {
 
-          const lista = extraerLista(respuesta).filter((s) => Number(s.Id_certamen ?? s.id_certamen ?? idCertamen) === Number(idCertamen));
+          const lista =
+            extraerLista(
+              respuesta
+            ).filter(
+              (s) =>
+                Number(
+                  s.Id_certamen ??
+                  s.id_certamen ??
+                  idCertamen
+                ) ===
+                Number(idCertamen)
+            );
+
 
           setSalas(lista);
 
-          setIdSala((actual) => actual != null && lista.some((s) => idSalaDe(s) === Number(actual)) ? actual : null);
+
+          setIdSala(
+            (actual) =>
+              actual != null &&
+              lista.some(
+                (s) =>
+                  idSalaDe(s) ===
+                  Number(actual)
+              )
+                ? actual
+                : null
+          );
 
         }
 
       } catch (error: any) {
 
-        if (activo) setSalas([]);
+        if (activo) {
+          setSalas([]);
+        }
 
       } finally {
 
-        if (activo) setCargandoSalas(false);
+        if (activo) {
+          setCargandoSalas(false);
+        }
 
       }
 
     };
 
+
     void cargarSalasCertamen();
 
-    return () => { activo = false; };
 
-  }, [idCertamen, esCertamenInnova]);
+    return () => {
+      activo = false;
+    };
+
+  }, [
+    idCertamen,
+    esCertamenInnova,
+  ]);
 
 
+  // ====================================================
+  // SELECCIONAR CERTAMEN
+  // ====================================================
 
-  const seleccionarCertamen = (id: number) => {
+  const seleccionarCertamen = (
+    id: number
+  ) => {
 
-    if (Number(idCertamen) !== Number(id)) setIdSala(null);
+    if (
+      Number(idCertamen) !==
+      Number(id)
+    ) {
 
-    setIdCertamen(Number(id));
+      setIdSala(null);
+
+    }
+
+
+    setIdCertamen(
+      Number(id)
+    );
 
   };
 
 
+  // ====================================================
+  // VALIDAR
+  // ====================================================
 
   const validar = () => {
 
-    if (!idCertamen || !certamenSeleccionado) { mostrarResultado('Falta el certamen', 'Selecciona el certamen correspondiente.', false); return false; }
+    if (
+      !idCertamen ||
+      !certamenSeleccionado
+    ) {
 
-    if (!idUsuario || !usuarioSeleccionado) { mostrarResultado('Falta seleccionar usuario', 'Selecciona un usuario existente.', false); return false; }
+      mostrarResultado(
+        'Falta el certamen',
+        'Selecciona el certamen correspondiente.',
+        false
+      );
 
-    if (!institucion.trim() || !areaParticipacion.trim()) { mostrarResultado('Datos incompletos', 'Ingresa la institución y el área de participación.', false); return false; }
+      return false;
+
+    }
+
+
+    if (
+      !idUsuario ||
+      !usuarioSeleccionado
+    ) {
+
+      mostrarResultado(
+        'Falta seleccionar usuario',
+        'Selecciona un usuario existente.',
+        false
+      );
+
+      return false;
+
+    }
+
+
+    if (
+      !institucion.trim() ||
+      !areaParticipacion.trim()
+    ) {
+
+      mostrarResultado(
+        'Datos incompletos',
+        'Ingresa la institución y el área de participación.',
+        false
+      );
+
+      return false;
+
+    }
+
 
     return true;
 
   };
 
 
+  // ====================================================
+  // GUARDAR
+  // ====================================================
 
   const guardar = async () => {
 
-    if (guardando || !validar()) return;
+    if (
+      guardando ||
+      !validar()
+    ) {
+
+      return;
+
+    }
+
 
     setConfirmarVisible(true);
 
   };
 
 
+  // ====================================================
+  // CONFIRMAR GUARDADO
+  // ====================================================
 
-  const confirmarGuardado = async () => {
+  const confirmarGuardado =
+    async () => {
 
-    if (guardando || !idCertamen || !idUsuario) return;
+      if (
+        guardando ||
+        !idCertamen ||
+        !idUsuario
+      ) {
 
-    setConfirmarVisible(false);
-
-    setGuardando(true);
-
-
-
-    try {
-
-      const payload = {
-
-        Id_certamen: Number(idCertamen),
-
-        Id_usuario: Number(idUsuario),
-
-        Id_sala: esCertamenInnova && idSala ? Number(idSala) : null,
-
-        Institucion: institucion.trim(),
-
-        Puesto: puesto.trim() || null,
-
-        Sexo: sexo || null,
-
-        Area_participacion: areaParticipacion.trim(),
-
-        Area_especializada: areaEspecializada.trim() || null,
-
-        Invitacion: invitacionTexto.trim() || null,
-
-        Curriculum: curriculumArchivo ? (curriculumArchivo.ruta || curriculumArchivo.name) : null,
-
-      };
-
-
-
-      if (idJurado) {
-
-        await actualizarJurado(idJurado, payload);
-
-      } else {
-
-        await crearJurado(payload);
+        return;
 
       }
 
 
+      setConfirmarVisible(false);
 
-      mostrarResultado(
+      setGuardando(true);
 
-        idJurado ? '¡Jurado actualizado!' : '¡Jurado registrado!',
 
-        `El jurado ${nombreUsuarioDe(usuarioSeleccionado)} quedó guardado.`,
+      try {
 
-        true
+        const payload = {
 
-      );
+          Id_certamen:
+            Number(idCertamen),
 
-    } catch (error: any) {
+          Id_usuario:
+            Number(idUsuario),
 
-      const extra = error?.errors ? Object.values(error.errors).flat().join('\n') : '';
+          Id_sala:
+            esCertamenInnova &&
+            idSala
+              ? Number(idSala)
+              : null,
 
-      mostrarResultado(
+          Institucion:
+            institucion.trim(),
 
-        'No se pudo guardar el jurado',
+          Puesto:
+            puesto.trim() ||
+            null,
 
-        error?.message || extra || 'Revisa la conexión con el servidor.',
+          Sexo:
+            sexo ||
+            null,
 
-        false
+          Area_participacion:
+            areaParticipacion.trim(),
 
-      );
+          Area_especializada:
+            areaEspecializada.trim() ||
+            null,
 
-    } finally {
+          Invitacion:
+            invitacionTexto.trim() ||
+            null,
 
-      setGuardando(false);
+          Curriculum:
+            curriculumArchivo
+              ? (
+                  curriculumArchivo.ruta ||
+                  curriculumArchivo.name
+                )
+              : null,
 
+        };
+
+
+        if (idJurado) {
+
+          await actualizarJurado(
+            idJurado,
+            payload
+          );
+
+        } else {
+
+          await crearJurado(
+            payload
+          );
+
+        }
+
+
+        mostrarResultado(
+
+          idJurado
+            ? '¡Jurado actualizado!'
+            : '¡Jurado registrado!',
+
+          `El jurado ${nombreUsuarioDe(
+            usuarioSeleccionado
+          )} quedó guardado.`,
+
+          true
+
+        );
+
+      } catch (error: any) {
+
+        const extra =
+          error?.errors
+            ? Object.values(
+                error.errors
+              )
+                .flat()
+                .join('\n')
+            : '';
+
+
+        mostrarResultado(
+
+          'No se pudo guardar el jurado',
+
+          error?.message ||
+            extra ||
+            'Revisa la conexión con el servidor.',
+
+          false
+
+        );
+
+      } finally {
+
+        setGuardando(false);
+
+      }
+
+    };
+
+
+  // ====================================================
+  // CERRAR RESULTADO
+  // ====================================================
+
+  const cerrarResultado = () => {
+
+    const exito =
+      resultado.exito;
+
+
+    setResultado(
+      resultadoInicial
+    );
+
+
+    if (exito) {
+      router.back();
     }
 
   };
 
 
-
-  const cerrarResultado = () => {
-
-    const exito = resultado.exito;
-
-    setResultado(resultadoInicial);
-
-    if (exito) router.back();
-
-  };
-
-
+  // ====================================================
+  // LOADING
+  // ====================================================
 
   if (cargando) {
 
@@ -568,9 +1371,16 @@ export default function JuradoFormScreen() {
 
       <View style={styles.center}>
 
-        <ActivityIndicator size="large" color="#002b45" />
+        <ActivityIndicator
+          size="large"
+          color="#002b45"
+        />
 
-        <Text style={styles.loadingText}>Cargando datos...</Text>
+        <Text
+          style={styles.loadingText}
+        >
+          Cargando datos...
+        </Text>
 
       </View>
 
@@ -579,124 +1389,399 @@ export default function JuradoFormScreen() {
   }
 
 
+  // ====================================================
+  // RENDER
+  // ====================================================
 
   return (
 
     <View style={styles.page}>
 
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={
+          styles.container
+        }
+        keyboardShouldPersistTaps="handled"
+      >
+
+        {/* ============================================
+            ICONO
+        ============================================ */}
 
         <View style={styles.headerIcon}>
 
-          <Ionicons name="people-outline" size={28} color="#fff" />
-
-        </View>
-
-        <Text style={styles.title}>{idJurado ? 'Editar jurado evaluador' : 'Registro de jurado evaluador'}</Text>
-
-        <Text style={styles.subtitle}>Cada registro queda asociado a un único certamen. Rally no utiliza salas; las salas solo corresponden a InnovaTecNM.</Text>
-
-
-
-        <Text style={styles.sectionTitle}>1. Selecciona el certamen</Text>
-
-        <View style={styles.certamenesRow}>
-
-          {certamenes.map((cert) => {
-
-            const id = idCertamenDe(cert);
-
-            const activo = Number(idCertamen) === id;
-
-            const innov = esInnova(cert);
-
-            return (
-
-              <TouchableOpacity key={id} style={[styles.certamenCard, activo && styles.certamenActivo]} onPress={() => seleccionarCertamen(id)}>
-
-                <Ionicons name={innov ? 'bulb-outline' : 'trophy-outline'} size={20} color={activo ? '#fff' : '#0369a1'} />
-
-                <View style={{ flex: 1 }}>
-
-                  <Text style={[styles.certamenNombre, activo && styles.textoActivo]}>{cert.Nombre ?? cert.nombre ?? `Certamen #${id}`}</Text>
-
-                  <Text style={[styles.certamenTipo, activo && styles.textoActivo]}>{tipoVisible(cert.Tipo ?? cert.tipo)}</Text>
-
-                </View>
-
-                {activo ? <Ionicons name="checkmark-circle" size={18} color="#fff" /> : null}
-
-              </TouchableOpacity>
-
-            );
-
-          })}
+          <Ionicons
+            name="people-outline"
+            size={28}
+            color="#fff"
+          />
 
         </View>
 
 
+        {/* ============================================
+            TITULO
+        ============================================ */}
 
-        <Text style={styles.sectionTitle}>2. Usuario del jurado</Text>
+        <Text style={styles.title}>
 
-        <TouchableOpacity style={styles.selector} onPress={() => { setBusquedaUsuario(''); setSelectorUsuario(true); }}>
+          {idJurado
+            ? 'Editar jurado evaluador'
+            : 'Registro de jurado evaluador'}
 
-          <Ionicons name="person-circle-outline" size={22} color="#0369a1" />
+        </Text>
 
-          <Text style={[styles.selectorText, !usuarioSeleccionado && styles.placeholder]}>
 
-            {usuarioSeleccionado ? `${nombreUsuarioDe(usuarioSeleccionado)}${usuarioSeleccionado.Correo ? ` · ${usuarioSeleccionado.Correo}` : ''}` : 'Selecciona un usuario existente'}
+        <Text style={styles.subtitle}>
 
-          </Text>
+          Cada registro queda asociado a un único certamen.
+          Rally no utiliza salas; las salas solo corresponden
+          a InnovaTecNM.
 
-          <Ionicons name="chevron-down" size={19} color="#64748b" />
+        </Text>
+
+
+        {/* ============================================
+            1. CERTAMEN
+        ============================================ */}
+
+        <Text
+          style={styles.sectionTitle}
+        >
+          1. Certamen seleccionado
+        </Text>
+
+
+        <TouchableOpacity
+          style={styles.certamenSelector}
+          activeOpacity={0.8}
+          onPress={() => {
+
+            setBusquedaCertamen('');
+
+            setSelectorCertamen(true);
+
+          }}
+        >
+
+          {/* ICONO */}
+
+          <View
+            style={[
+              styles.certamenSelectorIcon,
+              esCertamenInnova &&
+                styles.certamenSelectorIconInnova,
+            ]}
+          >
+
+            <Ionicons
+              name={
+                certamenSeleccionado
+                  ? (
+                      esInnova(
+                        certamenSeleccionado
+                      )
+                        ? 'bulb-outline'
+                        : 'trophy-outline'
+                    )
+                  : 'trophy-outline'
+              }
+              size={25}
+              color="#0077b6"
+            />
+
+          </View>
+
+
+          {/* INFORMACION */}
+
+          <View
+            style={{ flex: 1 }}
+          >
+
+            <Text
+              style={
+                styles.certamenSelectorNombre
+              }
+            >
+
+              {certamenSeleccionado
+                ? certamenSeleccionado.Nombre
+                : 'Selecciona un certamen'}
+
+            </Text>
+
+
+            <Text
+              style={
+                styles.certamenSelectorTipo
+              }
+            >
+
+              {certamenSeleccionado
+                ? tipoVisible(
+                    certamenSeleccionado.Tipo
+                  )
+                : 'Toca para seleccionar'}
+
+            </Text>
+
+
+            <Text
+              style={
+                styles.certamenSelectorHint
+              }
+            >
+
+              Toca para cambiar de certamen
+
+            </Text>
+
+          </View>
+
+
+          {/* FLECHA */}
+
+          <Ionicons
+            name="chevron-down"
+            size={23}
+            color="#64748b"
+          />
 
         </TouchableOpacity>
 
-        <Text style={styles.helper}>El usuario debe existir en el módulo Usuarios.</Text>
+
+        {/* ============================================
+            2. USUARIO
+        ============================================ */}
+
+        <Text
+          style={styles.sectionTitle}
+        >
+          2. Usuario del jurado
+        </Text>
 
 
+        <TouchableOpacity
+          style={styles.selector}
+          onPress={() => {
 
-        <Text style={styles.sectionTitle}>3. Datos profesionales y Curriculum</Text>
+            setBusquedaUsuario('');
+
+            setSelectorUsuario(true);
+
+          }}
+        >
+
+          <Ionicons
+            name="person-circle-outline"
+            size={22}
+            color="#0369a1"
+          />
+
+
+          <Text
+            style={[
+              styles.selectorText,
+              !usuarioSeleccionado &&
+                styles.placeholder,
+            ]}
+          >
+
+            {usuarioSeleccionado
+              ? `${nombreUsuarioDe(
+                  usuarioSeleccionado
+                )}${
+                  usuarioSeleccionado.Correo
+                    ? ` · ${usuarioSeleccionado.Correo}`
+                    : ''
+                }`
+              : 'Selecciona un usuario existente'}
+
+          </Text>
+
+
+          <Ionicons
+            name="chevron-down"
+            size={19}
+            color="#64748b"
+          />
+
+        </TouchableOpacity>
+
+
+        <Text
+          style={styles.helper}
+        >
+          El usuario debe existir en el módulo Usuarios.
+        </Text>
+
+
+        {/* ============================================
+            3. DATOS PROFESIONALES
+        ============================================ */}
+
+        <Text
+          style={styles.sectionTitle}
+        >
+          3. Datos profesionales y Curriculum
+        </Text>
+
 
         {cargandoPerfil ? (
+
           <View style={styles.infoBox}>
-            <ActivityIndicator color="#0369a1" />
-            <Text style={styles.infoText}>Cargando los datos y el curriculum del jurado...</Text>
+
+            <ActivityIndicator
+              color="#0369a1"
+            />
+
+            <Text style={styles.infoText}>
+
+              Cargando los datos y el curriculum del jurado...
+
+            </Text>
+
           </View>
+
         ) : perfilEncontrado ? (
-          <View style={[styles.infoBox, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }]}>
-            <Ionicons name="checkmark-circle-outline" size={20} color="#15803d" />
-            <Text style={[styles.infoText, { color: '#166534' }]}>Se recuperó el perfil profesional que registró el jurado.</Text>
+
+          <View
+            style={[
+              styles.infoBox,
+              {
+                backgroundColor:
+                  '#f0fdf4',
+                borderColor:
+                  '#bbf7d0',
+              },
+            ]}
+          >
+
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={20}
+              color="#15803d"
+            />
+
+            <Text
+              style={[
+                styles.infoText,
+                {
+                  color:
+                    '#166534',
+                },
+              ]}
+            >
+
+              Se recuperó el perfil profesional que registró el jurado.
+
+            </Text>
+
           </View>
+
         ) : idUsuario ? (
+
           <View style={styles.infoBox}>
-            <Ionicons name="information-circle-outline" size={20} color="#92400e" />
-            <Text style={styles.infoText}>Este usuario aún no tiene un perfil profesional guardado.</Text>
+
+            <Ionicons
+              name="information-circle-outline"
+              size={20}
+              color="#92400e"
+            />
+
+            <Text
+              style={styles.infoText}
+            >
+
+              Este usuario aún no tiene un perfil profesional guardado.
+
+            </Text>
+
           </View>
+
         ) : null}
 
 
-        <Text style={styles.label}>Institución u organización *</Text>
+        {/* INSTITUCION */}
 
-        <TextInput style={styles.input} placeholder="Ej. ITSSMT / CIDE / UAP" value={institucion} onChangeText={setInstitucion} />
-
-
-
-        <Text style={styles.label}>Puesto</Text>
-
-        <TextInput style={styles.input} placeholder="Ej. Docente, investigador, gerente" value={puesto} onChangeText={setPuesto} />
+        <Text
+          style={styles.label}
+        >
+          Institución u organización *
+        </Text>
 
 
+        <TextInput
+          style={styles.input}
+          placeholder="Ej. ITSSMT / CIDE / UAP"
+          placeholderTextColor="#94a3b8"
+          value={institucion}
+          onChangeText={setInstitucion}
+        />
 
-        <Text style={styles.label}>Sexo</Text>
+
+        {/* PUESTO */}
+
+        <Text
+          style={styles.label}
+        >
+          Puesto
+        </Text>
+
+
+        <TextInput
+          style={styles.input}
+          placeholder="Ej. Docente, investigador, gerente"
+          placeholderTextColor="#94a3b8"
+          value={puesto}
+          onChangeText={setPuesto}
+        />
+
+
+        {/* SEXO */}
+
+        <Text
+          style={styles.label}
+        >
+          Sexo
+        </Text>
+
 
         <View style={styles.chipsRow}>
 
-          {['Femenino', 'Masculino', 'Otro', 'Prefiero no decir'].map((op) => (
+          {[
+            'Femenino',
+            'Masculino',
+            'Otro',
+            'Prefiero no decir',
+          ].map((op) => (
 
-            <TouchableOpacity key={op} style={[styles.chip, sexo === op && styles.chipActivo]} onPress={() => setSexo(sexo === op ? '' : op)}>
+            <TouchableOpacity
+              key={op}
+              style={[
+                styles.chip,
+                sexo === op &&
+                  styles.chipActivo,
+              ]}
+              onPress={() =>
+                setSexo(
+                  sexo === op
+                    ? ''
+                    : op
+                )
+              }
+            >
 
-              <Text style={[styles.chipText, sexo === op && styles.chipTextActivo]}>{op}</Text>
+              <Text
+                style={[
+                  styles.chipText,
+                  sexo === op &&
+                    styles.chipTextActivo,
+                ]}
+              >
+                {op}
+              </Text>
 
             </TouchableOpacity>
 
@@ -705,87 +1790,291 @@ export default function JuradoFormScreen() {
         </View>
 
 
+        {/* AREA PARTICIPACION */}
 
-        <Text style={styles.label}>Área de participación *</Text>
-
-        <TextInput style={styles.input} placeholder="Ej. Sistemas e Inteligencia Artificial" value={areaParticipacion} onChangeText={setAreaParticipacion} />
-
-
-
-        <Text style={styles.label}>Área especializada</Text>
-
-        <TextInput style={styles.input} placeholder="Ej. Ciberseguridad, Redes y Telecomunicaciones" value={areaEspecializada} onChangeText={setAreaEspecializada} />
+        <Text
+          style={styles.label}
+        >
+          Área de participación *
+        </Text>
 
 
+        <TextInput
+          style={styles.input}
+          placeholder="Ej. Sistemas e Inteligencia Artificial"
+          placeholderTextColor="#94a3b8"
+          value={areaParticipacion}
+          onChangeText={
+            setAreaParticipacion
+          }
+        />
 
-        {/* Campo Curriculum PDF */}
 
-        <Text style={styles.label}>Curriculum Vitae (Debe ser un archivo PDF)</Text>
+        {/* AREA ESPECIALIZADA */}
 
-        <TouchableOpacity style={styles.selector} onPress={seleccionarPdf}>
+        <Text
+          style={styles.label}
+        >
+          Área especializada
+        </Text>
 
-          <Ionicons name="document-text-outline" size={22} color="#0369a1" />
 
-          <Text style={[styles.selectorText, !curriculumArchivo && styles.placeholder]} numberOfLines={1}>
+        <TextInput
+          style={styles.input}
+          placeholder="Ej. Ciberseguridad, Redes y Telecomunicaciones"
+          placeholderTextColor="#94a3b8"
+          value={areaEspecializada}
+          onChangeText={
+            setAreaEspecializada
+          }
+        />
 
-            {curriculumArchivo ? curriculumArchivo.name : 'Abrir archivos del teléfono (.pdf)'}
+
+        {/* ============================================
+            CURRICULUM
+        ============================================ */}
+
+        <Text
+          style={styles.label}
+        >
+          Curriculum Vitae (Debe ser un archivo PDF)
+        </Text>
+
+
+        <TouchableOpacity
+          style={styles.selector}
+          onPress={seleccionarPdf}
+        >
+
+          <Ionicons
+            name="document-text-outline"
+            size={22}
+            color="#0369a1"
+          />
+
+
+          <Text
+            style={[
+              styles.selectorText,
+              !curriculumArchivo &&
+                styles.placeholder,
+            ]}
+            numberOfLines={1}
+          >
+
+            {curriculumArchivo
+              ? curriculumArchivo.name
+              : 'Abrir archivos del teléfono (.pdf)'}
 
           </Text>
 
-          <Ionicons name="attach-outline" size={20} color="#64748b" />
+
+          <Ionicons
+            name="attach-outline"
+            size={20}
+            color="#64748b"
+          />
 
         </TouchableOpacity>
 
-        {curriculumArchivo?.esRemoto && curriculumArchivo.uri ? (
+
+        {/* PDF REMOTO */}
+
+        {curriculumArchivo?.esRemoto &&
+        curriculumArchivo.uri ? (
+
           <TouchableOpacity
-            style={styles.pdfPreviewCard}
+            style={
+              styles.pdfPreviewCard
+            }
             activeOpacity={0.8}
             onPress={async () => {
-              try { await Linking.openURL(curriculumArchivo.uri); }
-              catch (error) { mostrarResultado('No se pudo abrir el PDF', 'Verifica que el archivo siga disponible en el servidor.', false); }
+
+              try {
+
+                await Linking.openURL(
+                  curriculumArchivo.uri
+                );
+
+              } catch (error) {
+
+                mostrarResultado(
+                  'No se pudo abrir el PDF',
+                  'Verifica que el archivo siga disponible en el servidor.',
+                  false
+                );
+
+              }
+
             }}
           >
-            <Ionicons name="document-text" size={34} color="#dc2626" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pdfPreviewTitle}>Curriculum del jurado</Text>
-              <Text style={styles.pdfPreviewName} numberOfLines={2}>{curriculumArchivo.name}</Text>
-              <Text style={styles.pdfPreviewHint}>PDF recuperado del perfil. Toca para visualizarlo.</Text>
+
+            <Ionicons
+              name="document-text"
+              size={34}
+              color="#dc2626"
+            />
+
+
+            <View
+              style={{ flex: 1 }}
+            >
+
+              <Text
+                style={
+                  styles.pdfPreviewTitle
+                }
+              >
+                Curriculum del jurado
+              </Text>
+
+
+              <Text
+                style={
+                  styles.pdfPreviewName
+                }
+                numberOfLines={2}
+              >
+                {curriculumArchivo.name}
+              </Text>
+
+
+              <Text
+                style={
+                  styles.pdfPreviewHint
+                }
+              >
+                PDF recuperado del perfil. Toca para visualizarlo.
+              </Text>
+
             </View>
-            <Ionicons name="eye-outline" size={22} color="#0369a1" />
+
+
+            <Ionicons
+              name="eye-outline"
+              size={22}
+              color="#0369a1"
+            />
+
           </TouchableOpacity>
+
         ) : null}
 
-        {curriculumArchivo && !curriculumArchivo.esRemoto ? (
-          <TouchableOpacity onPress={() => setCurriculumArchivo(null)}>
-            <Text style={styles.clearText}>Quitar archivo PDF</Text>
+
+        {/* QUITAR PDF */}
+
+        {curriculumArchivo &&
+        !curriculumArchivo.esRemoto ? (
+
+          <TouchableOpacity
+            onPress={() =>
+              setCurriculumArchivo(null)
+            }
+          >
+
+            <Text
+              style={styles.clearText}
+            >
+              Quitar archivo PDF
+            </Text>
+
           </TouchableOpacity>
+
         ) : null}
 
 
+        {/* ============================================
+            4. SALA E INVITACION
+        ============================================ */}
 
-        <Text style={styles.sectionTitle}>4. Sala e Invitación</Text>
+        <Text
+          style={styles.sectionTitle}
+        >
+          4. Sala e Invitación
+        </Text>
+
 
         {esCertamenInnova ? (
 
           <>
 
-            <Text style={styles.label}>Sala asignada (opcional)</Text>
+            <Text
+              style={styles.label}
+            >
+              Sala asignada (opcional)
+            </Text>
 
-            <TouchableOpacity style={styles.selector} onPress={() => setSelectorSala(true)} disabled={cargandoSalas}>
 
-              {cargandoSalas ? <ActivityIndicator color="#0369a1" /> : <Ionicons name="business-outline" size={20} color="#0369a1" />}
+            <TouchableOpacity
+              style={styles.selector}
+              onPress={() =>
+                setSelectorSala(true)
+              }
+              disabled={cargandoSalas}
+            >
 
-              <Text style={[styles.selectorText, !salaSeleccionada && styles.placeholder]}>
+              {cargandoSalas ? (
 
-                {cargandoSalas ? 'Cargando salas...' : salaSeleccionada ? `${salaSeleccionada.Nombre ?? salaSeleccionada.nombre} · ${salaSeleccionada.Ubicacion ?? ''}` : 'Sin sala asignada'}
+                <ActivityIndicator
+                  color="#0369a1"
+                />
+
+              ) : (
+
+                <Ionicons
+                  name="business-outline"
+                  size={20}
+                  color="#0369a1"
+                />
+
+              )}
+
+
+              <Text
+                style={[
+                  styles.selectorText,
+                  !salaSeleccionada &&
+                    styles.placeholder,
+                ]}
+              >
+
+                {cargandoSalas
+                  ? 'Cargando salas...'
+                  : salaSeleccionada
+                    ? `${salaSeleccionada.Nombre ?? salaSeleccionada.nombre} · ${salaSeleccionada.Ubicacion ?? ''}`
+                    : 'Sin sala asignada'}
 
               </Text>
 
-              <Ionicons name="chevron-down" size={19} color="#64748b" />
+
+              <Ionicons
+                name="chevron-down"
+                size={19}
+                color="#64748b"
+              />
 
             </TouchableOpacity>
 
-            {idSala ? <TouchableOpacity onPress={() => setIdSala(null)}><Text style={styles.clearText}>Quitar asignación de sala</Text></TouchableOpacity> : null}
+
+            {idSala ? (
+
+              <TouchableOpacity
+                onPress={() =>
+                  setIdSala(null)
+                }
+              >
+
+                <Text
+                  style={
+                    styles.clearText
+                  }
+                >
+                  Quitar asignación de sala
+                </Text>
+
+              </TouchableOpacity>
+
+            ) : null}
 
           </>
 
@@ -793,53 +2082,94 @@ export default function JuradoFormScreen() {
 
           <View style={styles.infoBox}>
 
-            <Ionicons name="information-circle-outline" size={20} color="#92400e" />
+            <Ionicons
+              name="information-circle-outline"
+              size={20}
+              color="#92400e"
+            />
 
-            <Text style={styles.infoText}>Rally no utiliza salas. El jurado se guardará sin sala asignada.</Text>
+            <Text
+              style={styles.infoText}
+            >
+
+              Rally no utiliza salas. El jurado se guardará sin sala asignada.
+
+            </Text>
 
           </View>
 
         )}
 
 
+        {/* INVITACION */}
 
-        <Text style={styles.label}>Datos de la Invitación (Contacto)</Text>
+        <Text
+          style={styles.label}
+        >
+          Datos de la Invitación (Contacto)
+        </Text>
+
 
         <TextInput
-
-          style={[styles.input, styles.textArea]}
-
-          placeholder={`Ejemplo:\nNombre: Dr. Roberto Gómez\nTeléfono: 248 123 4567\nPuesto: Investigador\nCorreo: roberto.gomez\@itssmt.edu.mx`}
-
+          style={[
+            styles.input,
+            styles.textArea,
+          ]}
+          placeholder={`Ejemplo:
+Nombre: Dr. Roberto Gómez
+Teléfono: 248 123 4567
+Puesto: Investigador
+Correo: roberto.gomez@itssmt.edu.mx`}
           placeholderTextColor="#94a3b8"
-
           value={invitacionTexto}
-
-          onChangeText={setInvitacionTexto}
-
+          onChangeText={
+            setInvitacionTexto
+          }
           multiline={true}
-
           numberOfLines={4}
-
           textAlignVertical="top"
-
         />
 
 
+        {/* ============================================
+            BOTON GUARDAR
+        ============================================ */}
 
-        <TouchableOpacity style={[styles.saveButton, guardando && styles.disabled]} onPress={guardar} disabled={guardando}>
+        <TouchableOpacity
+          style={[
+            styles.saveButton,
+            guardando &&
+              styles.disabled,
+          ]}
+          onPress={guardar}
+          disabled={guardando}
+        >
 
           {guardando ? (
 
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator
+              color="#fff"
+            />
 
           ) : (
 
             <>
 
-              <Ionicons name="save-outline" size={20} color="#fff" />
+              <Ionicons
+                name="save-outline"
+                size={20}
+                color="#fff"
+              />
 
-              <Text style={styles.saveText}>{idJurado ? 'Actualizar jurado' : 'Guardar jurado'}</Text>
+              <Text
+                style={styles.saveText}
+              >
+
+                {idJurado
+                  ? 'Actualizar jurado'
+                  : 'Guardar jurado'}
+
+              </Text>
 
             </>
 
@@ -850,54 +2180,503 @@ export default function JuradoFormScreen() {
       </ScrollView>
 
 
+      {/* ==================================================
+          MODAL SELECCIONAR CERTAMEN
+      ================================================== */}
 
-      {/* Modales */}
-
-      <Modal visible={selectorUsuario} transparent animationType="fade" onRequestClose={() => setSelectorUsuario(false)}>
+      <Modal
+        visible={selectorCertamen}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setSelectorCertamen(false)
+        }
+      >
 
         <View style={styles.backdrop}>
 
-          <View style={styles.modalCard}>
+          <View
+            style={styles.modalCard}
+          >
 
-            <Text style={styles.modalTitle}>Seleccionar usuario</Text>
+            {/* HEADER */}
 
-            <TextInput style={styles.input} placeholder="Buscar por nombre o correo..." value={busquedaUsuario} onChangeText={setBusquedaUsuario} />
+            <View
+              style={
+                styles.modalHeaderRow
+              }
+            >
 
-            <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
+              <Text
+                style={
+                  styles.modalTitle
+                }
+              >
+                Seleccionar certamen
+              </Text>
 
-              {usuariosFiltrados.length ? (
 
-                usuariosFiltrados.map((u) => (
+              <TouchableOpacity
+                onPress={() =>
+                  setSelectorCertamen(
+                    false
+                  )
+                }
+              >
 
-                  <TouchableOpacity key={idUsuarioDe(u)} style={styles.option} onPress={() => { setIdUsuario(idUsuarioDe(u)); setSelectorUsuario(false); }}>
+                <Ionicons
+                  name="close"
+                  size={27}
+                  color="#334155"
+                />
 
-                    <Ionicons name="person-outline" size={18} color="#0369a1" />
+              </TouchableOpacity>
 
-                    <View style={{ flex: 1 }}>
+            </View>
 
-                      <Text style={styles.optionTitle}>{nombreUsuarioDe(u)}</Text>
 
-                      <Text style={styles.optionSub}>{u.Correo ?? u.email ?? u.Usuario ?? `ID ${idUsuarioDe(u)}`}</Text>
+            {/* BUSCADOR */}
 
-                    </View>
+            <View
+              style={
+                styles.searchBox
+              }
+            >
 
-                    {Number(idUsuario) === idUsuarioDe(u) ? <Ionicons name="checkmark-circle" size={19} color="#15803d" /> : null}
+              <Ionicons
+                name="search-outline"
+                size={20}
+                color="#64748b"
+              />
 
-                  </TouchableOpacity>
 
-                ))
+              <TextInput
+                style={
+                  styles.searchInput
+                }
+                placeholder="Buscar certamen..."
+                placeholderTextColor="#94a3b8"
+                value={busquedaCertamen}
+                onChangeText={
+                  setBusquedaCertamen
+                }
+                autoCapitalize="none"
+              />
+
+
+              {busquedaCertamen.length >
+              0 ? (
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setBusquedaCertamen(
+                      ''
+                    )
+                  }
+                >
+
+                  <Ionicons
+                    name="close-circle"
+                    size={19}
+                    color="#94a3b8"
+                  />
+
+                </TouchableOpacity>
+
+              ) : null}
+
+            </View>
+
+
+            {/* LISTA */}
+
+            <ScrollView
+              style={{
+                maxHeight: 420,
+              }}
+              keyboardShouldPersistTaps="handled"
+            >
+
+              {certamenesFiltrados.length >
+              0 ? (
+
+                certamenesFiltrados.map(
+                  (cert) => {
+
+                    const id =
+                      idCertamenDe(
+                        cert
+                      );
+
+
+                    const seleccionado =
+                      Number(
+                        idCertamen
+                      ) ===
+                      Number(id);
+
+
+                    const innova =
+                      esInnova(
+                        cert
+                      );
+
+
+                    return (
+
+                      <TouchableOpacity
+                        key={String(id)}
+                        style={[
+                          styles.certamenOption,
+                          seleccionado &&
+                            styles.certamenOptionSelected,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => {
+
+                          seleccionarCertamen(
+                            id
+                          );
+
+                          setSelectorCertamen(
+                            false
+                          );
+
+                          setBusquedaCertamen(
+                            ''
+                          );
+
+                        }}
+                      >
+
+                        {/* ICONO */}
+
+                        <View
+                          style={[
+                            styles.certamenOptionIcon,
+                            seleccionado &&
+                              styles.certamenOptionIconSelected,
+                          ]}
+                        >
+
+                          <Ionicons
+                            name={
+                              innova
+                                ? 'bulb-outline'
+                                : 'trophy-outline'
+                            }
+                            size={23}
+                            color={
+                              seleccionado
+                                ? '#15803d'
+                                : '#0077b6'
+                            }
+                          />
+
+                        </View>
+
+
+                        {/* TEXTO */}
+
+                        <View
+                          style={{
+                            flex: 1,
+                          }}
+                        >
+
+                          <Text
+                            style={[
+                              styles.certamenOptionNombre,
+                              seleccionado &&
+                                styles.certamenOptionNombreSelected,
+                            ]}
+                          >
+                            {cert.Nombre}
+                          </Text>
+
+
+                          <Text
+                            style={[
+                              styles.certamenOptionTipo,
+                              seleccionado &&
+                                styles.certamenOptionTipoSelected,
+                            ]}
+                          >
+                            {tipoVisible(
+                              cert.Tipo
+                            )}
+                          </Text>
+
+                        </View>
+
+
+                        {/* CHECK */}
+
+                        {seleccionado ? (
+
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={21}
+                            color="#15803d"
+                          />
+
+                        ) : null}
+
+                      </TouchableOpacity>
+
+                    );
+
+                  }
+                )
 
               ) : (
 
-                <Text style={styles.emptyText}>No hay usuarios que coincidan.</Text>
+                <View
+                  style={
+                    styles.noResultsBox
+                  }
+                >
+
+                  <Ionicons
+                    name="search-outline"
+                    size={30}
+                    color="#94a3b8"
+                  />
+
+
+                  <Text
+                    style={
+                      styles.emptyText
+                    }
+                  >
+                    No se encontraron certámenes.
+                  </Text>
+
+                </View>
 
               )}
 
             </ScrollView>
 
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setSelectorUsuario(false)}>
+          </View>
 
-              <Text style={styles.cancelText}>Cerrar</Text>
+        </View>
+
+      </Modal>
+
+
+      {/* ==================================================
+          MODAL SELECCIONAR USUARIO
+      ================================================== */}
+
+      <Modal
+        visible={selectorUsuario}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setSelectorUsuario(false)
+        }
+      >
+
+        <View
+          style={styles.backdrop}
+        >
+
+          <View
+            style={styles.modalCard}
+          >
+
+            <View
+              style={
+                styles.modalHeaderRow
+              }
+            >
+
+              <Text
+                style={
+                  styles.modalTitle
+                }
+              >
+                Seleccionar usuario
+              </Text>
+
+
+              <TouchableOpacity
+                onPress={() =>
+                  setSelectorUsuario(
+                    false
+                  )
+                }
+              >
+
+                <Ionicons
+                  name="close"
+                  size={27}
+                  color="#334155"
+                />
+
+              </TouchableOpacity>
+
+            </View>
+
+
+            {/* BUSCADOR */}
+
+            <View
+              style={
+                styles.searchBox
+              }
+            >
+
+              <Ionicons
+                name="search-outline"
+                size={20}
+                color="#64748b"
+              />
+
+
+              <TextInput
+                style={
+                  styles.searchInput
+                }
+                placeholder="Buscar por nombre o correo..."
+                placeholderTextColor="#94a3b8"
+                value={busquedaUsuario}
+                onChangeText={
+                  setBusquedaUsuario
+                }
+              />
+
+            </View>
+
+
+            <ScrollView
+              style={{
+                maxHeight: 360,
+              }}
+              keyboardShouldPersistTaps="handled"
+            >
+
+              {usuariosFiltrados.length ? (
+
+                usuariosFiltrados.map(
+                  (u) => (
+
+                    <TouchableOpacity
+                      key={idUsuarioDe(
+                        u
+                      )}
+                      style={
+                        styles.option
+                      }
+                      onPress={() => {
+
+                        setIdUsuario(
+                          idUsuarioDe(
+                            u
+                          )
+                        );
+
+                        setSelectorUsuario(
+                          false
+                        );
+
+                      }}
+                    >
+
+                      <Ionicons
+                        name="person-outline"
+                        size={18}
+                        color="#0369a1"
+                      />
+
+
+                      <View
+                        style={{
+                          flex: 1,
+                        }}
+                      >
+
+                        <Text
+                          style={
+                            styles.optionTitle
+                          }
+                        >
+                          {nombreUsuarioDe(
+                            u
+                          )}
+                        </Text>
+
+
+                        <Text
+                          style={
+                            styles.optionSub
+                          }
+                        >
+                          {u.Correo ??
+                            u.email ??
+                            u.Usuario ??
+                            `ID ${idUsuarioDe(
+                              u
+                            )}`}
+                        </Text>
+
+                      </View>
+
+
+                      {Number(
+                        idUsuario
+                      ) ===
+                      idUsuarioDe(
+                        u
+                      ) ? (
+
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={19}
+                          color="#15803d"
+                        />
+
+                      ) : null}
+
+                    </TouchableOpacity>
+
+                  )
+                )
+
+              ) : (
+
+                <Text
+                  style={
+                    styles.emptyText
+                  }
+                >
+                  No hay usuarios que coincidan.
+                </Text>
+
+              )}
+
+            </ScrollView>
+
+
+            <TouchableOpacity
+              style={
+                styles.cancelButton
+              }
+              onPress={() =>
+                setSelectorUsuario(
+                  false
+                )
+              }
+            >
+
+              <Text
+                style={
+                  styles.cancelText
+                }
+              >
+                Cerrar
+              </Text>
 
             </TouchableOpacity>
 
@@ -908,52 +2687,212 @@ export default function JuradoFormScreen() {
       </Modal>
 
 
+      {/* ==================================================
+          MODAL SELECCIONAR SALA
+      ================================================== */}
 
-      <Modal visible={selectorSala} transparent animationType="fade" onRequestClose={() => setSelectorSala(false)}>
+      <Modal
+        visible={selectorSala}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setSelectorSala(false)
+        }
+      >
 
-        <View style={styles.backdrop}>
+        <View
+          style={styles.backdrop}
+        >
 
-          <View style={styles.modalCard}>
+          <View
+            style={styles.modalCard}
+          >
 
-            <Text style={styles.modalTitle}>{`Salas de ${certamenSeleccionado?.Nombre ?? 'InnovaTecNM'}`}</Text>
+            <View
+              style={
+                styles.modalHeaderRow
+              }
+            >
 
-            <ScrollView style={{ maxHeight: 360 }}>
+              <Text
+                style={
+                  styles.modalTitle
+                }
+              >
+                {`Salas de ${
+                  certamenSeleccionado?.Nombre ??
+                  'InnovaTecNM'
+                }`}
+              </Text>
 
-              <TouchableOpacity style={styles.option} onPress={() => { setIdSala(null); setSelectorSala(false); }}>
 
-                <Ionicons name="close-circle-outline" size={19} color="#64748b" />
+              <TouchableOpacity
+                onPress={() =>
+                  setSelectorSala(
+                    false
+                  )
+                }
+              >
 
-                <Text style={styles.optionTitle}>Sin sala asignada</Text>
+                <Ionicons
+                  name="close"
+                  size={27}
+                  color="#334155"
+                />
 
               </TouchableOpacity>
 
+            </View>
+
+
+            <ScrollView
+              style={{
+                maxHeight: 360,
+              }}
+            >
+
+              {/* SIN SALA */}
+
+              <TouchableOpacity
+                style={styles.option}
+                onPress={() => {
+
+                  setIdSala(null);
+
+                  setSelectorSala(
+                    false
+                  );
+
+                }}
+              >
+
+                <Ionicons
+                  name="close-circle-outline"
+                  size={19}
+                  color="#64748b"
+                />
+
+                <Text
+                  style={
+                    styles.optionTitle
+                  }
+                >
+                  Sin sala asignada
+                </Text>
+
+              </TouchableOpacity>
+
+
+              {/* SALAS */}
+
               {salas.map((s) => (
 
-                <TouchableOpacity key={idSalaDe(s)} style={styles.option} onPress={() => { setIdSala(idSalaDe(s)); setSelectorSala(false); }}>
+                <TouchableOpacity
+                  key={idSalaDe(s)}
+                  style={
+                    styles.option
+                  }
+                  onPress={() => {
 
-                  <Ionicons name="business-outline" size={18} color="#0369a1" />
+                    setIdSala(
+                      idSalaDe(s)
+                    );
 
-                  <View style={{ flex: 1 }}>
+                    setSelectorSala(
+                      false
+                    );
 
-                    <Text style={styles.optionTitle}>{s.Nombre ?? s.nombre}</Text>
+                  }}
+                >
 
-                    <Text style={styles.optionSub}>{s.Ubicacion ?? s.ubicacion ?? 'Sin ubicación'}</Text>
+                  <Ionicons
+                    name="business-outline"
+                    size={18}
+                    color="#0369a1"
+                  />
+
+
+                  <View
+                    style={{
+                      flex: 1,
+                    }}
+                  >
+
+                    <Text
+                      style={
+                        styles.optionTitle
+                      }
+                    >
+                      {s.Nombre ??
+                        s.nombre}
+                    </Text>
+
+
+                    <Text
+                      style={
+                        styles.optionSub
+                      }
+                    >
+                      {s.Ubicacion ??
+                        s.ubicacion ??
+                        'Sin ubicación'}
+                    </Text>
 
                   </View>
 
-                  {Number(idSala) === idSalaDe(s) ? <Ionicons name="checkmark-circle" size={19} color="#15803d" /> : null}
+
+                  {Number(
+                    idSala
+                  ) ===
+                  idSalaDe(s) ? (
+
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={19}
+                      color="#15803d"
+                    />
+
+                  ) : null}
 
                 </TouchableOpacity>
 
               ))}
 
-              {!salas.length && !cargandoSalas ? <Text style={styles.emptyText}>Este certamen no tiene salas registradas.</Text> : null}
+
+              {!salas.length &&
+              !cargandoSalas ? (
+
+                <Text
+                  style={
+                    styles.emptyText
+                  }
+                >
+                  Este certamen no tiene salas registradas.
+                </Text>
+
+              ) : null}
 
             </ScrollView>
 
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setSelectorSala(false)}>
 
-              <Text style={styles.cancelText}>Cerrar</Text>
+            <TouchableOpacity
+              style={
+                styles.cancelButton
+              }
+              onPress={() =>
+                setSelectorSala(
+                  false
+                )
+              }
+            >
+
+              <Text
+                style={
+                  styles.cancelText
+                }
+              >
+                Cerrar
+              </Text>
 
             </TouchableOpacity>
 
@@ -964,34 +2903,134 @@ export default function JuradoFormScreen() {
       </Modal>
 
 
+      {/* ==================================================
+          MODAL CONFIRMACION
+      ================================================== */}
 
-      <Modal visible={confirmarVisible} transparent animationType="fade" onRequestClose={() => setConfirmarVisible(false)}>
+      <Modal
+        visible={confirmarVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setConfirmarVisible(false)
+        }
+      >
 
-        <View style={styles.backdrop}>
+        <View
+          style={styles.backdrop}
+        >
 
-          <View style={styles.modalCard}>
+          <View
+            style={styles.modalCard}
+          >
 
-            <View style={styles.modalIcon}><Ionicons name="help-circle-outline" size={30} color="#0369a1" /></View>
+            <View
+              style={
+                styles.modalIcon
+              }
+            >
 
-            <Text style={styles.modalTitle}>{idJurado ? '¿Guardar cambios del jurado?' : '¿Registrar este jurado?'}</Text>
+              <Ionicons
+                name="help-circle-outline"
+                size={30}
+                color="#0369a1"
+              />
 
-            <Text style={styles.modalMessage}>
+            </View>
 
-              {`Usuario: ${usuarioSeleccionado ? nombreUsuarioDe(usuarioSeleccionado) : 'Sin seleccionar'}\nCertamen: ${certamenSeleccionado?.Nombre ?? 'Sin seleccionar'}\nSala: ${esCertamenInnova ? (salaSeleccionada?.Nombre ?? 'Sin asignación') : 'No aplica para Rally'}`}
+
+            <Text
+              style={
+                styles.modalTitle
+              }
+            >
+
+              {idJurado
+                ? '¿Guardar cambios del jurado?'
+                : '¿Registrar este jurado?'}
 
             </Text>
 
-            <View style={styles.modalActions}>
 
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setConfirmarVisible(false)} disabled={guardando}>
+            <Text
+              style={
+                styles.modalMessage
+              }
+            >
 
-                <Text style={styles.cancelText}>Cancelar</Text>
+              {`Usuario: ${
+                usuarioSeleccionado
+                  ? nombreUsuarioDe(
+                      usuarioSeleccionado
+                    )
+                  : 'Sin seleccionar'
+              }
+Certamen: ${
+                certamenSeleccionado?.Nombre ??
+                'Sin seleccionar'
+              }
+Sala: ${
+                esCertamenInnova
+                  ? (
+                      salaSeleccionada?.Nombre ??
+                      'Sin asignación'
+                    )
+                  : 'No aplica para Rally'
+              }`}
+
+            </Text>
+
+
+            <View
+              style={
+                styles.modalActions
+              }
+            >
+
+              <TouchableOpacity
+                style={
+                  styles.cancelButton
+                }
+                onPress={() =>
+                  setConfirmarVisible(
+                    false
+                  )
+                }
+                disabled={
+                  guardando
+                }
+              >
+
+                <Text
+                  style={
+                    styles.cancelText
+                  }
+                >
+                  Cancelar
+                </Text>
 
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.confirmButton} onPress={() => void confirmarGuardado()} disabled={guardando}>
 
-                <Text style={styles.confirmText}>Confirmar</Text>
+              <TouchableOpacity
+                style={
+                  styles.confirmButton
+                }
+                onPress={() =>
+                  void confirmarGuardado()
+                }
+                disabled={
+                  guardando
+                }
+              >
+
+                <Text
+                  style={
+                    styles.confirmText
+                  }
+                >
+                  Confirmar
+                </Text>
 
               </TouchableOpacity>
 
@@ -1004,26 +3043,87 @@ export default function JuradoFormScreen() {
       </Modal>
 
 
+      {/* ==================================================
+          MODAL RESULTADO
+      ================================================== */}
 
-      <Modal visible={resultado.visible} transparent animationType="fade" onRequestClose={cerrarResultado}>
+      <Modal
+        visible={resultado.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={
+          cerrarResultado
+        }
+      >
 
-        <View style={styles.backdrop}>
+        <View
+          style={styles.backdrop}
+        >
 
-          <View style={styles.modalCard}>
+          <View
+            style={styles.modalCard}
+          >
 
-            <View style={[styles.modalIcon, resultado.exito ? styles.successIcon : styles.errorIcon]}>
+            <View
+              style={[
+                styles.modalIcon,
+                resultado.exito
+                  ? styles.successIcon
+                  : styles.errorIcon,
+              ]}
+            >
 
-              <Ionicons name={resultado.exito ? 'checkmark-circle-outline' : 'alert-circle-outline'} size={30} color={resultado.exito ? '#15803d' : '#b91c1c'} />
+              <Ionicons
+                name={
+                  resultado.exito
+                    ? 'checkmark-circle-outline'
+                    : 'alert-circle-outline'
+                }
+                size={30}
+                color={
+                  resultado.exito
+                    ? '#15803d'
+                    : '#b91c1c'
+                }
+              />
 
             </View>
 
-            <Text style={styles.modalTitle}>{resultado.titulo}</Text>
 
-            <Text style={styles.modalMessage}>{resultado.mensaje}</Text>
+            <Text
+              style={
+                styles.modalTitle
+              }
+            >
+              {resultado.titulo}
+            </Text>
 
-            <TouchableOpacity style={styles.confirmButton} onPress={cerrarResultado}>
 
-              <Text style={styles.confirmText}>Aceptar</Text>
+            <Text
+              style={
+                styles.modalMessage
+              }
+            >
+              {resultado.mensaje}
+            </Text>
+
+
+            <TouchableOpacity
+              style={
+                styles.confirmButton
+              }
+              onPress={
+                cerrarResultado
+              }
+            >
+
+              <Text
+                style={
+                  styles.confirmText
+                }
+              >
+                Aceptar
+              </Text>
 
             </TouchableOpacity>
 
@@ -1040,107 +3140,578 @@ export default function JuradoFormScreen() {
 }
 
 
+// ======================================================
+// ESTILOS
+// ======================================================
 
 const styles = StyleSheet.create({
 
-  page: { flex: 1, backgroundColor: '#f1f5f9' },
+  page: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+  },
 
-  container: { padding: 18, paddingBottom: 40 },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9' },
+  container: {
+    padding: 18,
+    paddingBottom: 40,
+  },
 
-  loadingText: { marginTop: 10, color: '#334155' },
 
-  headerIcon: { alignSelf: 'center', width: 58, height: 58, borderRadius: 18, backgroundColor: '#002b45', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f1f5f9',
+  },
 
-  title: { textAlign: 'center', fontSize: 23, fontWeight: '800', color: '#002b45' },
 
-  subtitle: { textAlign: 'center', fontSize: 12, lineHeight: 18, color: '#64748b', marginTop: 7, marginBottom: 20 },
+  loadingText: {
+    marginTop: 10,
+    color: '#334155',
+  },
 
-  sectionTitle: { fontSize: 15, color: '#002b45', fontWeight: '800', marginTop: 14, marginBottom: 10 },
 
-  certamenesRow: { gap: 10 },
+  headerIcon: {
+    alignSelf: 'center',
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    backgroundColor: '#002b45',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
 
-  certamenCard: { borderRadius: 12, backgroundColor: '#fff', borderColor: '#dbe3ee', borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 3 },
 
-  certamenActivo: { backgroundColor: '#002b45', borderColor: '#002b45' },
+  title: {
+    textAlign: 'center',
+    fontSize: 23,
+    fontWeight: '800',
+    color: '#002b45',
+  },
 
-  certamenNombre: { color: '#0f172a', fontSize: 14, fontWeight: '800' },
 
-  certamenTipo: { color: '#64748b', fontSize: 12, marginTop: 2 },
+  subtitle: {
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#64748b',
+    marginTop: 7,
+    marginBottom: 20,
+  },
 
-  textoActivo: { color: '#fff' },
 
-  selector: { minHeight: 48, borderRadius: 9, borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#fff', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  sectionTitle: {
+    fontSize: 15,
+    color: '#002b45',
+    fontWeight: '800',
+    marginTop: 14,
+    marginBottom: 10,
+  },
 
-  selectorText: { flex: 1, color: '#0f172a', fontSize: 13 },
 
-  placeholder: { color: '#94a3b8' },
+  // ====================================================
+  // SELECTOR DE CERTAMEN
+  // ====================================================
 
-  helper: { fontSize: 11, color: '#64748b', marginTop: 6 },
+  certamenSelector: {
+    minHeight: 86,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 5,
+  },
 
-  label: { fontSize: 13, color: '#334155', fontWeight: '700', marginTop: 12, marginBottom: 6 },
 
-  input: { minHeight: 44, borderRadius: 9, borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 9, color: '#0f172a' },
+  certamenSelectorIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 15,
+    backgroundColor: '#e0f2fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  textArea: { minHeight: 100, paddingTop: 10 },
 
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  certamenSelectorIconInnova: {
+    backgroundColor: '#ecfeff',
+  },
 
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 18, borderWidth: 1, borderColor: '#dbe3ee', backgroundColor: '#fff' },
 
-  chipActivo: { backgroundColor: '#002b45', borderColor: '#002b45' },
+  certamenSelectorNombre: {
+    color: '#0f172a',
+    fontSize: 15,
+    fontWeight: '800',
+  },
 
-  chipText: { color: '#334155', fontSize: 12, fontWeight: '600' },
 
-  chipTextActivo: { color: '#fff' },
+  certamenSelectorTipo: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 3,
+  },
 
-  infoBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, padding: 11, borderRadius: 9 },
 
-  infoText: { flex: 1, color: '#92400e', fontSize: 12, lineHeight: 17 },
+  certamenSelectorHint: {
+    color: '#007c91',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+  },
 
-  clearText: { color: '#0369a1', marginTop: 7, fontWeight: '700', fontSize: 12 },
-  pdfPreviewCard: { marginTop: 10, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: '#fecaca', backgroundColor: '#fff7f7', flexDirection: 'row', alignItems: 'center', gap: 11 },
-  pdfPreviewTitle: { color: '#7f1d1d', fontWeight: '800', fontSize: 13 },
-  pdfPreviewName: { color: '#334155', fontSize: 12, marginTop: 3 },
-  pdfPreviewHint: { color: '#64748b', fontSize: 11, marginTop: 4 },
 
-  saveButton: { marginTop: 24, marginBottom: 20, minHeight: 49, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, borderRadius: 10, backgroundColor: '#002b45' },
+  // ====================================================
+  // SELECTOR GENERAL
+  // ====================================================
 
-  saveText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  selector: {
+    minHeight: 48,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
 
-  disabled: { opacity: 0.6 },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.48)', justifyContent: 'center', padding: 18 },
+  selectorText: {
+    flex: 1,
+    color: '#0f172a',
+    fontSize: 13,
+  },
 
-  modalCard: { backgroundColor: '#fff', padding: 18, borderRadius: 16, maxHeight: '88%' },
 
-  modalIcon: { alignSelf: 'center', marginBottom: 8, width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: '#e0f2fe' },
+  placeholder: {
+    color: '#94a3b8',
+  },
 
-  successIcon: { backgroundColor: '#dcfce7' },
 
-  errorIcon: { backgroundColor: '#fee2e2' },
+  helper: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 6,
+  },
 
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#0f172a', textAlign: 'center', marginBottom: 8 },
 
-  modalMessage: { fontSize: 13, lineHeight: 19, color: '#475569', textAlign: 'center', marginBottom: 16 },
+  label: {
+    fontSize: 13,
+    color: '#334155',
+    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 6,
+  },
 
-  option: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 8, borderBottomColor: '#e2e8f0', borderBottomWidth: 1 },
 
-  optionTitle: { color: '#0f172a', fontSize: 13, fontWeight: '700' },
+  input: {
+    minHeight: 44,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    color: '#0f172a',
+  },
 
-  optionSub: { color: '#64748b', fontSize: 11, marginTop: 2 },
 
-  emptyText: { color: '#64748b', textAlign: 'center', padding: 16, fontSize: 12 },
+  textArea: {
+    minHeight: 100,
+    paddingTop: 10,
+  },
 
-  modalActions: { flexDirection: 'row', gap: 10 },
 
-  cancelButton: { padding: 12, borderRadius: 9, borderWidth: 1, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center', marginTop: 6, flex: 1 },
+  // ====================================================
+  // CHIPS
+  // ====================================================
 
-  cancelText: { color: '#334155', fontWeight: '700' },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
 
-  confirmButton: { padding: 12, borderRadius: 9, backgroundColor: '#002b45', alignItems: 'center', justifyContent: 'center', marginTop: 6, flex: 1 },
 
-  confirmText: { color: '#fff', fontWeight: '800' },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#dbe3ee',
+    backgroundColor: '#fff',
+  },
+
+
+  chipActivo: {
+    backgroundColor: '#002b45',
+    borderColor: '#002b45',
+  },
+
+
+  chipText: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+
+  chipTextActivo: {
+    color: '#fff',
+  },
+
+
+  // ====================================================
+  // INFO
+  // ====================================================
+
+  infoBox: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+    borderWidth: 1,
+    padding: 11,
+    borderRadius: 9,
+  },
+
+
+  infoText: {
+    flex: 1,
+    color: '#92400e',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+
+
+  clearText: {
+    color: '#0369a1',
+    marginTop: 7,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+
+
+  // ====================================================
+  // PDF
+  // ====================================================
+
+  pdfPreviewCard: {
+    marginTop: 10,
+    padding: 13,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    backgroundColor: '#fff7f7',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  },
+
+
+  pdfPreviewTitle: {
+    color: '#7f1d1d',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+
+
+  pdfPreviewName: {
+    color: '#334155',
+    fontSize: 12,
+    marginTop: 3,
+  },
+
+
+  pdfPreviewHint: {
+    color: '#64748b',
+    fontSize: 11,
+    marginTop: 4,
+  },
+
+
+  // ====================================================
+  // BOTON GUARDAR
+  // ====================================================
+
+  saveButton: {
+    marginTop: 24,
+    marginBottom: 20,
+    minHeight: 49,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    backgroundColor: '#002b45',
+  },
+
+
+  saveText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
+
+  disabled: {
+    opacity: 0.6,
+  },
+
+
+  // ====================================================
+  // MODALES
+  // ====================================================
+
+  backdrop: {
+    flex: 1,
+    backgroundColor:
+      'rgba(15,23,42,0.48)',
+    justifyContent: 'center',
+    padding: 18,
+  },
+
+
+  modalCard: {
+    backgroundColor: '#fff',
+    padding: 18,
+    borderRadius: 16,
+    maxHeight: '88%',
+  },
+
+
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
+
+  modalIcon: {
+    alignSelf: 'center',
+    marginBottom: 8,
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: '#e0f2fe',
+  },
+
+
+  successIcon: {
+    backgroundColor: '#dcfce7',
+  },
+
+
+  errorIcon: {
+    backgroundColor: '#fee2e2',
+  },
+
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+
+
+  modalMessage: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#475569',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+
+
+  // ====================================================
+  // BUSCADOR
+  // ====================================================
+
+  searchBox: {
+    minHeight: 45,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+
+
+  searchInput: {
+    flex: 1,
+    color: '#0f172a',
+    fontSize: 13,
+    paddingVertical: 7,
+  },
+
+
+  // ====================================================
+  // OPCIONES DE CERTAMEN
+  // ====================================================
+
+  certamenOption: {
+    minHeight: 78,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    borderRadius: 10,
+  },
+
+
+  certamenOptionSelected: {
+    backgroundColor: '#ecfdf5',
+  },
+
+
+  certamenOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#e0f2fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+
+  certamenOptionIconSelected: {
+    backgroundColor: '#dcfce7',
+  },
+
+
+  certamenOptionNombre: {
+    color: '#0f172a',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+
+  certamenOptionNombreSelected: {
+    color: '#166534',
+  },
+
+
+  certamenOptionTipo: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 3,
+  },
+
+
+  certamenOptionTipoSelected: {
+    color: '#166534',
+  },
+
+
+  noResultsBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+  },
+
+
+  // ====================================================
+  // OPCIONES GENERALES
+  // ====================================================
+
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomColor: '#e2e8f0',
+    borderBottomWidth: 1,
+  },
+
+
+  optionTitle: {
+    color: '#0f172a',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+
+  optionSub: {
+    color: '#64748b',
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+
+  emptyText: {
+    color: '#64748b',
+    textAlign: 'center',
+    padding: 16,
+    fontSize: 12,
+  },
+
+
+  // ====================================================
+  // BOTONES MODAL
+  // ====================================================
+
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+
+
+  cancelButton: {
+    padding: 12,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    flex: 1,
+  },
+
+
+  cancelText: {
+    color: '#334155',
+    fontWeight: '700',
+  },
+
+
+  confirmButton: {
+    padding: 12,
+    borderRadius: 9,
+    backgroundColor: '#002b45',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    flex: 1,
+  },
+
+
+  confirmText: {
+    color: '#fff',
+    fontWeight: '800',
+  },
 
 });
