@@ -813,7 +813,10 @@ export const eliminarPregunta = async (id: number) => {
   return peticion(`/preguntas/${id}`, 'DELETE');
 
 };
-
+export const getMisEquiposJurado = async () =>
+  peticion('/asignaciones/mis-equipos');
+export const getMisAsignacionesJurado = async () =>
+  peticion('/jurado/asignaciones');
 // ==========================================
 
 // PERFIL PROFESIONAL DEL JURADO
@@ -834,4 +837,5 @@ export const guardarMiPerfilJurado = async (
 
   return peticion('/jurado/perfil', 'POST', datos);
 
+  
 };

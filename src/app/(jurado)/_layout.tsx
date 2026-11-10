@@ -1,35 +1,11 @@
-// src/app/(lider)/_layout.tsx
-import CustomDrawer from '@/components/custom-drawer';
-import { Drawer } from 'expo-router/drawer';
+import { Stack } from 'expo-router';
 
-export default function LiderLayout() {
+export default function JuradoLayout() {
   return (
-    <Drawer
-      drawerContent={(props: any) => <CustomDrawer {...props} />}
+    <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: '#002b45' },
-        headerTintColor: '#fafafa',
-        headerTitleStyle: { fontWeight: 'bold' },
-        drawerActiveTintColor: '#A4B74D',
-        drawerInactiveTintColor: '#555555',
-        drawerType: 'front',
-        swipeEnabled: true,
+        headerShown: false,
       }}
-    >
-      <Drawer.Screen
-        name="index"
-        options={{
-          title: 'Inicio',
-          headerTitle: 'Panel del jurado',
-        }}
-      />
-      <Drawer.Screen
-        name="equipos"
-        options={{
-          title: 'Evaluaciones',
-          headerTitle: 'Gestión de Evaluaciones',
-        }}
-      />
-    </Drawer>
+    />
   );
 }
