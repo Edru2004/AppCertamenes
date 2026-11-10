@@ -8,7 +8,7 @@ import { fetch as expoFetch } from 'expo/fetch';
 
 // El celular y la computadora deben estar en la misma red Wi-Fi.
 
-const API = 'http://192.168.1.152:8000/api';
+const API = 'http://192.168.1.115:8000/api';
 
 type Datos = Record<string, any> | FormData;
 
@@ -349,6 +349,18 @@ export const eliminarEquipo = async (id: number) => {
 
   return peticion(`/equipos/${id}`, 'DELETE');
 
+};
+
+// ==========================================
+// FOTOS DE EQUIPO (EVIDENCIAS)
+// ==========================================
+
+export const subirFotosEquipo = async (datos: FormData) => {
+  return peticion('/equipos/subir-fotos', 'POST', datos);
+};
+
+export const getFotosEquipo = async (idEquipo: number) => {
+  return peticion(`/equipos/${idEquipo}/fotos`);
 };
 
 // ==========================================

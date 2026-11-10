@@ -1,5 +1,3 @@
-// src/components/custom-drawer.tsx
-
 import { logoutUsuario } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -58,10 +56,14 @@ export default function CustomDrawer(props: any) {
   const esAdmin =
     rolLimpio === 'administrador' || rolLimpio === 'admin';
 
-  // Navegación
-  const navegar = (ruta: string) => {
+  // Navegación segura para rutas internas y de stack
+  const navegar = (pantalla: string, rutaStack?: string) => {
     props.navigation.closeDrawer();
-    router.push(ruta as any);
+    if (rutaStack) {
+      router.push(rutaStack as any);
+    } else {
+      props.navigation.navigate(pantalla);
+    }
   };
 
   return (
@@ -107,340 +109,197 @@ export default function CustomDrawer(props: any) {
         <View style={styles.menuItemsContainer}>
           {esAdmin ? (
             <>
-              {/* Inicio */}
+              {/* --- MÓDULOS DEL ADMINISTRADOR --- */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(admin)')}
+                onPress={() => navegar('index', '/(admin)')}
               >
                 <View style={styles.iconCircle}>
-                  <Ionicons
-                    name="home-outline"
-                    size={22}
-                    color="#002b49"
-                  />
+                  <Ionicons name="home-outline" size={22} color="#002b49" />
                 </View>
-
-                <Text style={styles.menuText}>
-                  Inicio (Dashboard)
-                </Text>
+                <Text style={styles.menuText}>Inicio (Dashboard)</Text>
               </TouchableOpacity>
 
-              {/* Certámenes */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(admin)/registroEvento')}
+                onPress={() => navegar('', '/(admin)/registroEvento')}
               >
                 <View style={styles.iconCircle}>
-                  <Ionicons
-                    name="trophy-outline"
-                    size={22}
-                    color="#002b49"
-                  />
+                  <Ionicons name="trophy-outline" size={22} color="#002b49" />
                 </View>
-
-                <Text style={styles.menuText}>
-                  Certámenes
-                </Text>
+                <Text style={styles.menuText}>Certámenes</Text>
               </TouchableOpacity>
 
-              {/* Categorías */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(admin)/categorias')}
+                onPress={() => navegar('', '/(admin)/categorias')}
               >
                 <View style={styles.iconCircle}>
-                  <Ionicons
-                    name="folder-open-outline"
-                    size={22}
-                    color="#002b49"
-                  />
+                  <Ionicons name="folder-open-outline" size={22} color="#002b49" />
                 </View>
-
-                <Text style={styles.menuText}>
-                  Categorías
-                </Text>
+                <Text style={styles.menuText}>Categorías</Text>
               </TouchableOpacity>
 
-              {/* Rúbricas */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(admin)/Rubricas')}
+                onPress={() => navegar('', '/(admin)/Rubricas')}
               >
                 <View style={styles.iconCircle}>
-                  <Ionicons
-                    name="ribbon-outline"
-                    size={22}
-                    color="#002b49"
-                  />
+                  <Ionicons name="ribbon-outline" size={22} color="#002b49" />
                 </View>
-
-                <Text style={styles.menuText}>
-                  Rúbricas
-                </Text>
+                <Text style={styles.menuText}>Rúbricas</Text>
               </TouchableOpacity>
 
-              {/* Desafíos */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(admin)/desafios')}
+                onPress={() => navegar('', '/(admin)/desafios')}
               >
                 <View style={styles.iconCircle}>
-                  <Ionicons
-                    name="bulb-outline"
-                    size={22}
-                    color="#002b49"
-                  />
+                  <Ionicons name="bulb-outline" size={22} color="#002b49" />
                 </View>
-
-                <Text style={styles.menuText}>
-                  Desafíos
-                </Text>
+                <Text style={styles.menuText}>Desafíos</Text>
               </TouchableOpacity>
 
               {/* REGISTRO DE SALAS DESPLEGABLE */}
               <View style={styles.expandableGroup}>
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() =>
-                    setSalasMenuAbierto((actual) => !actual)
-                  }
+                  onPress={() => setSalasMenuAbierto((actual) => !actual)}
                   activeOpacity={0.8}
                 >
                   <View style={styles.iconCircle}>
-                    <Ionicons
-                      name="easel-outline"
-                      size={22}
-                      color="#002b49"
-                    />
+                    <Ionicons name="easel-outline" size={22} color="#002b49" />
                   </View>
-
-                  <Text
-                    style={[
-                      styles.menuText,
-                      styles.menuTextExpandable,
-                    ]}
-                  >
+                  <Text style={[styles.menuText, styles.menuTextExpandable]}>
                     Registro de salas
                   </Text>
-
-                  {/* Flecha a la derecha */}
                   <Ionicons
-                    name={
-                      salasMenuAbierto
-                        ? 'chevron-down'
-                        : 'chevron-forward'
-                    }
+                    name={salasMenuAbierto ? 'chevron-down' : 'chevron-forward'}
                     size={22}
                     color="#FFFFFF"
                   />
                 </TouchableOpacity>
 
-                {/* Opciones desplegables */}
                 {salasMenuAbierto && (
                   <View style={styles.submenu}>
-                    {/* Registrar salas */}
                     <TouchableOpacity
                       style={styles.submenuItem}
-                      onPress={() =>
-                        navegar('/(admin)/registroSalas')
-                      }
+                      onPress={() => navegar('', '/(admin)/registroSalas')}
                     >
-                      <Ionicons
-                        name="business-outline"
-                        size={20}
-                        color="#cbd5e1"
-                      />
-
-                      <Text style={styles.submenuText}>
-                        Registrar salas
-                      </Text>
+                      <Ionicons name="business-outline" size={20} color="#cbd5e1" />
+                      <Text style={styles.submenuText}>Registrar salas</Text>
                     </TouchableOpacity>
 
-                    {/* Asignación de salas a jurados */}
                     <TouchableOpacity
                       style={styles.submenuItem}
                       onPress={() =>
-                        navegar(
-                          '/(admin)/registroSalas/asignacion-jurados'
-                        )
+                        navegar('', '/(admin)/registroSalas/asignacion-jurados')
                       }
                     >
-                      <Ionicons
-                        name="person-outline"
-                        size={20}
-                        color="#cbd5e1"
-                      />
-
-                      <Text style={styles.submenuText}>
-                        Asignación salas jurados
-                      </Text>
+                      <Ionicons name="person-outline" size={20} color="#cbd5e1" />
+                      <Text style={styles.submenuText}>Asignación salas jurados</Text>
                     </TouchableOpacity>
 
-                    {/* Asignación de salas a equipos */}
                     <TouchableOpacity
                       style={styles.submenuItem}
                       onPress={() =>
-                        navegar(
-                          '/(admin)/registroSalas/asignacion-equipos'
-                        )
+                        navegar('', '/(admin)/registroSalas/asignacion-equipos')
                       }
                     >
-                      <Ionicons
-                        name="people-outline"
-                        size={20}
-                        color="#cbd5e1"
-                      />
-
-                      <Text style={styles.submenuText}>
-                        Asignación salas equipos
-                      </Text>
+                      <Ionicons name="people-outline" size={20} color="#cbd5e1" />
+                      <Text style={styles.submenuText}>Asignación salas equipos</Text>
                     </TouchableOpacity>
                   </View>
                 )}
               </View>
 
-              {/* Jurado */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(admin)/gesJurados')}
+                onPress={() => navegar('', '/(admin)/gesJurados')}
               >
                 <View style={styles.iconCircle}>
-                  <Ionicons
-                    name="people-outline"
-                    size={22}
-                    color="#002b49"
-                  />
+                  <Ionicons name="people-outline" size={22} color="#002b49" />
                 </View>
-
-                <Text style={styles.menuText}>
-                  Jurado
-                </Text>
+                <Text style={styles.menuText}>Jurado</Text>
               </TouchableOpacity>
 
-              {/* Equipos */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(admin)/equipos')}
+                onPress={() => navegar('', '/(admin)/equipos')}
               >
                 <View style={styles.iconCircle}>
-                  <Ionicons
-                    name="people-circle-outline"
-                    size={22}
-                    color="#002b49"
-                  />
+                  <Ionicons name="people-circle-outline" size={22} color="#002b49" />
                 </View>
+                <Text style={styles.menuText}>Equipos</Text>
+              </TouchableOpacity>
 
-                <Text style={styles.menuText}>
-                  Equipos
-                </Text>
+              {/* 🟢 La opción "Usuarios" ahora está adentro solo del Admin */}
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => navegar('', '/(admin)/usuarios')}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="person-add-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Usuarios</Text>
               </TouchableOpacity>
             </>
           ) : (
             <>
-              {/* MÓDULOS DEL LÍDER */}
-
-              {/* Inicio líder */}
+              {/* --- MÓDULOS DEL LÍDER --- */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(lider)')}
+                onPress={() => navegar('index')}
               >
                 <View style={styles.iconCircle}>
-                  <Ionicons
-                    name="home-outline"
-                    size={22}
-                    color="#002b49"
-                  />
+                  <Ionicons name="home-outline" size={22} color="#002b49" />
                 </View>
-
-                <Text style={styles.menuText}>
-                  Inicio (Líder)
-                </Text>
+                <Text style={styles.menuText}>Inicio</Text>
               </TouchableOpacity>
 
-              {/* Mis equipos */}
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navegar('/(lider)/misEquipos')}
+                onPress={() => navegar('misEquipos')}
               >
                 <View style={styles.iconCircle}>
-                  <Ionicons
-                    name="people-circle-outline"
-                    size={22}
-                    color="#002b49"
-                  />
+                  <Ionicons name="people-circle-outline" size={22} color="#002b49" />
                 </View>
+                <Text style={styles.menuText}>Mis Equipos</Text>
+              </TouchableOpacity>
 
-                <Text style={styles.menuText}>
-                  Mis Equipos
-                </Text>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => navegar('fotos')}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="images-outline" size={22} color="#002b49" />
+                </View>
+                <Text style={styles.menuText}>Subir Fotos</Text>
               </TouchableOpacity>
             </>
           )}
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => navegar('/(admin)/usuarios')}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons
-                name="people-circle-outline"
-                size={22}
-                color="#002b49"
-              />
-            </View>
-
-            <Text style={styles.menuText}>
-              Usuarios
-            </Text>
-          </TouchableOpacity>
 
           {/* Cerrar sesión */}
           <TouchableOpacity
             style={[styles.menuItem, { marginTop: 20 }]}
             onPress={handleLogout}
           >
-            <View
-              style={[
-                styles.iconCircle,
-                { backgroundColor: '#ff4d4d' },
-              ]}
-            >
-              <Ionicons
-                name="log-out-outline"
-                size={22}
-                color="#fff"
-              />
+            <View style={[styles.iconCircle, { backgroundColor: '#ff4d4d' }]}>
+              <Ionicons name="log-out-outline" size={22} color="#fff" />
             </View>
-
-            <Text
-              style={[
-                styles.menuText,
-                { color: '#ff4d4d' },
-              ]}
-            >
+            <Text style={[styles.menuText, { color: '#ff4d4d' }]}>
               Cerrar Sesión
             </Text>
           </TouchableOpacity>
-
-      
         </View>
       </DrawerContentScrollView>
     </View>
   );
 }
 
-// ESTILOS
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#002b45',
-    paddingHorizontal: 15,
-  },
-
-  closeBtn: {
-    alignSelf: 'flex-end',
-    padding: 10,
-  },
-
+  container: { flex: 1, backgroundColor: '#002b45', paddingHorizontal: 15 },
+  closeBtn: { alignSelf: 'flex-end', padding: 10 },
   profileCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 15,
@@ -448,14 +307,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 25,
   },
-
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 10,
-  },
-
+  avatar: { width: 80, height: 80, borderRadius: 40, marginBottom: 10 },
   nameBadge: {
     backgroundColor: '#fff',
     borderRadius: 20,
@@ -464,30 +316,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
-
-  profileName: {
-    color: '#809900',
-    fontWeight: 'bold',
-    fontSize: 13,
-    textAlign: 'center',
-  },
-
-  profileRole: {
-    color: '#666',
-    fontSize: 11,
-  },
-
-  menuItemsContainer: {
-    gap: 20,
-    paddingBottom: 30,
-  },
-
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-  },
-
+  profileName: { color: '#809900', fontWeight: 'bold', fontSize: 13, textAlign: 'center' },
+  profileRole: { color: '#666', fontSize: 11 },
+  menuItemsContainer: { gap: 20, paddingBottom: 30 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 15 },
   iconCircle: {
     width: 45,
     height: 45,
@@ -496,22 +328,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  menuText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-
-  // Permite que la flecha quede al extremo derecho
-  menuTextExpandable: {
-    flex: 1,
-  },
-
-  expandableGroup: {
-    gap: 4,
-  },
-
+  menuText: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  menuTextExpandable: { flex: 1 },
+  expandableGroup: { gap: 4 },
   submenu: {
     marginLeft: 17,
     paddingLeft: 16,
@@ -520,19 +339,6 @@ const styles = StyleSheet.create({
     borderLeftColor: '#739126',
     gap: 12,
   },
-
-  submenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 5,
-    paddingRight: 2,
-  },
-
-  submenuText: {
-    color: '#e2e8f0',
-    fontSize: 13,
-    fontWeight: '600',
-    flex: 1,
-  },
+  submenuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
+  submenuText: { color: '#e2e8f0', fontSize: 13, fontWeight: '600', flex: 1 },
 });

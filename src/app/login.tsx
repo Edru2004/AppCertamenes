@@ -94,12 +94,20 @@ export default function LoginScreen() {
         valorRol === 3 ||
         valorRol === '3';
 
+      const esPersonalApoyo =
+        rol === 'personal de apoyo' ||
+        rol === 'asistente' ||
+        rol === 'auxiliar' ||
+        valorRol === 4 ||
+        valorRol === '4';
+
       console.log('¿Es Administrador?:', esAdministrador);
       console.log('¿Es Líder?:', esLider);
       console.log('¿Es Jurado?:', esJurado);
+      console.log('¿Es Personal de Apoyo?:', esPersonalApoyo);
 
       // Verificación de acceso
-      if (!esAdministrador && !esLider && !esJurado) {
+      if (!esAdministrador && !esLider && !esJurado && !esPersonalApoyo) {
         Alert.alert(
           'Rol no reconocido',
           `El rol "${valorRol || 'sin rol'}" no tiene un panel configurado.`
@@ -126,6 +134,8 @@ export default function LoginScreen() {
         router.replace('/(lider)' as any);
       }else if (esJurado) {
         router.replace('/(jurado)' as any);
+      } else if (esPersonalApoyo) {
+        router.replace('/(personal-apoyo)' as any);
       }
     } catch (error: any) {
       const mensaje = error?.message || 'No se pudo conectar al servidor';

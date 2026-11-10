@@ -37,7 +37,13 @@
       "@react-native-community/datetimepicker",
       "expo-image",
       "expo-web-browser",
-      "expo-build-properties"
+      "expo-build-properties",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La aplicación requiere acceso a tu galería para subir evidencias fotográficas del certamen."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
