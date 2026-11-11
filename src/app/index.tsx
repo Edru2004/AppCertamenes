@@ -1,4 +1,3 @@
-// src/app/index.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
@@ -7,72 +6,74 @@ import { ActivityIndicator, View } from 'react-native';
 export default function RootIndex() {
   const router = useRouter();
 
-  // Cantidades de ejemplo. Sustituye estos valores por los conteos de tu API/base de datos.
-  const resumen = [
-    {
-      titulo: 'Categorías',
-      cantidad: 11,
-      icono: 'shapes-outline' as const,
-      color: '#164E83',
-      fondo: '#EDF4FF',
-      detalle: 'Registradas',
-    },
-    {
-      titulo: 'Desafíos',
-      cantidad: 8,
-      icono: 'flame-outline' as const,
-      color: '#E97818',
-      fondo: '#FFF1E7',
-      detalle: 'Retos registrados',
-    },
-    {
-      titulo: 'Salas',
-      cantidad: 6,
-      icono: 'business-outline' as const,
-      color: '#0284C7',
-      fondo: '#E7F5FF',
-      detalle: 'Espacios registrados',
-    },
-    {
-      titulo: 'Equipos',
-      cantidad: 24,
-      icono: 'people-outline' as const,
-      color: '#65A30D',
-      fondo: '#F1F7E5',
-      detalle: 'Equipos registrados',
-    },
-  ];
-
   useEffect(() => {
     const validarSesion = async () => {
       try {
         const token = await AsyncStorage.getItem('userToken');
         const rol = await AsyncStorage.getItem('userRole');
+        const modalidad = await AsyncStorage.getItem(
+          'modalidadSeleccionada'
+        );
 
+        // No hay sesión
         if (!token || !rol) {
           router.replace('/login');
           return;
         }
 
-        const rolLimpio = String(rol).toLowerCase().trim();
+        const rolLimpio = String(rol)
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim();
 
-        if (rolLimpio.includes('admin')) {
+        // ADMINISTRADOR
+        if (
+          rolLimpio === 'admin' ||
+          rolLimpio === 'administrador' ||
+          rolLimpio.includes('administrador')
+        ) {
+          // Si todavía no ha elegido modalidad,
+          // primero debe ir a la pantalla de selección.
+          if (
+            modalidad !== 'RALLY' &&
+            modalidad !== 'INNOVATEC'
+          ) {
+            router.replace('/(admin)/seleccion' as any);
+            return;
+          }
+
+          // Ya tiene modalidad seleccionada
           router.replace('/(admin)' as any);
-        } else if (rolLimpio.includes('lider')) {
-          router.replace('/(lider)' as any);
-        } else {
-          router.replace('/login');
+          return;
         }
-      } catch (e) {
+
+        // LÍDER
+        if (rolLimpio.includes('lider')) {
+          router.replace('/(lider)' as any);
+          return;
+        }
+
+        // Cualquier otro rol
+        router.replace('/login');
+      } catch (error) {
+        console.error('Error al validar la sesión:', error);
         router.replace('/login');
       }
     };
 
     validarSesion();
-  }, []);
+  }, [router]);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#002b45' }}>
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#002b45',
+      }}
+    >
       <ActivityIndicator size="large" color="#9eb23b" />
     </View>
   );
