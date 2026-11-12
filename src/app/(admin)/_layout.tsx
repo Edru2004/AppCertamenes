@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
 import { useEffect, useState } from 'react';
 
@@ -17,7 +17,12 @@ type Modalidad = 'RALLY' | 'INNOVATEC';
 
 function CustomDrawerContent({ navigation }: any) {
   const router = useRouter();
+  const params = useLocalSearchParams();
 
+  const tipoParam =
+    params.tipo === 'RALLY' || params.tipo === 'INNOVATEC'
+      ? params.tipo
+      : null;
   const [nombreUsuario, setNombreUsuario] =
     useState('Usuario');
 
@@ -150,6 +155,8 @@ function CustomDrawerContent({ navigation }: any) {
           'modalidadSeleccionada'
         );
 
+      const modalidadFinal =
+        tipoParam || modalidadGuardada;
       /*
        * ----------------------------------------
        * CERTAMEN SELECCIONADO
@@ -186,12 +193,10 @@ function CustomDrawerContent({ navigation }: any) {
        */
 
       if (
-        modalidadGuardada === 'RALLY' ||
-        modalidadGuardada === 'INNOVATEC'
+        modalidadFinal === 'RALLY' ||
+        modalidadFinal === 'INNOVATEC'
       ) {
-        setModalidad(
-          modalidadGuardada
-        );
+        setModalidad(modalidadFinal);
       } else {
         setModalidad(null);
       }
@@ -314,8 +319,7 @@ function CustomDrawerContent({ navigation }: any) {
       );
 
     return unsubscribe;
-  }, [navigation]);
-
+}, [navigation, tipoParam]);
   /*
    * ==========================================
    * NAVEGACIÓN

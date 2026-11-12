@@ -7,7 +7,7 @@ import { fetch as expoFetch } from 'expo/fetch';
 
 // Usa la IP de la computadora donde está corriendo Laravel.
 // El celular y la computadora deben estar en la misma red Wi-Fi.
-const API = 'http://192.168.1.140:8000/api';
+const API = 'http://192.168.1.152:8000/api';
 
 
 type Datos = Record<string, any> | FormData;

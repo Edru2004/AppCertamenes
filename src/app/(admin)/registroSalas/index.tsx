@@ -216,9 +216,7 @@ export default function SalasIndexScreen() {
 
         <View style={styles.selectorCard}>
           <Text style={styles.selectorTitle}>Certamen seleccionado</Text>
-          <Text style={styles.selectorDescription}>
-            Las salas mostradas corresponden únicamente al certamen seleccionado.
-          </Text>
+          
 
           {certamenes.length > 0 && certamenSeleccionado ? (
             <TouchableOpacity

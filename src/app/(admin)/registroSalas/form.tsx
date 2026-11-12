@@ -416,7 +416,7 @@ export default function SalasFormScreen() {
 
           {/* NOMBRE */}
           <Text style={styles.label}>
-            Nombre de la sala *
+            Nombre de la sala
           </Text>
 
           <TextInput
@@ -431,7 +431,7 @@ export default function SalasFormScreen() {
 
           {/* UBICACIÓN */}
           <Text style={styles.label}>
-            Ubicación *
+            Ubicación 
           </Text>
 
           <TextInput
@@ -446,7 +446,7 @@ export default function SalasFormScreen() {
 
           {/* ENCARGADO */}
           <Text style={styles.label}>
-            Encargado de sala *
+            Encargado de sala 
           </Text>
 
           <TextInput

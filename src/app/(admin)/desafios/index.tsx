@@ -173,10 +173,10 @@ export default function DesafiosIndexScreen() {
       setDesafios(
         termino
           ? listaDelCertamen.filter((item: any) =>
-              `${getNombre(item)} ${getDescripcion(item)}`
-                .toLocaleLowerCase()
-                .includes(termino)
-            )
+            `${getNombre(item)} ${getDescripcion(item)}`
+              .toLocaleLowerCase()
+              .includes(termino)
+          )
           : listaDelCertamen
       );
     },
@@ -196,7 +196,7 @@ export default function DesafiosIndexScreen() {
       mostrarResultado(
         'Error al cargar desafíos',
         error?.message ||
-          'No se pudieron consultar los desafíos del certamen.',
+        'No se pudieron consultar los desafíos del certamen.',
         'error'
       );
     } finally {
@@ -273,7 +273,7 @@ export default function DesafiosIndexScreen() {
             mostrarResultado(
               'Error al cargar',
               error?.message ||
-                'No se pudieron cargar certámenes y desafíos.',
+              'No se pudieron cargar certámenes y desafíos.',
               'error'
             );
           }
@@ -352,7 +352,7 @@ export default function DesafiosIndexScreen() {
       mostrarResultado(
         'Error al eliminar',
         error?.message ||
-          'No se pudo eliminar el desafío. Comprueba si tiene equipos asociados.',
+        'No se pudo eliminar el desafío. Comprueba si tiene equipos asociados.',
         'error'
       );
     } finally {
@@ -387,7 +387,7 @@ export default function DesafiosIndexScreen() {
             Gestión de desafíos
           </Text>
 
-          
+          certamenSelectorCard
         </View>
 
         {/* SELECTOR DE CERTAMEN */}
@@ -396,9 +396,7 @@ export default function DesafiosIndexScreen() {
             Certamen seleccionado
           </Text>
 
-          <Text style={styles.certamenSelectorDescription}>
-            Los desafíos mostrados corresponden únicamente al certamen seleccionado.
-          </Text>
+
 
           {certamenes.length === 0 ? (
             <View style={styles.emptyCard}>
@@ -455,7 +453,7 @@ export default function DesafiosIndexScreen() {
           style={[
             styles.btnNuevo,
             (!idCertamenSel || cargando || eliminando) &&
-              styles.btnDisabled,
+            styles.btnDisabled,
           ]}
           onPress={() =>
             router.push({
@@ -475,7 +473,7 @@ export default function DesafiosIndexScreen() {
           />
 
           <Text style={styles.btnNuevoText}>
-            Nuevo desafío para {certamenActual?.nombre ?? 'certamen'}
+            Nuevo desafío
           </Text>
         </TouchableOpacity>
 
@@ -593,7 +591,7 @@ export default function DesafiosIndexScreen() {
                 <View style={styles.cardHeader}>
                   <View style={styles.cardTitleBox}>
                     <Text style={styles.cardBadge}>
-                      
+
                     </Text>
 
                     <Text style={styles.cardTitle}>
@@ -746,7 +744,7 @@ export default function DesafiosIndexScreen() {
                     style={[
                       styles.certamenModalOption,
                       seleccionado &&
-                        styles.certamenModalOptionSelected,
+                      styles.certamenModalOptionSelected,
                     ]}
                     onPress={() => {
                       setModalCertamenesVisible(false);
@@ -775,7 +773,7 @@ export default function DesafiosIndexScreen() {
                         style={[
                           styles.certamenModalOptionName,
                           seleccionado &&
-                            styles.certamenModalOptionNameSelected,
+                          styles.certamenModalOptionNameSelected,
                         ]}
                       >
                         {certamen.nombre}
@@ -785,7 +783,7 @@ export default function DesafiosIndexScreen() {
                         style={[
                           styles.certamenModalOptionType,
                           seleccionado &&
-                            styles.certamenModalOptionTypeSelected,
+                          styles.certamenModalOptionTypeSelected,
                         ]}
                       >
                         {tipoVisible(certamen.tipo)}
@@ -861,7 +859,7 @@ export default function DesafiosIndexScreen() {
         transparent
         animationType="fade"
         visible={eliminando}
-        onRequestClose={() => {}}
+        onRequestClose={() => { }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.loadingCard}>
@@ -987,10 +985,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    padding: 15,
+    paddingVertical: 6,      // ⬅️ Reduce el espacio de arriba y abajo (antes era 15)
+    paddingHorizontal: 15,   // ⬅️ Mantiene el mismo espacio a los lados
     marginBottom: 14,
   },
-
   certamenSelectorTitle: {
     color: '#0f172a',
     fontSize: 20,
@@ -1135,19 +1133,21 @@ const styles = StyleSheet.create({
     color: '#15803d',
     fontWeight: '700',
   },
-
   btnNuevo: {
     flexDirection: 'row',
     backgroundColor: '#8aa329',
-    padding: 15,
+    paddingVertical: 12,
+    paddingLeft: 20,         // ⬅️ Espacio normal a la izquierda
+    paddingRight: 50,        // ⬅️ Más espacio para que se expanda a la derecha
+    alignSelf: 'center',     // ⬅️ Centra el botón en la pantalla
+    marginLeft: 20,          // ⬅️ (Opcional) Empuja todo el botón un poco hacia la derecha
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     marginBottom: 13,
-    minHeight: 58,
+    minHeight: 40,
   },
-
   btnNuevoText: {
     color: '#fff',
     fontWeight: '800',
@@ -1301,7 +1301,7 @@ const styles = StyleSheet.create({
     color: '#002b45',
   },
 
-  
+
 
   certamenLine: {
     flexDirection: 'row',

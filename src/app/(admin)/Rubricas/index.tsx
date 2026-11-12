@@ -7,7 +7,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 
 import {
-
   ActivityIndicator,
   Modal,
 
@@ -20,11 +19,9 @@ import {
   TouchableOpacity,
 
   View,
-
 } from 'react-native';
 
 import {
-
   eliminarRubrica,
 
   getCategCertamenes,
@@ -32,7 +29,6 @@ import {
   getCertamenes,
 
   getRubricas,
-
 } from '../../../services/api';
 
 const obtenerLista = (respuesta: any): any[] => {
@@ -382,7 +378,6 @@ export default function RubricasIndexScreen() {
           <Text style={styles.title}>Gestión de rúbricas</Text>
         </View>
         <Text style={styles.sectionLabel}>Selecciona el certamen:</Text>
-
         {cargando ? (
 
           <View style={styles.loadingInline}><ActivityIndicator size="small" color="#002b45" /><Text style={styles.loadingInlineText}>Cargando certámenes...</Text></View>
@@ -395,8 +390,6 @@ export default function RubricasIndexScreen() {
           <>
             <View style={styles.certamenSelectorCard}>
               <Text style={styles.certamenSelectorTitle}>Certamen seleccionado</Text>
-              <Text style={styles.certamenSelectorDescription}>
-              </Text>
 
               {certamenActual ? (
                 <TouchableOpacity
@@ -574,12 +567,29 @@ export default function RubricasIndexScreen() {
 
           </View>
 
-          <TouchableOpacity style={[styles.btnNuevo, (!idCategoriaSel || cargando || eliminando) && styles.disabledButton]} onPress={() => router.push({ pathname: '/Rubricas/form' as any, params: { idCategoria_r: String(idCategoriaSel), idCertamen: String(idCertamenSel) } })} disabled={!idCategoriaSel || cargando || eliminando}>
-
-            <Ionicons name="add-circle-outline" size={18} color="#fff" /><Text style={styles.btnNuevoText}>Agregar criterio</Text>
-
+          <TouchableOpacity
+            style={[
+              styles.btnNuevo,
+              (!idCategoriaSel || cargando || eliminando) && styles.disabledButton
+            ]}
+            onPress={() =>
+              router.push({
+                pathname: '/Rubricas/form' as any,
+                params: {
+                  id: '',
+                  idCategoria_r: String(idCategoriaSel),
+                  idCertamen: String(idCertamenSel),
+                  pregunta: '',
+                  valor_maximo: '',
+                  nuevo: String(Date.now()),
+                }
+              })
+            }
+            disabled={!idCategoriaSel || cargando || eliminando}
+          >
+            <Ionicons name="add-circle-outline" size={18} color="#fff" />
+            <Text style={styles.btnNuevoText}>Agregar criterio</Text>
           </TouchableOpacity>
-
         </View>
 
         {cargandoCriterios ? (
@@ -626,7 +636,14 @@ export default function RubricasIndexScreen() {
 
                   <View style={styles.actions}>
 
-                    <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={() => router.push({ pathname: '/Rubricas/form' as any, params: { id: String(id), idCategoria_r: String(idCategoriaSel), idCertamen: String(idCertamenSel), pregunta, valor_maximo: String(valor) } })} disabled={eliminando}>
+                    <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={() =>
+                      router.push({
+                        pathname: '/Rubricas/form' as any,
+                        params: {
+                          id:
+                            String(id), idCategoria_r: String(idCategoriaSel), idCertamen: String(idCertamenSel), pregunta, valor_maximo: String(valor)
+                        }
+                      })} disabled={eliminando}>
 
                       <Ionicons name="create-outline" size={16} color="#fff" /><Text style={styles.actionButtonText}>Editar</Text>
 
@@ -678,7 +695,7 @@ export default function RubricasIndexScreen() {
 
       </Modal>
 
-      <Modal visible={eliminando} transparent animationType="fade" onRequestClose={() => {}}>
+      <Modal visible={eliminando} transparent animationType="fade" onRequestClose={() => { }}>
 
         <View style={styles.modalBackdrop}><View style={styles.loadingCard}><ActivityIndicator size="large" color="#002b45" /><Text style={styles.loadingTitle}>Eliminando criterio...</Text><Text style={styles.loadingSubtitle}>Estamos procesando la solicitud. Espera un momento.</Text></View></View>
 

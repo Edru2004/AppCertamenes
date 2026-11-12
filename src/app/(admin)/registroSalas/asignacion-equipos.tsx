@@ -3,21 +3,21 @@ import { Picker } from '@react-native-picker/picker';
 import { useEffect, useState } from 'react';
 
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import {
-    actualizarEquipo,
-    getCertamenes,
-    getEquipos,
-    getSalas,
+  actualizarEquipo,
+  getCertamenes,
+  getEquipos,
+  getSalas,
 } from '../../../services/api';
 
 type Registro = Record<string, any>;
@@ -31,20 +31,20 @@ const obtenerLista = (respuesta: any): Registro[] => {
 const idCertamen = (item: Registro) =>
   Number(
     item.Id_certamen ??
-      item.id_certamen ??
-      item.Id_Certamen ??
-      item.certamen?.Id_certamen ??
-      item.certamen?.id_certamen ??
-      item.Certamen?.Id_certamen ??
-      0
+    item.id_certamen ??
+    item.Id_Certamen ??
+    item.certamen?.Id_certamen ??
+    item.certamen?.id_certamen ??
+    item.Certamen?.Id_certamen ??
+    0
   );
 
 const tipoCertamen = (item: Registro) =>
   String(
     item.Tipo ??
-      item.Tipo_certamen ??
-      item.TipoCertamen ??
-      ''
+    item.Tipo_certamen ??
+    item.TipoCertamen ??
+    ''
   )
     .trim()
     .toUpperCase();
@@ -56,6 +56,13 @@ const idSala = (item: Registro): number | null => {
 
 const nombreCertamen = (item: Registro) =>
   String(item.Nombre ?? item.nombre ?? 'Certamen sin nombre');
+
+const encargadoSala = (item: Registro) =>
+  String(
+    item?.Encargado ??
+    item?.encargado ??
+    'Sin encargado'
+  );
 
 const esRally = (item: Registro) =>
   tipoCertamen(item) === 'RALLY';
@@ -112,7 +119,7 @@ export default function AsignacionEquiposScreen() {
         Alert.alert(
           'Error',
           error?.message ||
-            'No se pudieron cargar los certámenes.'
+          'No se pudieron cargar los certámenes.'
         );
       } finally {
         setCargando(false);
@@ -154,7 +161,7 @@ export default function AsignacionEquiposScreen() {
       Alert.alert(
         'Error',
         error?.message ||
-          'No se pudieron cargar los datos.'
+        'No se pudieron cargar los datos.'
       );
     } finally {
       setCargando(false);
@@ -253,7 +260,7 @@ export default function AsignacionEquiposScreen() {
       Alert.alert(
         'Error',
         error?.message ||
-          'No se pudo asignar la sala.'
+        'No se pudo asignar la sala.'
       );
     } finally {
       setGuardando(false);
@@ -307,7 +314,7 @@ export default function AsignacionEquiposScreen() {
               Alert.alert(
                 'Error',
                 error?.message ||
-                  'No se pudo quitar la sala.'
+                'No se pudo quitar la sala.'
               );
             } finally {
               setGuardando(false);
@@ -357,7 +364,7 @@ export default function AsignacionEquiposScreen() {
           <Ionicons
             name={
               certamenActual &&
-              esRally(certamenActual)
+                esRally(certamenActual)
                 ? 'trophy-outline'
                 : 'bulb-outline'
             }
@@ -374,8 +381,8 @@ export default function AsignacionEquiposScreen() {
           >
             {certamenActual
               ? nombreCertamen(
-                  certamenActual
-                )
+                certamenActual
+              )
               : 'Cargando...'}
           </Text>
 
@@ -385,8 +392,8 @@ export default function AsignacionEquiposScreen() {
           >
             {certamenActual
               ? esRally(
-                  certamenActual
-                )
+                certamenActual
+              )
                 ? 'RALLY'
                 : 'INNOVATECNM'
               : ''}
@@ -482,7 +489,7 @@ export default function AsignacionEquiposScreen() {
                     style={[
                       styles.opcionCertamen,
                       seleccionado &&
-                        styles.opcionCertamenActiva,
+                      styles.opcionCertamenActiva,
                     ]}
                     onPress={() =>
                       seleccionarCertamen(
@@ -513,7 +520,7 @@ export default function AsignacionEquiposScreen() {
                         style={[
                           styles.nombreOpcionCertamen,
                           seleccionado &&
-                            styles.textoOpcionActivo,
+                          styles.textoOpcionActivo,
                         ]}
                       >
                         {nombreCertamen(
@@ -525,7 +532,7 @@ export default function AsignacionEquiposScreen() {
                         style={[
                           styles.tipoOpcionCertamen,
                           seleccionado &&
-                            styles.textoOpcionActivo,
+                          styles.textoOpcionActivo,
                         ]}
                       >
                         {rally
@@ -629,7 +636,7 @@ export default function AsignacionEquiposScreen() {
           disabled={
             cargando ||
             certamenSeleccionado ===
-              null
+            null
           }
         >
           <Ionicons
@@ -663,7 +670,7 @@ export default function AsignacionEquiposScreen() {
           <TouchableOpacity
             onPress={() =>
               certamenSeleccionado !==
-                null &&
+              null &&
               cargarDatos(
                 certamenSeleccionado
               )
@@ -671,7 +678,7 @@ export default function AsignacionEquiposScreen() {
             disabled={
               cargando ||
               certamenSeleccionado ===
-                null
+              null
             }
           >
             <Ionicons
@@ -721,59 +728,114 @@ export default function AsignacionEquiposScreen() {
              ================================================= */
 
           equipos.map((equipo) => {
-            const salaActual =
-              idSala(equipo);
+            const salaActual = idSala(equipo);
+
+            const salaAsignada =
+              salas.find(
+                (sala) => idSala(sala) === salaActual
+              ) ?? null;
 
             return (
               <View
-                key={
-                  equipo.Id_equipo
-                }
+                key={equipo.Id_equipo}
                 style={styles.tarjeta}
               >
-                <Text
-                  style={
-                    styles.nombre
-                  }
-                >
-                  {equipo.Nombre ||
-                    'Equipo'}
-                </Text>
 
-                <Text
-                  style={
-                    styles.estado
-                  }
-                >
-                  {nombreSala(
-                    salaActual
-                  )}
-                </Text>
+                {/* CERTAMEN */}
+                <View style={styles.datoTarjeta}>
+                  <Ionicons
+                    name="trophy-outline"
+                    size={18}
+                    color="#2563EB"
+                  />
 
-                {salaActual !==
-                  null && (
+                  <View style={styles.datoContenido}>
+                    <Text style={styles.etiquetaTarjeta}>
+                      Certamen
+                    </Text>
+
+                    <Text style={styles.valorTarjeta}>
+                      {certamenActual
+                        ? nombreCertamen(certamenActual)
+                        : 'Certamen sin nombre'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* EQUIPO */}
+                <View style={styles.datoTarjeta}>
+                  <Ionicons
+                    name="people-outline"
+                    size={18}
+                    color="#2563EB"
+                  />
+
+                  <View style={styles.datoContenido}>
+                    <Text style={styles.etiquetaTarjeta}>
+                      Equipo
+                    </Text>
+
+                    <Text style={styles.valorTarjeta}>
+                      {equipo.Nombre || 'Equipo'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* SALA */}
+                <View style={styles.datoTarjeta}>
+                  <Ionicons
+                    name="business-outline"
+                    size={18}
+                    color="#2563EB"
+                  />
+
+                  <View style={styles.datoContenido}>
+                    <Text style={styles.etiquetaTarjeta}>
+                      Sala
+                    </Text>
+
+                    <Text style={styles.valorTarjeta}>
+                      {salaAsignada
+                        ? nombreSala(idSala(salaAsignada))
+                        : 'Sin sala asignada'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* ENCARGADO */}
+                <View style={styles.datoTarjeta}>
+                  <Ionicons
+                    name="person-outline"
+                    size={18}
+                    color="#2563EB"
+                  />
+
+                  <View style={styles.datoContenido}>
+                    <Text style={styles.etiquetaTarjeta}>
+                      Encargado de sala
+                    </Text>
+
+                    <Text style={styles.valorTarjeta}>
+                      {salaAsignada
+                        ? encargadoSala(salaAsignada)
+                        : 'Sin encargado'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* QUITAR SALA */}
+                {salaActual !== null && (
                   <TouchableOpacity
-                    style={
-                      styles.botonQuitar
-                    }
-                    onPress={() =>
-                      quitarSala(
-                        equipo
-                      )
-                    }
-                    disabled={
-                      guardando
-                    }
+                    style={styles.botonQuitar}
+                    onPress={() => quitarSala(equipo)}
+                    disabled={guardando}
                   >
-                    <Text
-                      style={
-                        styles.textoBoton
-                      }
-                    >
+                    <Text style={styles.textoBoton}>
                       Quitar sala
                     </Text>
                   </TouchableOpacity>
                 )}
+
               </View>
             );
           })
@@ -828,8 +890,8 @@ export default function AsignacionEquiposScreen() {
                     value == null
                       ? null
                       : Number(
-                          value
-                        )
+                        value
+                      )
                   );
                 }}
               >
@@ -879,8 +941,8 @@ export default function AsignacionEquiposScreen() {
                     value == null
                       ? null
                       : Number(
-                          value
-                        )
+                        value
+                      )
                   );
                 }}
               >
@@ -895,10 +957,9 @@ export default function AsignacionEquiposScreen() {
                       key={
                         sala.Id_sala
                       }
-                      label={`${sala.Nombre} - ${
-                        sala.Ubicacion ||
+                      label={`${sala.Nombre} - ${sala.Ubicacion ||
                         'Sin ubicación'
-                      }`}
+                        }`}
                       value={Number(
                         sala.Id_sala
                       )}
@@ -997,7 +1058,7 @@ const styles = StyleSheet.create({
   },
 
   titulo: {
-   fontSize: 23, fontWeight: '800', color: '#002b45', textAlign: 'center'
+    fontSize: 23, fontWeight: '800', color: '#002b45', textAlign: 'center'
   },
 
   descripcion: {
@@ -1303,4 +1364,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
+  datoTarjeta: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  marginBottom: 13,
+},
+
+datoContenido: {
+  flex: 1,
+  marginLeft: 10,
+},
+
+etiquetaTarjeta: {
+  fontSize: 13,
+  fontWeight: '600',
+  color: '#64748B',
+  marginBottom: 2,
+},
+
+valorTarjeta: {
+  fontSize: 16,
+  fontWeight: '700',
+  color: '#1E293B',
+},
 });

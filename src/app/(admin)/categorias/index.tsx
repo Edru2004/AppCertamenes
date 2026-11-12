@@ -535,11 +535,11 @@ export default function CategoriasIndexScreen() {
               activeOpacity={0.8}
             >
               <View style={[
-                  styles.selectedCertamenIcon,
-                  tipoCertamenActual === 'Rally'
-                    ? styles.selectedCertamenIconRally
-                    : styles.selectedCertamenIconInnovaTec,
-                ]}>
+                styles.selectedCertamenIcon,
+                tipoCertamenActual === 'Rally'
+                  ? styles.selectedCertamenIconRally
+                  : styles.selectedCertamenIconInnovaTec,
+              ]}>
                 <Ionicons
                   name={tipoCertamenActual === 'Rally' ? 'trophy-outline' : 'bulb-outline'}
                   size={25}
@@ -561,11 +561,25 @@ export default function CategoriasIndexScreen() {
 
         <TouchableOpacity
           style={styles.newButton}
-          onPress={() => router.push({ pathname: '/categorias/form' as any, params: { idCertamen: String(idCertamenSel ?? '') } })}
-          disabled={eliminando || idCertamenSel == null}
+          onPress={() =>
+            router.push({
+              pathname: '/categorias/form' as any,
+              params: {
+                modo: 'nuevo',
+              },
+            })
+          }
+          disabled={eliminando}
         >
-          <Ionicons name="add-circle-outline" size={20} color="#fff" />
-          <Text style={styles.newButtonText}>Nueva categoría</Text>
+          <Ionicons
+            name="add-circle-outline"
+            size={20}
+            color="#fff"
+          />
+
+          <Text style={styles.newButtonText}>
+            Nueva categoría
+          </Text>
         </TouchableOpacity>
         <View style={styles.searchCard}>
 
@@ -996,7 +1010,7 @@ export default function CategoriasIndexScreen() {
 
       {/* Indicador que bloquea la pantalla mientras el servidor elimina */}
 
-      <Modal visible={eliminando} transparent animationType="fade" onRequestClose={() => {}}>
+      <Modal visible={eliminando} transparent animationType="fade" onRequestClose={() => { }}>
 
         <View style={styles.modalBackdrop}>
 
