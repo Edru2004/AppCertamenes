@@ -7,12 +7,8 @@ import { fetch as expoFetch } from 'expo/fetch';
 
 // Usa la IP de la computadora donde está corriendo Laravel.
 // El celular y la computadora deben estar en la misma red Wi-Fi.
-<<<<<<< HEAD
+const API = 'http://192.168.1.140:8000/api';
 
-const API = 'http://192.168.1.115:8000/api';
-=======
-const API = 'http://192.168.1.152:8000/api';
->>>>>>> origin/master
 
 type Datos = Record<string, any> | FormData;
 
@@ -481,7 +477,6 @@ export const eliminarEquipo = async (
   );
 };
 
-<<<<<<< HEAD
 // ==========================================
 // FOTOS DE EQUIPO (EVIDENCIAS)
 // ==========================================
@@ -494,11 +489,7 @@ export const getFotosEquipo = async (idEquipo: number) => {
   return peticion(`/equipos/${idEquipo}/fotos`);
 };
 
-// ==========================================
-
-=======
 // ======================================================
->>>>>>> origin/master
 // USUARIOS
 // ======================================================
 
