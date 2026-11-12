@@ -1,64 +1,56 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { fetch as expoFetch } from 'expo/fetch';
 
-// IMPORTANTE:
+// ======================================================
+// CONFIGURACIÓN
+// ======================================================
 
 // Usa la IP de la computadora donde está corriendo Laravel.
-
 // El celular y la computadora deben estar en la misma red Wi-Fi.
+<<<<<<< HEAD
 
 const API = 'http://192.168.1.115:8000/api';
+=======
+const API = 'http://192.168.1.152:8000/api';
+>>>>>>> origin/master
 
 type Datos = Record<string, any> | FormData;
 
 type Metodo = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-/**
+type Modalidad = 'RALLY' | 'INNOVATEC';
 
- * Construye los encabezados de cada petición de forma dinámica.
+// ======================================================
+// HEADERS
+// ======================================================
 
- * Si es FormData, deja que el cliente defina el boundary automáticamente.
-
- */
-
-const getAuthHeaders = async (esFormData: boolean = false): Promise<Record<string, string>> => {
+const getAuthHeaders = async (
+  esFormData: boolean = false
+): Promise<Record<string, string>> => {
 
   const token = await AsyncStorage.getItem('userToken');
 
   if (!token) {
-
     throw new Error(
-
       'No se encontró el token de sesión. Cierra sesión e inicia nuevamente.'
-
     );
-
   }
 
   const headers: Record<string, string> = {
-
     Accept: 'application/json',
-
     Authorization: `Bearer ${token}`,
-
   };
 
   if (!esFormData) {
-
     headers['Content-Type'] = 'application/json';
-
   }
 
   return headers;
-
 };
 
-/**
-
- * Lee respuestas JSON, respuestas vacías y errores de Laravel.
-
- */
+// ======================================================
+// LECTURA DE RESPUESTAS
+// ======================================================
 
 const leerRespuesta = async (res: Response): Promise<any> => {
 
@@ -67,74 +59,60 @@ const leerRespuesta = async (res: Response): Promise<any> => {
   let datos: any = null;
 
   if (texto.trim()) {
-
     try {
-
       datos = JSON.parse(texto);
-
     } catch {
-
-      datos = { message: texto };
-
+      datos = {
+        message: texto,
+      };
     }
-
   }
 
   if (!res.ok) {
 
     const errores = datos?.errors
-
       ? Object.values(datos.errors).flat().join('\n')
-
       : '';
 
     const mensaje =
-
       errores ||
-
       datos?.message ||
-
       datos?.error ||
-
       `Error HTTP ${res.status}`;
 
     throw new Error(String(mensaje));
-
   }
 
   return datos;
-
 };
 
-/**
-
- * Función central para todas las peticiones a Laravel.
-
- */
+// ======================================================
+// PETICIÓN CENTRAL
+// ======================================================
 
 const peticion = async (
-
   ruta: string,
-
   metodo: Metodo = 'GET',
-
-  datos?: Datos,
-
+  datos?: Datos
 ): Promise<any> => {
 
-  const esFormData = typeof FormData !== 'undefined' && datos instanceof FormData;
+  const esFormData =
+    typeof FormData !== 'undefined' &&
+    datos instanceof FormData;
 
   const headers = await getAuthHeaders(esFormData);
 
   let body: any = undefined;
 
   if (datos !== undefined) {
-
-    body = esFormData ? datos : JSON.stringify(datos);
-
+    body = esFormData
+      ? datos
+      : JSON.stringify(datos);
   }
 
-  const clienteFetch = esFormData ? expoFetch : fetch;
+  const clienteFetch = esFormData
+    ? expoFetch
+    : fetch;
 
   const res = await clienteFetch(`${API}${ruta}`, {
     method: metodo,
@@ -143,214 +121,367 @@ const peticion = async (
   });
 
   return leerRespuesta(res);
-
 };
 
-// Agrega el filtro de certamen a las consultas que lo admiten.
+// ======================================================
+// MODALIDAD
+// ======================================================
 
-const rutaConCertamen = (ruta: string, idCertamen?: number | null): string => {
+export const getModalidadSeleccionada =
+  async (): Promise<Modalidad | null> => {
 
-  if (idCertamen == null || !Number.isFinite(Number(idCertamen))) return ruta;
+    const modalidad =
+      await AsyncStorage.getItem('modalidadSeleccionada');
 
-  const separador = ruta.includes('?') ? '&' : '?';
+    if (
+      modalidad === 'RALLY' ||
+      modalidad === 'INNOVATEC'
+    ) {
+      return modalidad;
+    }
 
-  return `${ruta}${separador}id_certamen=${encodeURIComponent(String(idCertamen))}`;
+    return null;
+  };
 
+export const guardarModalidadSeleccionada =
+  async (modalidad: Modalidad): Promise<void> => {
+
+    await AsyncStorage.setItem(
+      'modalidadSeleccionada',
+      modalidad
+    );
+  };
+
+export const limpiarModalidadSeleccionada =
+  async (): Promise<void> => {
+
+    await AsyncStorage.multiRemove([
+      'modalidadSeleccionada',
+      'idCertamenSeleccionado',
+      'nombreCertamenSeleccionado',
+    ]);
+  };
+
+// ======================================================
+// AGREGAR MODALIDAD A UNA RUTA
+// ======================================================
+
+const rutaConModalidad = async (
+  ruta: string
+): Promise<string> => {
+
+  const modalidad =
+    await getModalidadSeleccionada();
+
+  if (!modalidad) {
+    return ruta;
+  }
+
+  const separador =
+    ruta.includes('?') ? '&' : '?';
+
+  return `${ruta}${separador}tipo=${encodeURIComponent(
+    modalidad
+  )}`;
 };
 
-// ==========================================
+// ======================================================
+// AGREGAR ID DE CERTAMEN
+// ======================================================
 
+const rutaConCertamen = (
+  ruta: string,
+  idCertamen?: number | null
+): string => {
+
+  if (
+    idCertamen == null ||
+    !Number.isFinite(Number(idCertamen))
+  ) {
+    return ruta;
+  }
+
+  const separador =
+    ruta.includes('?') ? '&' : '?';
+
+  return `${ruta}${separador}id_certamen=${encodeURIComponent(
+    String(idCertamen)
+  )}`;
+};
+
+// ======================================================
+// AGREGAR MODALIDAD + ID CERTAMEN
+// ======================================================
+
+const rutaAdmin = async (
+  ruta: string,
+  idCertamen?: number | null
+): Promise<string> => {
+
+  let url = ruta;
+
+  url = rutaConCertamen(
+    url,
+    idCertamen
+  );
+
+  url = await rutaConModalidad(url);
+
+  return url;
+};
+
+// ======================================================
 // AUTENTICACIÓN
-
-// ==========================================
+// ======================================================
 
 export const loginUsuario = async (
-
   correo: string,
-
-  contrasena: string,
-
+  contrasena: string
 ) => {
 
   const res = await fetch(`${API}/login`, {
-
     method: 'POST',
 
     headers: {
-
       'Content-Type': 'application/json',
-
       Accept: 'application/json',
-
     },
 
     body: JSON.stringify({
-
       Correo: correo,
-
       Contrasena: contrasena,
-
     }),
-
   });
 
   const data = await leerRespuesta(res);
 
   if (!data?.access_token) {
 
-    console.log('Respuesta del login:', data);
+    console.log(
+      'Respuesta del login:',
+      data
+    );
 
-    throw new Error('Laravel no devolvió un token válido.');
-
+    throw new Error(
+      'Laravel no devolvió un token válido.'
+    );
   }
 
-  await AsyncStorage.setItem('userToken', data.access_token);
+  await AsyncStorage.setItem(
+    'userToken',
+    data.access_token
+  );
 
   if (data.user) {
 
-    await AsyncStorage.setItem('userData', JSON.stringify(data.user));
-
+    await AsyncStorage.setItem(
+      'userData',
+      JSON.stringify(data.user)
+    );
   }
 
   return data;
-
 };
 
 export const logoutUsuario = async () => {
 
   try {
 
-    await peticion('/logout', 'POST');
+    await peticion(
+      '/logout',
+      'POST'
+    );
 
   } finally {
 
     await AsyncStorage.multiRemove([
-
       'userToken',
-
       'userData',
-
       'userRole',
-
       'modalidadSeleccionada',
-
+      'idCertamenSeleccionado',
+      'nombreCertamenSeleccionado',
     ]);
-
   }
-
 };
 
-// ==========================================
-
-// MODALIDAD SELECCIONADA
-
-// ==========================================
-
-export const getModalidadSeleccionada = async () => {
-
-  return AsyncStorage.getItem('modalidadSeleccionada');
-
-};
-
-// ==========================================
-
+// ======================================================
 // CERTÁMENES
-
-// ==========================================
+// ======================================================
 
 export const getCertamenes = async () => {
 
-  return peticion('/certamenes');
+  const ruta =
+    await rutaConModalidad(
+      '/certamenes'
+    );
 
+  return peticion(ruta);
 };
 
-export const crearCertamen = async (data: Datos) => {
+export const crearCertamen = async (
+  data: Datos
+) => {
 
-  return peticion('/certamenes', 'POST', data);
-
+  return peticion(
+    '/certamenes',
+    'POST',
+    data
+  );
 };
 
-export const actualizarCertamen = async (id: number, data: Datos) => {
+export const actualizarCertamen = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/certamenes/${id}`, 'PUT', data);
-
+  return peticion(
+    `/certamenes/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarCertamen = async (id: number) => {
+export const eliminarCertamen = async (
+  id: number
+) => {
 
-  return peticion(`/certamenes/${id}`, 'DELETE');
-
+  return peticion(
+    `/certamenes/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // SALAS
+// SOLO ADMINISTRADOR / INNOVATEC
+// ======================================================
 
-// ==========================================
+export const getSalas = async (
+  idCertamen?: number | null
+) => {
 
-export const getSalas = async (idCertamen?: number | null) => {
+  const ruta =
+    await rutaAdmin(
+      '/salas',
+      idCertamen
+    );
 
-  return peticion(rutaConCertamen('/salas', idCertamen));
-
+  return peticion(ruta);
 };
 
-export const crearSala = async (data: Datos) => {
+export const crearSala = async (
+  data: Datos
+) => {
 
-  return peticion('/salas', 'POST', data);
-
+  return peticion(
+    '/salas',
+    'POST',
+    data
+  );
 };
 
-export const actualizarSala = async (id: number, data: Datos) => {
+export const actualizarSala = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/salas/${id}`, 'PUT', data);
-
+  return peticion(
+    `/salas/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarSala = async (id: number) => {
+export const eliminarSala = async (
+  id: number
+) => {
 
-  return peticion(`/salas/${id}`, 'DELETE');
-
+  return peticion(
+    `/salas/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // EQUIPOS
+// ======================================================
 
-// ==========================================
+export const getEquipos = async (
+  idCertamen?: number,
+  idLider?: number
+) => {
 
-
-export const getEquipos = async (idCertamen?: number, idLider?: number) => {
   let url = '/equipos';
+
   const params: string[] = [];
 
-  if (idCertamen) params.push(`id_certamen=${idCertamen}`);
-  if (idLider) params.push(`id_lider=${idLider}`);
+  if (
+    idCertamen != null &&
+    Number.isFinite(Number(idCertamen))
+  ) {
+    params.push(
+      `id_certamen=${encodeURIComponent(
+        String(idCertamen)
+      )}`
+    );
+  }
+
+  if (
+    idLider != null &&
+    Number.isFinite(Number(idLider))
+  ) {
+    params.push(
+      `id_lider=${encodeURIComponent(
+        String(idLider)
+      )}`
+    );
+  }
 
   if (params.length > 0) {
+
     url += `?${params.join('&')}`;
   }
+
+  url = await rutaConModalidad(url);
 
   return peticion(url);
 };
 
-export const crearEquipo = async (data: Datos) => {
+export const crearEquipo = async (
+  data: Datos
+) => {
 
-  return peticion('/equipos', 'POST', data);
-
+  return peticion(
+    '/equipos',
+    'POST',
+    data
+  );
 };
 
-export const actualizarEquipo = async (id: number, data: Datos) => {
+export const actualizarEquipo = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/equipos/${id}`, 'PUT', data);
-
+  return peticion(
+    `/equipos/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarEquipo = async (id: number) => {
+export const eliminarEquipo = async (
+  id: number
+) => {
 
-  return peticion(`/equipos/${id}`, 'DELETE');
-
+  return peticion(
+    `/equipos/${id}`,
+    'DELETE'
+  );
 };
 
+<<<<<<< HEAD
 // ==========================================
 // FOTOS DE EQUIPO (EVIDENCIAS)
 // ==========================================
@@ -365,509 +496,730 @@ export const getFotosEquipo = async (idEquipo: number) => {
 
 // ==========================================
 
+=======
+// ======================================================
+>>>>>>> origin/master
 // USUARIOS
-
-// ==========================================
+// ======================================================
 
 export const getUsuarios = async () => {
 
   return peticion('/usuarios');
-
 };
 
-export const crearUsuario = async (data: Datos) => {
+export const crearUsuario = async (
+  data: Datos
+) => {
 
-  return peticion('/usuarios', 'POST', data);
-
+  return peticion(
+    '/usuarios',
+    'POST',
+    data
+  );
 };
 
-export const actualizarUsuario = async (id: number, data: Datos) => {
+export const actualizarUsuario = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/usuarios/${id}`, 'PUT', data);
-
+  return peticion(
+    `/usuarios/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarUsuario = async (id: number) => {
+export const eliminarUsuario = async (
+  id: number
+) => {
 
-  return peticion(`/usuarios/${id}`, 'DELETE');
-
+  return peticion(
+    `/usuarios/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
-// GESTIÓN INDEPENDIENTE DE USUARIOS
-
-// ==========================================
-
-// Consultar usuarios sin cargar relaciones de otras tablas.
+// ======================================================
+// USUARIOS - CATÁLOGO ADMIN
+// ======================================================
 
 export const getUsuariosCatalogo = async () => {
 
-  return peticion('/usuarios/catalogo');
-
+  return peticion(
+    '/usuarios/catalogo'
+  );
 };
 
-// Registrar usuario desde el módulo de administración.
-
-export const crearUsuarioAdmin = async (data: Datos) => {
-
-  return peticion('/usuarios/administracion', 'POST', data);
-
-};
-
-// Actualizar usuario desde el módulo de administración.
-
-export const actualizarUsuarioAdmin = async (
-
-  id: number,
-
+export const crearUsuarioAdmin = async (
   data: Datos
-
 ) => {
 
-  return peticion(`/usuarios/administracion/${id}`, 'PUT', data);
-
+  return peticion(
+    '/usuarios/administracion',
+    'POST',
+    data
+  );
 };
 
-// Eliminar usuario desde el módulo de administración.
+export const actualizarUsuarioAdmin = async (
+  id: number,
+  data: Datos
+) => {
 
-export const eliminarUsuarioAdmin = async (id: number) => {
-
-  return peticion(`/usuarios/administracion/${id}`, 'DELETE');
-
+  return peticion(
+    `/usuarios/administracion/${id}`,
+    'PUT',
+    data
+  );
 };
 
-// ==========================================
+export const eliminarUsuarioAdmin = async (
+  id: number
+) => {
 
+  return peticion(
+    `/usuarios/administracion/${id}`,
+    'DELETE'
+  );
+};
+
+// ======================================================
 // DESAFÍOS
+// ======================================================
 
-// ==========================================
+export const getDesafios = async (
+  idCertamen?: number
+) => {
 
-export const getDesafios = async (idCertamen?: number) => {
+  const ruta =
+    await rutaAdmin(
+      '/desafios',
+      idCertamen
+    );
 
-  return peticion(rutaConCertamen('/desafios', idCertamen));
-
+  return peticion(ruta);
 };
 
-export const crearDesafio = async (data: Datos) => {
+export const crearDesafio = async (
+  data: Datos
+) => {
 
-  return peticion('/desafios', 'POST', data);
-
+  return peticion(
+    '/desafios',
+    'POST',
+    data
+  );
 };
 
-export const actualizarDesafio = async (id: number, data: Datos) => {
+export const actualizarDesafio = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/desafios/${id}`, 'PUT', data);
-
+  return peticion(
+    `/desafios/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarDesafio = async (id: number) => {
+export const eliminarDesafio = async (
+  id: number
+) => {
 
-  return peticion(`/desafios/${id}`, 'DELETE');
-
+  return peticion(
+    `/desafios/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // CATEGORÍAS DEL CERTAMEN
-
-// ==========================================
+// ======================================================
 
 export const getCategCertamenes = async () => {
 
-  return peticion('/categorias-certamen');
+  const ruta =
+    await rutaConModalidad(
+      '/categorias-certamen'
+    );
 
+  return peticion(ruta);
 };
 
-export const crearCategCertamenes = async (data: Datos) => {
+export const crearCategCertamenes = async (
+  data: Datos
+) => {
 
-  return peticion('/categorias-certamen', 'POST', data);
-
+  return peticion(
+    '/categorias-certamen',
+    'POST',
+    data
+  );
 };
 
 export const actualizarCategCertamen = async (
-
   id: number,
-
-  data: Datos,
-
+  data: Datos
 ) => {
 
-  return peticion(`/categorias-certamen/${id}`, 'PUT', data);
-
+  return peticion(
+    `/categorias-certamen/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarCategCertamen = async (id: number) => {
+export const eliminarCategCertamen = async (
+  id: number
+) => {
 
-  return peticion(`/categorias-certamen/${id}`, 'DELETE');
-
+  return peticion(
+    `/categorias-certamen/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // CATEGORÍAS DE RÚBRICA
-
-// ==========================================
+// ======================================================
 
 export const getCategoriasRubrica = async () => {
 
-  return peticion('/categorias-rubrica');
+  const ruta =
+    await rutaConModalidad(
+      '/categorias-rubrica'
+    );
 
+  return peticion(ruta);
 };
 
-export const crearCategoriaRubrica = async (data: Datos) => {
+export const crearCategoriaRubrica = async (
+  data: Datos
+) => {
 
-  return peticion('/categorias-rubrica', 'POST', data);
-
+  return peticion(
+    '/categorias-rubrica',
+    'POST',
+    data
+  );
 };
 
 export const actualizarCategoriaRubrica = async (
-
   id: number,
-
-  data: Datos,
-
+  data: Datos
 ) => {
 
-  return peticion(`/categorias-rubrica/${id}`, 'PUT', data);
-
+  return peticion(
+    `/categorias-rubrica/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarCategoriaRubrica = async (id: number) => {
+export const eliminarCategoriaRubrica = async (
+  id: number
+) => {
 
-  return peticion(`/categorias-rubrica/${id}`, 'DELETE');
-
+  return peticion(
+    `/categorias-rubrica/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // RÚBRICAS
+// ======================================================
 
-// ==========================================
+export const getRubricas = async (
+  idCategoria: number
+) => {
 
-export const getRubricas = async (idCategoria: number) => {
+  const ruta =
+    `/rubricas?id_categoria=${encodeURIComponent(
+      idCategoria
+    )}`;
 
-  return peticion(`/rubricas?id_categoria=${encodeURIComponent(idCategoria)}`);
-
+  return peticion(
+    await rutaConModalidad(ruta)
+  );
 };
 
-export const crearRubrica = async (data: Datos) => {
+export const crearRubrica = async (
+  data: Datos
+) => {
 
-  return peticion('/rubricas', 'POST', data);
-
+  return peticion(
+    '/rubricas',
+    'POST',
+    data
+  );
 };
 
-export const actualizarRubrica = async (id: number, data: Datos) => {
+export const actualizarRubrica = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/rubricas/${id}`, 'PUT', data);
-
+  return peticion(
+    `/rubricas/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarRubrica = async (id: number) => {
+export const eliminarRubrica = async (
+  id: number
+) => {
 
-  return peticion(`/rubricas/${id}`, 'DELETE');
-
+  return peticion(
+    `/rubricas/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // JURADOS
+// ADMINISTRADOR
+// ======================================================
 
-// ==========================================
+export const getJurados = async (
+  idCertamen?: number | null
+) => {
 
-export const getJurados = async (idCertamen?: number | null) => {
+  const ruta =
+    await rutaAdmin(
+      '/jurados',
+      idCertamen
+    );
 
-  return peticion(rutaConCertamen('/jurados', idCertamen));
-
+  return peticion(ruta);
 };
 
 export const getUsuariosParaJurado = async () => {
 
-  return peticion('/jurados/usuarios-catalogo');
-
+  return peticion(
+    '/jurados/usuarios-catalogo'
+  );
 };
 
-// Consultar el perfil profesional y el curriculum que registró el jurado.
-export const getPerfilJuradoPorUsuario = async (idUsuario: number) => {
-  return peticion(`/admin/perfil-jurado/${idUsuario}`);
+export const getPerfilJuradoPorUsuario = async (
+  idUsuario: number
+) => {
+
+  return peticion(
+    `/admin/perfil-jurado/${idUsuario}`
+  );
 };
 
-export const crearJurado = async (data: Datos) => {
+export const crearJurado = async (
+  data: Datos
+) => {
 
-  return peticion('/jurados', 'POST', data);
-
+  return peticion(
+    '/jurados',
+    'POST',
+    data
+  );
 };
 
-export const actualizarJurado = async (id: number, data: Datos) => {
+export const actualizarJurado = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/jurados/${id}`, 'PUT', data);
-
+  return peticion(
+    `/jurados/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarJurado = async (id: number) => {
+export const eliminarJurado = async (
+  id: number
+) => {
 
-  return peticion(`/jurados/${id}`, 'DELETE');
-
+  return peticion(
+    `/jurados/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // INTEGRANTES
-
-// ==========================================
+// ======================================================
 
 export const getIntegrantes = async () => {
 
-  return peticion('/integrantes');
-
+  return peticion(
+    '/integrantes'
+  );
 };
 
-export const crearIntegrante = async (data: Datos) => {
+export const crearIntegrante = async (
+  data: Datos
+) => {
 
-  return peticion('/integrantes', 'POST', data);
-
+  return peticion(
+    '/integrantes',
+    'POST',
+    data
+  );
 };
 
-export const actualizarIntegrante = async (id: number, data: Datos) => {
+export const actualizarIntegrante = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/integrantes/${id}`, 'PUT', data);
-
+  return peticion(
+    `/integrantes/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarIntegrante = async (id: number) => {
+export const eliminarIntegrante = async (
+  id: number
+) => {
 
-  return peticion(`/integrantes/${id}`, 'DELETE');
-
+  return peticion(
+    `/integrantes/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // ADMINISTRADORES
-
-// ==========================================
+// ======================================================
 
 export const getAdmins = async () => {
 
-  return peticion('/admins');
-
+  return peticion(
+    '/admins'
+  );
 };
 
-export const crearAdmin = async (data: Datos) => {
+export const crearAdmin = async (
+  data: Datos
+) => {
 
-  return peticion('/admins', 'POST', data);
-
+  return peticion(
+    '/admins',
+    'POST',
+    data
+  );
 };
 
-export const actualizarAdmin = async (id: number, data: Datos) => {
+export const actualizarAdmin = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/admins/${id}`, 'PUT', data);
-
+  return peticion(
+    `/admins/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarAdmin = async (id: number) => {
+export const eliminarAdmin = async (
+  id: number
+) => {
 
-  return peticion(`/admins/${id}`, 'DELETE');
-
+  return peticion(
+    `/admins/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // LÍDERES
-
-// ==========================================
+// ======================================================
 
 export const getLideres = async () => {
 
-  return peticion('/lideres');
-
+  return peticion(
+    '/lideres'
+  );
 };
 
-export const crearLider = async (data: Datos) => {
+export const crearLider = async (
+  data: Datos
+) => {
 
-  return peticion('/lideres', 'POST', data);
-
+  return peticion(
+    '/lideres',
+    'POST',
+    data
+  );
 };
 
-export const actualizarLider = async (id: number, data: Datos) => {
+export const actualizarLider = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/lideres/${id}`, 'PUT', data);
-
+  return peticion(
+    `/lideres/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarLider = async (id: number) => {
+export const eliminarLider = async (
+  id: number
+) => {
 
-  return peticion(`/lideres/${id}`, 'DELETE');
-
+  return peticion(
+    `/lideres/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // PERSONAL DE APOYO
-
-// ==========================================
+// ======================================================
 
 export const getPersonalApoyo = async () => {
 
-  return peticion('/personal-apoyo');
-
+  return peticion(
+    '/personal-apoyo'
+  );
 };
 
-export const crearPersonalApoyo = async (data: Datos) => {
+export const crearPersonalApoyo = async (
+  data: Datos
+) => {
 
-  return peticion('/personal-apoyo', 'POST', data);
-
+  return peticion(
+    '/personal-apoyo',
+    'POST',
+    data
+  );
 };
 
 export const actualizarPersonalApoyo = async (
-
   id: number,
-
-  data: Datos,
-
+  data: Datos
 ) => {
 
-  return peticion(`/personal-apoyo/${id}`, 'PUT', data);
-
+  return peticion(
+    `/personal-apoyo/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarPersonalApoyo = async (id: number) => {
+export const eliminarPersonalApoyo = async (
+  id: number
+) => {
 
-  return peticion(`/personal-apoyo/${id}`, 'DELETE');
-
+  return peticion(
+    `/personal-apoyo/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // ASIGNACIONES
+// ======================================================
 
-// ==========================================
+// Estas funciones se mantienen sin filtro automático
+// para no alterar el flujo actual de Jurado.
 
 export const getAsignaciones = async () => {
-
-  return peticion('/asignaciones');
-
+  const ruta = await rutaAdmin('/asignaciones');
+  return peticion(ruta);
 };
 
-export const crearAsignacion = async (data: Datos) => {
+export const crearAsignacion = async (
+  data: Datos
+) => {
 
-  return peticion('/asignaciones', 'POST', data);
-
+  return peticion(
+    '/asignaciones',
+    'POST',
+    data
+  );
 };
 
-export const actualizarAsignacion = async (id: number, data: Datos) => {
+export const actualizarAsignacion = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/asignaciones/${id}`, 'PUT', data);
-
+  return peticion(
+    `/asignaciones/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarAsignacion = async (id: number) => {
+export const eliminarAsignacion = async (
+  id: number
+) => {
 
-  return peticion(`/asignaciones/${id}`, 'DELETE');
-
+  return peticion(
+    `/asignaciones/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // EVALUACIONES
-
-// ==========================================
+// ======================================================
 
 export const getEvaluaciones = async () => {
-
-  return peticion('/evaluaciones');
-
+  const ruta = await rutaAdmin('/evaluaciones');
+  return peticion(ruta);
 };
 
-export const crearEvaluacion = async (data: Datos) => {
+export const crearEvaluacion = async (
+  data: Datos
+) => {
 
-  return peticion('/evaluaciones', 'POST', data);
-
+  return peticion(
+    '/evaluaciones',
+    'POST',
+    data
+  );
 };
 
-export const actualizarEvaluacion = async (id: number, data: Datos) => {
+export const actualizarEvaluacion = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/evaluaciones/${id}`, 'PUT', data);
-
+  return peticion(
+    `/evaluaciones/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarEvaluacion = async (id: number) => {
+export const eliminarEvaluacion = async (
+  id: number
+) => {
 
-  return peticion(`/evaluaciones/${id}`, 'DELETE');
-
+  return peticion(
+    `/evaluaciones/${id}`,
+    'DELETE'
+  );
 };
 
-// ==========================================
-
+// ======================================================
 // PREGUNTAS
-
-// ==========================================
+// ======================================================
 
 export const getPreguntas = async () => {
 
-  return peticion('/preguntas');
-
+  return peticion(
+    '/preguntas'
+  );
 };
 
-export const crearPregunta = async (data: Datos) => {
+export const crearPregunta = async (
+  data: Datos
+) => {
 
-  return peticion('/preguntas', 'POST', data);
-
+  return peticion(
+    '/preguntas',
+    'POST',
+    data
+  );
 };
 
-export const actualizarPregunta = async (id: number, data: Datos) => {
+export const actualizarPregunta = async (
+  id: number,
+  data: Datos
+) => {
 
-  return peticion(`/preguntas/${id}`, 'PUT', data);
-
+  return peticion(
+    `/preguntas/${id}`,
+    'PUT',
+    data
+  );
 };
 
-export const eliminarPregunta = async (id: number) => {
+export const eliminarPregunta = async (
+  id: number
+) => {
 
-  return peticion(`/preguntas/${id}`, 'DELETE');
-
+  return peticion(
+    `/preguntas/${id}`,
+    'DELETE'
+  );
 };
-export const getMisEquiposJurado = async () =>
-  peticion('/asignaciones/mis-equipos');
-export const getMisAsignacionesJurado = async () =>
-  peticion('/jurado/asignaciones');
-// ==========================================
 
+// ======================================================
 // PERFIL PROFESIONAL DEL JURADO
+// ======================================================
 
-// ==========================================
-// ==========================================
-// EVALUACIÓN DE JURADO
-// ==========================================
+export const getMiPerfilJurado = async () => {
+
+  return peticion(
+    '/jurado/perfil'
+  );
+};
+
+export const guardarMiPerfilJurado = async (
+  datos: FormData
+) => {
+
+  return peticion(
+    '/jurado/perfil',
+    'POST',
+    datos
+  );
+};
+
+// ======================================================
+// JURADO - ASIGNACIONES
+// ======================================================
+
+export const getMisAsignacionesJurado = async () => {
+
+  return peticion(
+    '/jurado/asignaciones'
+  );
+};
+
+export const getMisEquiposJurado = async () => {
+
+  return peticion(
+    '/asignaciones/mis-equipos'
+  );
+};
+
+// ======================================================
+// JURADO - EVALUACIÓN
+// ======================================================
 
 export const getFormularioEvaluacion = async (
   idEquipo: number
 ) => {
-  return peticion(`/jurado/evaluacion/${idEquipo}`);
+
+  return peticion(
+    `/jurado/evaluacion/${idEquipo}`
+  );
 };
 
-
-export const guardarEvaluacionJurado = async (data: {
-  Id_equipo: number;
-  Comentarios?: string;
-  respuestas: {
-    Id_rubrica: number;
-    Valor: number;
-  }[];
-}) => {
-  return peticion('/jurado/evaluacion', 'POST', data);
-};
-export const getMiPerfilJurado = async () => {
-
-  return peticion('/jurado/perfil');
-
-};
-
-export const guardarMiPerfilJurado = async (
-
-  datos: FormData
-
+export const guardarEvaluacionJurado = async (
+  data: {
+    Id_equipo: number;
+    Comentarios?: string;
+    respuestas: {
+      Id_rubrica: number;
+      Valor: number;
+    }[];
+  }
 ) => {
 
-  return peticion('/jurado/perfil', 'POST', datos);
-
-  
+  return peticion(
+    '/jurado/evaluacion',
+    'POST',
+    data
+  );
 };
