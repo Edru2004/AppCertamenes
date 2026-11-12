@@ -1,99 +1,89 @@
-// src/app/(jurado)/index.tsx
+import {
+  getMiPerfilJurado,
+  getMisAsignacionesJurado,
+  logoutUsuario,
+} from '@/services/api';
 
 import { Ionicons } from '@expo/vector-icons';
-
-import { File } from 'expo-file-system';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
-import {
-  getMiPerfilJurado,
-  getMisAsignacionesJurado,
-  guardarMiPerfilJurado,
-} from '../../services/api';
-
-type ArchivoPDF = {
-  uri: string;
-  name: string;
-  mimeType?: string;
-  size?: number;
-  file: File;
-};
-
 export default function JuradoIndex() {
   const router = useRouter();
 
-  // ==========================================================
-  // ESTADOS GENERALES
-  // ==========================================================
+  // =========================================================
+  // ESTADOS
+  // =========================================================
 
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(false);
-  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
-
-  const [error, setError] = useState('');
 
   const [perfilCompleto, setPerfilCompleto] = useState(false);
 
+  const [nombreJurado, setNombreJurado] = useState('Jurado');
+
   const [asignaciones, setAsignaciones] = useState<any[]>([]);
 
-  // ==========================================================
-  // ESTADOS DEL PERFIL
-  // ==========================================================
+  const [evaluacionesRealizadas, setEvaluacionesRealizadas] =
+    useState(0);
 
-  const [institucion, setInstitucion] = useState('');
-  const [puesto, setPuesto] = useState('');
-  const [sexo, setSexo] = useState('');
+  const [evaluacionesPendientes, setEvaluacionesPendientes] =
+    useState(0);
 
-  const [areaParticipacion, setAreaParticipacion] =
-    useState('');
+  const [error, setError] = useState('');
 
-  const [areaEspecializada, setAreaEspecializada] =
-    useState('');
+  // =========================================================
+  // CARGAR NOMBRE DEL USUARIO
+  // =========================================================
 
-  const [curriculum, setCurriculum] =
-    useState<ArchivoPDF | null>(null);
+  const cargarDatosUsuario = useCallback(async () => {
+    try {
+      const usuarioGuardado =
+        await AsyncStorage.getItem('userData');
 
-  const [curriculumExistente, setCurriculumExistente] =
-    useState<string | null>(null);
+      if (!usuarioGuardado) {
+        return;
+      }
 
-  // ==========================================================
-  // SELECTOR DE SEXO
-  // ==========================================================
+      const usuario = JSON.parse(usuarioGuardado);
 
-  const [mostrarOpcionesSexo, setMostrarOpcionesSexo] =
-    useState(false);
+      const nombre = [
+        usuario?.Nombre || usuario?.Nom || '',
+        usuario?.App || '',
+        usuario?.Apm || '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
 
-  // ==========================================================
-  // CONTROL DE CARGAS
-  // ==========================================================
+      if (nombre) {
+        setNombreJurado(nombre);
+      }
+    } catch (e) {
+      console.log(
+        'Error cargando datos del usuario:',
+        e
+      );
+    }
+  }, []);
 
-  const cargandoRef = useRef(false);
+  // =========================================================
+  // EXTRAER LISTA DE ASIGNACIONES
+  // =========================================================
 
-  const cargaInicialRealizada =
-    useRef(false);
-
-  // ==========================================================
-  // EXTRAER LISTA
-  // ==========================================================
-
-  const extraerLista = (respuesta: any) => {
+  const extraerLista = (respuesta: any): any[] => {
     if (Array.isArray(respuesta)) {
       return respuesta;
     }
@@ -102,1043 +92,489 @@ export default function JuradoIndex() {
       return respuesta.data;
     }
 
-    if (
-      Array.isArray(
-        respuesta?.data?.data
-      )
-    ) {
+    if (Array.isArray(respuesta?.asignaciones)) {
+      return respuesta.asignaciones;
+    }
+
+    if (Array.isArray(respuesta?.data?.data)) {
       return respuesta.data.data;
     }
 
     return [];
   };
 
-  // ==========================================================
+  // =========================================================
+  // DETERMINAR SI UNA ASIGNACIÓN YA FUE EVALUADA
+  // =========================================================
+
+  const estaEvaluada = (item: any): boolean => {
+    if (!item) {
+      return false;
+    }
+
+    if (
+      item.evaluado === true ||
+      item.Evaluado === true
+    ) {
+      return true;
+    }
+
+    if (
+      item.evaluacion_completada === true ||
+      item.Evaluacion_completada === true
+    ) {
+      return true;
+    }
+
+    if (
+      item.estado_evaluacion === 'Evaluada' ||
+      item.Estado_evaluacion === 'Evaluada'
+    ) {
+      return true;
+    }
+
+    if (
+      item.estado_evaluacion === 'Completada' ||
+      item.Estado_evaluacion === 'Completada'
+    ) {
+      return true;
+    }
+
+    if (
+      item.evaluacion ||
+      item.Evaluacion
+    ) {
+      return true;
+    }
+
+    if (
+      Array.isArray(item.evaluaciones) &&
+      item.evaluaciones.length > 0
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // =========================================================
   // COMPROBAR PERFIL
-  // ==========================================================
+  // =========================================================
 
-  const comprobarPerfil = useCallback(
-    async () => {
+  const comprobarPerfil = useCallback(async () => {
+    try {
+      console.log(
+        'JuradoIndex: comprobando perfil...'
+      );
 
-      try {
+      const respuesta =
+        await getMiPerfilJurado();
+
+      console.log(
+        'Respuesta perfil jurado:',
+        respuesta
+      );
+
+      const completo =
+        respuesta?.completo === true;
+
+      setPerfilCompleto(completo);
+
+      return completo;
+
+    } catch (e: any) {
+      console.log(
+        'Error comprobando perfil:',
+        e
+      );
+
+      setPerfilCompleto(false);
+
+      return false;
+    }
+  }, []);
+
+  // =========================================================
+  // CARGAR ASIGNACIONES
+  // =========================================================
+
+  const cargarAsignaciones = useCallback(async () => {
+    try {
+      console.log(
+        'JuradoIndex: cargando asignaciones...'
+      );
+
+      const respuesta =
+        await getMisAsignacionesJurado();
+
+      console.log(
+        'Respuesta asignaciones jurado:',
+        respuesta
+      );
+
+      const lista =
+        extraerLista(respuesta);
+
+      setAsignaciones(lista);
+
+      // ===============================================
+      // CALCULAR ESTADÍSTICAS
+      // ===============================================
+
+      const realizadas =
+        lista.filter(estaEvaluada).length;
+
+      const pendientes =
+        Math.max(
+          lista.length - realizadas,
+          0
+        );
+
+      setEvaluacionesRealizadas(
+        realizadas
+      );
+
+      setEvaluacionesPendientes(
+        pendientes
+      );
+
+    } catch (e: any) {
+      console.log(
+        'Error cargando asignaciones:',
+        e
+      );
+
+      setAsignaciones([]);
+
+      setEvaluacionesRealizadas(0);
+      setEvaluacionesPendientes(0);
+    }
+  }, []);
+
+  // =========================================================
+  // CARGA INICIAL
+  // =========================================================
+
+  const cargarPanel = useCallback(async () => {
+    try {
+      setError('');
+
+      console.log(
+        'JuradoIndex: iniciando carga...'
+      );
+
+      await cargarDatosUsuario();
+
+      const completo =
+        await comprobarPerfil();
+
+      // ===============================================
+      // SI EL PERFIL ESTÁ INCOMPLETO
+      // ===============================================
+
+      if (!completo) {
+        console.log(
+          'JuradoIndex: perfil incompleto.'
+        );
 
         console.log(
-          'JuradoIndex: comprobando perfil...'
+          'JuradoIndex: no se cargarán asignaciones.'
         );
 
-        const respuesta =
-          await getMiPerfilJurado();
+        setCargando(false);
 
-        console.log(
-          'Respuesta perfil jurado:',
-          respuesta
-        );
-
-        if (
-          !respuesta?.completo ||
-          !respuesta?.perfil
-        ) {
-
-          console.log(
-            'JuradoIndex: perfil incompleto.'
-          );
-
-          setPerfilCompleto(false);
-
-          return false;
-        }
-
-        console.log(
-          'JuradoIndex: perfil completo.'
-        );
-
-        const perfil =
-          respuesta.perfil;
-
-        setPerfilCompleto(true);
-
-        setInstitucion(
-          perfil.Institucion ?? ''
-        );
-
-        setPuesto(
-          perfil.Puesto ?? ''
-        );
-
-        setSexo(
-          perfil.Sexo ?? ''
-        );
-
-        setAreaParticipacion(
-          perfil.Area_participacion ?? ''
-        );
-
-        setAreaEspecializada(
-          perfil.Area_especializada ?? ''
-        );
-
-        setCurriculumExistente(
-          perfil.Curriculum ?? null
-        );
-
-        return true;
-
-      } catch (err: any) {
-
-        console.log(
-          'Error comprobando perfil:',
-          err
-        );
-
-        setError(
-          err?.message ||
-            'No se pudo comprobar el perfil.'
-        );
-
-        return false;
-      }
-
-    },
-    []
-  );
-
-  // ==========================================================
-  // CARGAR PANEL
-  // ==========================================================
-
-  const cargarPanel = useCallback(
-    async (
-      mostrarCarga = true
-    ) => {
-
-      if (cargandoRef.current) {
-
-        console.log(
-          'JuradoIndex: carga ya en proceso.'
+        router.replace(
+          '/(jurado)/perfil'
         );
 
         return;
       }
 
-      cargandoRef.current = true;
+      console.log(
+        'JuradoIndex: perfil completo.'
+      );
 
-      try {
+      // ===============================================
+      // PERFIL COMPLETO
+      // ===============================================
 
-        if (mostrarCarga) {
-          setCargando(true);
-        }
+      await cargarAsignaciones();
 
-        setError('');
+      console.log(
+        'JuradoIndex: carga finalizada.'
+      );
 
-        console.log(
-          'JuradoIndex: iniciando carga...'
-        );
+    } catch (e: any) {
+      console.log(
+        'Error cargando panel del jurado:',
+        e
+      );
 
-        const tienePerfil =
-          await comprobarPerfil();
+      setError(
+        'No fue posible cargar el panel del jurado.'
+      );
 
-        if (!tienePerfil) {
+    } finally {
+      setCargando(false);
+    }
+  }, [
+    cargarDatosUsuario,
+    comprobarPerfil,
+    cargarAsignaciones,
+    router,
+  ]);
 
-          console.log(
-            'JuradoIndex: no se cargarán asignaciones.'
-          );
-
-          setAsignaciones([]);
-
-          return;
-        }
-
-        console.log(
-          'JuradoIndex: cargando asignaciones...'
-        );
-
-        const respuesta =
-          await getMisAsignacionesJurado();
-
-        console.log(
-          'Respuesta asignaciones jurado:',
-          respuesta
-        );
-
-        const lista =
-          extraerLista(respuesta);
-
-        setAsignaciones(lista);
-
-      } catch (err: any) {
-
-        console.log(
-          'Error cargando panel:',
-          err
-        );
-
-        setError(
-          err?.message ||
-            'No se pudo cargar el panel.'
-        );
-
-      } finally {
-
-        cargandoRef.current = false;
-
-        setCargando(false);
-        setActualizando(false);
-
-        console.log(
-          'JuradoIndex: carga finalizada.'
-        );
-      }
-
-    },
-    [comprobarPerfil]
-  );
-
-  // ==========================================================
-  // CARGA INICIAL
-  // ==========================================================
+  // =========================================================
+  // EJECUTAR CARGA INICIAL
+  // =========================================================
 
   useEffect(() => {
-
-    if (
-      cargaInicialRealizada.current
-    ) {
-      return;
-    }
-
-    cargaInicialRealizada.current = true;
-
     console.log(
       'JuradoIndex: EJECUTANDO CARGA INICIAL UNA SOLA VEZ.'
     );
 
-    cargarPanel(true);
-
+    cargarPanel();
   }, [cargarPanel]);
 
-  // ==========================================================
-  // ACTUALIZAR PANEL
-  // ==========================================================
+  // =========================================================
+  // ACTUALIZAR
+  // =========================================================
 
   const actualizar = async () => {
+    try {
+      setActualizando(true);
 
-    if (cargandoRef.current) {
-      return;
+      const completo =
+        await comprobarPerfil();
+
+      if (!completo) {
+        router.replace(
+          '/(jurado)/perfil'
+        );
+
+        return;
+      }
+
+      await cargarDatosUsuario();
+
+      await cargarAsignaciones();
+
+    } catch (e) {
+      console.log(
+        'Error actualizando panel:',
+        e
+      );
+    } finally {
+      setActualizando(false);
     }
-
-    setActualizando(true);
-
-    await cargarPanel(false);
-
   };
 
-  // ==========================================================
-  // SELECCIONAR CURRÍCULUM PDF
-  // ==========================================================
+  // =========================================================
+  // CERRAR SESIÓN
+  // =========================================================
 
-  const seleccionarCurriculum =
-    async () => {
+  const cerrarSesion = async () => {
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Estás seguro de que deseas cerrar sesión?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
 
-      try {
+          onPress: async () => {
+            try {
+              await logoutUsuario();
 
-        setError('');
+            } catch (e) {
+              console.log(
+                'Error cerrando sesión:',
+                e
+              );
 
-        const resultado =
-          await File.pickFileAsync({
-            multipleFiles: false,
-            mimeTypes: ['application/pdf'],
-          });
+            } finally {
+              await AsyncStorage.multiRemove([
+                'userToken',
+                'userRole',
+                'userData',
+              ]);
 
-        if (
-          resultado.canceled
-        ) {
-          return;
-        }
+              router.replace('/login');
+            }
+          },
+        },
+      ]
+    );
+  };
 
-        const archivo =
-          resultado.result;
-
-        if (!archivo) {
-          return;
-        }
-
-        const esPDF =
-          archivo.type ===
-            'application/pdf' ||
-          archivo.name
-            ?.toLowerCase()
-            .endsWith('.pdf');
-
-        if (!esPDF) {
-
-          Alert.alert(
-            'Archivo no válido',
-            'El currículum debe estar en formato PDF.'
-          );
-
-          return;
-        }
-
-        if (
-          archivo.size !==
-            undefined &&
-          archivo.size >
-            10 * 1024 * 1024
-        ) {
-
-          Alert.alert(
-            'Archivo demasiado grande',
-            'El currículum no puede superar los 10 MB.'
-          );
-
-          return;
-        }
-
-        setCurriculum({
-          uri: archivo.uri,
-          name: archivo.name,
-          mimeType:
-            archivo.type ||
-            'application/pdf',
-          size: archivo.size,
-          file: archivo,
-        });
-
-        setCurriculumExistente(
-          null
-        );
-
-      } catch (err) {
-
-        console.log(
-          'Error seleccionando PDF:',
-          err
-        );
-
-        Alert.alert(
-          'Error',
-          'No se pudo seleccionar el currículum.'
-        );
-
-      }
-    };
-
-  // ==========================================================
-  // GUARDAR PERFIL
-  // ==========================================================
-
-  const guardarPerfil =
-    async () => {
-
-      setError('');
-
-      if (
-        !institucion.trim()
-      ) {
-
-        Alert.alert(
-          'Campo requerido',
-          'Ingresa la institución.'
-        );
-
-        return;
-      }
-
-      if (
-        !sexo
-      ) {
-
-        Alert.alert(
-          'Campo requerido',
-          'Selecciona tu sexo.'
-        );
-
-        return;
-      }
-
-      if (
-        !areaParticipacion.trim()
-      ) {
-
-        Alert.alert(
-          'Campo requerido',
-          'Ingresa el área de participación.'
-        );
-
-        return;
-      }
-
-      try {
-
-        setGuardandoPerfil(
-          true
-        );
-
-        const formData =
-          new FormData();
-
-        formData.append(
-          'Institucion',
-          institucion.trim()
-        );
-
-        formData.append(
-          'Puesto',
-          puesto.trim()
-        );
-
-        formData.append(
-          'Sexo',
-          sexo
-        );
-
-        formData.append(
-          'Area_participacion',
-          areaParticipacion.trim()
-        );
-
-        formData.append(
-          'Area_especializada',
-          areaEspecializada.trim()
-        );
-
-        /*
-         * IMPORTANTE:
-         * Se utiliza directamente el File
-         * obtenido por expo-file-system.
-         *
-         * Esto evita volver a construir el archivo
-         * desde la URI y evita el error:
-         *
-         * Missing 'READ' permission for accessing the file.
-         */
-
-        if (curriculum) {
-
-          formData.append(
-            'Curriculum',
-            curriculum.file
-          );
-        }
-
-        console.log(
-          'JuradoIndex: guardando perfil...'
-        );
-
-        const respuesta =
-          await guardarMiPerfilJurado(
-            formData
-          );
-
-        console.log(
-          'Respuesta guardar perfil:',
-          respuesta
-        );
-
-        setPerfilCompleto(
-          true
-        );
-
-        Alert.alert(
-          'Perfil guardado',
-          'Tu perfil profesional se guardó correctamente.',
-          [
-            {
-              text: 'Continuar',
-              onPress: () => {
-
-                cargarPanel(true);
-
-              },
-            },
-          ]
-        );
-
-      } catch (err: any) {
-
-        console.log(
-          'Error guardando perfil:',
-          err
-        );
-
-        const mensaje =
-          err?.message ||
-          'No se pudo guardar el perfil profesional.';
-
-        setError(
-          mensaje
-        );
-
-        Alert.alert(
-          'Error',
-          mensaje
-        );
-
-      } finally {
-
-        setGuardandoPerfil(
-          false
-        );
-      }
-    };
-
-  // ==========================================================
-  // RENDER
-  // ==========================================================
+  // =========================================================
+  // CARGANDO
+  // =========================================================
 
   if (cargando) {
-
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator
           size="large"
+          color="#002b45"
         />
 
         <Text style={styles.loadingText}>
-          Cargando panel...
+          Cargando panel del jurado...
         </Text>
       </View>
     );
   }
 
-  // ==========================================================
-  // PERFIL INCOMPLETO
-  // ==========================================================
-
-  if (!perfilCompleto) {
-
-    return (
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : undefined
-        }
-      >
-
-        <ScrollView
-          contentContainerStyle={
-            styles.profileContainer
-          }
-          keyboardShouldPersistTaps="handled"
-        >
-
-          <View style={styles.profileHeader}>
-
-            <View
-              style={styles.profileIconContainer}
-            >
-
-              <Ionicons
-                name="person-outline"
-                size={32}
-                color="#fff"
-              />
-
-            </View>
-
-            <Text
-              style={styles.profileTitle}
-            >
-              Perfil profesional
-            </Text>
-
-            <Text
-              style={styles.profileSubtitle}
-            >
-              Completa tu información profesional
-              para continuar.
-            </Text>
-
-          </View>
-
-          {error ? (
-            <View
-              style={styles.errorContainer}
-            >
-
-              <Ionicons
-                name="alert-circle-outline"
-                size={20}
-                color="#b91c1c"
-              />
-
-              <Text
-                style={styles.errorText}
-              >
-                {error}
-              </Text>
-
-            </View>
-          ) : null}
-
-          {/* INSTITUCIÓN */}
-
-          <View style={styles.fieldContainer}>
-
-            <Text style={styles.label}>
-              Institución *
-            </Text>
-
-            <View
-              style={styles.inputContainer}
-            >
-
-              <Ionicons
-                name="business-outline"
-                size={20}
-                color="#64748b"
-              />
-
-              <TextInput
-                style={styles.input}
-                value={institucion}
-                onChangeText={
-                  setInstitucion
-                }
-                placeholder="Ingresa tu institución"
-                placeholderTextColor="#94a3b8"
-              />
-
-            </View>
-
-          </View>
-
-          {/* PUESTO */}
-
-          <View style={styles.fieldContainer}>
-
-            <Text style={styles.label}>
-              Puesto
-            </Text>
-
-            <View
-              style={styles.inputContainer}
-            >
-
-              <Ionicons
-                name="briefcase-outline"
-                size={20}
-                color="#64748b"
-              />
-
-              <TextInput
-                style={styles.input}
-                value={puesto}
-                onChangeText={
-                  setPuesto
-                }
-                placeholder="Ingresa tu puesto"
-                placeholderTextColor="#94a3b8"
-              />
-
-            </View>
-
-          </View>
-
-          {/* SEXO */}
-
-          <View style={styles.fieldContainer}>
-
-            <Text style={styles.label}>
-              Sexo *
-            </Text>
-
-            <TouchableOpacity
-              style={styles.inputContainer}
-              onPress={() =>
-                setMostrarOpcionesSexo(
-                  !mostrarOpcionesSexo
-                )
-              }
-              activeOpacity={0.8}
-            >
-
-              <Ionicons
-                name="person-outline"
-                size={20}
-                color="#64748b"
-              />
-
-              <Text
-                style={[
-                  styles.input,
-                  !sexo &&
-                    styles.placeholderText,
-                ]}
-              >
-                {sexo ||
-                  'Selecciona tu sexo'}
-              </Text>
-
-              <Ionicons
-                name={
-                  mostrarOpcionesSexo
-                    ? 'chevron-up'
-                    : 'chevron-down'
-                }
-                size={20}
-                color="#64748b"
-              />
-
-            </TouchableOpacity>
-
-            {mostrarOpcionesSexo && (
-
-              <View
-                style={
-                  styles.optionsContainer
-                }
-              >
-
-                {[
-                  'Masculino',
-                  'Femenino',
-                  'Otro',
-                ].map((opcion) => (
-
-                  <TouchableOpacity
-                    key={opcion}
-                    style={
-                      styles.optionItem
-                    }
-                    onPress={() => {
-
-                      setSexo(opcion);
-
-                      setMostrarOpcionesSexo(
-                        false
-                      );
-
-                    }}
-                  >
-
-                    <Text
-                      style={
-                        styles.optionText
-                      }
-                    >
-                      {opcion}
-                    </Text>
-
-                  </TouchableOpacity>
-
-                ))}
-
-              </View>
-
-            )}
-
-          </View>
-
-          {/* ÁREA DE PARTICIPACIÓN */}
-
-          <View style={styles.fieldContainer}>
-
-            <Text style={styles.label}>
-              Área de participación *
-            </Text>
-
-            <View
-              style={styles.inputContainer}
-            >
-
-              <Ionicons
-                name="people-outline"
-                size={20}
-                color="#64748b"
-              />
-
-              <TextInput
-                style={styles.input}
-                value={
-                  areaParticipacion
-                }
-                onChangeText={
-                  setAreaParticipacion
-                }
-                placeholder="Ingresa el área de participación"
-                placeholderTextColor="#94a3b8"
-              />
-
-            </View>
-
-          </View>
-
-          {/* ÁREA ESPECIALIZADA */}
-
-          <View style={styles.fieldContainer}>
-
-            <Text style={styles.label}>
-              Área especializada
-            </Text>
-
-            <View
-              style={styles.inputContainer}
-            >
-
-              <Ionicons
-                name="school-outline"
-                size={20}
-                color="#64748b"
-              />
-
-              <TextInput
-                style={styles.input}
-                value={
-                  areaEspecializada
-                }
-                onChangeText={
-                  setAreaEspecializada
-                }
-                placeholder="Ingresa tu área especializada"
-                placeholderTextColor="#94a3b8"
-              />
-
-            </View>
-
-          </View>
-
-          {/* CURRÍCULUM */}
-
-          <View style={styles.fieldContainer}>
-
-            <Text style={styles.label}>
-              Currículum PDF
-            </Text>
-
-            <TouchableOpacity
-              style={
-                styles.curriculumButton
-              }
-              onPress={
-                seleccionarCurriculum
-              }
-              activeOpacity={0.8}
-            >
-
-              <View
-                style={
-                  styles.curriculumIcon
-                }
-              >
-
-                <Ionicons
-                  name="document-text-outline"
-                  size={26}
-                  color="#2563eb"
-                />
-
-              </View>
-
-              <View
-                style={
-                  styles.curriculumInfo
-                }
-              >
-
-                <Text
-                  style={
-                    styles.curriculumTitle
-                  }
-                >
-                  {curriculum
-                    ? curriculum.name
-                    : curriculumExistente
-                      ? 'Currículum cargado'
-                      : 'Seleccionar currículum'}
-                </Text>
-
-                <Text
-                  style={
-                    styles.curriculumSubtitle
-                  }
-                >
-                  PDF · Máximo 10 MB
-                </Text>
-
-              </View>
-
-              <Ionicons
-                name="cloud-upload-outline"
-                size={24}
-                color="#2563eb"
-              />
-
-            </TouchableOpacity>
-
-          </View>
-
-          {/* BOTÓN GUARDAR */}
-
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              guardandoPerfil &&
-                styles.saveButtonDisabled,
-            ]}
-            onPress={
-              guardarPerfil
-            }
-            disabled={
-              guardandoPerfil
-            }
-            activeOpacity={0.8}
-          >
-
-            {guardandoPerfil ? (
-
-              <ActivityIndicator
-                color="#fff"
-              />
-
-            ) : (
-
-              <>
-                <Ionicons
-                  name="save-outline"
-                  size={21}
-                  color="#fff"
-                />
-
-                <Text
-                  style={
-                    styles.saveButtonText
-                  }
-                >
-                  Guardar perfil
-                </Text>
-              </>
-
-            )}
-
-          </TouchableOpacity>
-
-        </ScrollView>
-
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // ==========================================================
-  // PANEL DEL JURADO
-  // ==========================================================
+  // =========================================================
+  // PANEL PRINCIPAL
+  // =========================================================
 
   return (
     <View style={styles.container}>
 
       <ScrollView
         contentContainerStyle={
-          styles.panelContainer
+          styles.scrollContainer
         }
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={
-              actualizando
-            }
-            onRefresh={
-              actualizar
-            }
+            refreshing={actualizando}
+            onRefresh={actualizar}
+            colors={['#002b45']}
+            tintColor="#002b45"
           />
         }
       >
 
-        {/* ENCABEZADO */}
+        {/* =================================================
+            ENCABEZADO
+        ================================================== */}
 
-        <View
-          style={styles.header}
-        >
+        <View style={styles.header}>
 
-          <View>
+          <View style={styles.greetingContainer}>
 
-            <Text
-              style={styles.welcomeText}
-            >
-              Panel del jurado
+            <Text style={styles.greeting}>
+              Hola, {nombreJurado} 👋
             </Text>
 
-            <Text
-              style={styles.headerSubtitle}
-            >
-              Revisa tus equipos asignados
+            <Text style={styles.role}>
+              Jurado
             </Text>
 
           </View>
 
           <TouchableOpacity
-            style={
-              styles.profileButton
-            }
-            onPress={() =>
-              router.push(
-                '/(jurado)/perfil'
-              )
-            }
+            style={styles.logoutButton}
+            onPress={cerrarSesion}
+            activeOpacity={0.8}
           >
-
             <Ionicons
-              name="person-outline"
-              size={23}
-              color="#2563eb"
+              name="log-out-outline"
+              size={19}
+              color="#fff"
             />
 
+            <Text style={styles.logoutText}>
+              Cerrar sesión
+            </Text>
           </TouchableOpacity>
 
         </View>
 
-        {/* ERROR */}
+        {/* =================================================
+            ERROR
+        ================================================== */}
 
         {error ? (
-
-          <View
-            style={styles.errorContainer}
-          >
+          <View style={styles.errorBox}>
 
             <Ionicons
               name="alert-circle-outline"
-              size={20}
+              size={22}
               color="#b91c1c"
             />
 
-            <Text
-              style={styles.errorText}
-            >
+            <Text style={styles.errorText}>
               {error}
             </Text>
 
           </View>
-
         ) : null}
 
-        {/* TÍTULO ASIGNACIONES */}
+        {/* =================================================
+            TARJETAS DE ESTADÍSTICAS
+        ================================================== */}
 
-        <View
-          style={styles.sectionHeader}
-        >
+        <View style={styles.statsRow}>
 
-          <View>
+          {/* -----------------------------------------------
+              EVALUACIONES REALIZADAS
+          ----------------------------------------------- */}
 
-            <Text
-              style={styles.sectionTitle}
+          <View style={styles.statCard}>
+
+            <View
+              style={[
+                styles.statIcon,
+                styles.blueIcon,
+              ]}
             >
-              Mis asignaciones
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={26}
+                color="#2563eb"
+              />
+            </View>
+
+            <Text style={styles.statTitle}>
+              EVALUACIONES
             </Text>
 
-            <Text
-              style={styles.sectionSubtitle}
-            >
-              Equipos que debes evaluar
+            <Text style={styles.statTitle}>
+              REALIZADAS
+            </Text>
+
+            <Text style={styles.statNumber}>
+              {evaluacionesRealizadas}
             </Text>
 
           </View>
 
-          <View
-            style={styles.countBadge}
-          >
+          {/* -----------------------------------------------
+              EQUIPOS ASIGNADOS
+          ----------------------------------------------- */}
 
-            <Text
-              style={styles.countText}
+          <View style={styles.statCard}>
+
+            <View
+              style={[
+                styles.statIcon,
+                styles.greenIcon,
+              ]}
             >
+              <Ionicons
+                name="people-outline"
+                size={26}
+                color="#059669"
+              />
+            </View>
+
+            <Text style={styles.statTitle}>
+              EQUIPOS
+            </Text>
+
+            <Text style={styles.statTitle}>
+              ASIGNADOS
+            </Text>
+
+            <Text style={styles.statNumber}>
               {asignaciones.length}
             </Text>
 
@@ -1146,127 +582,83 @@ export default function JuradoIndex() {
 
         </View>
 
-        {/* LISTA */}
+        {/* =================================================
+            EVALUACIONES PENDIENTES
+        ================================================== */}
 
-        {asignaciones.length === 0 ? (
+        <View style={styles.pendingCard}>
 
-          <View
-            style={styles.emptyContainer}
-          >
+          <View style={styles.pendingLeft}>
 
-            <View
-              style={styles.emptyIcon}
-            >
-
+            <View style={styles.pendingIcon}>
               <Ionicons
-                name="people-outline"
-                size={38}
-                color="#94a3b8"
+                name="time-outline"
+                size={27}
+                color="#f97316"
               />
+            </View>
+
+            <View style={styles.pendingInfo}>
+
+              <Text style={styles.pendingTitle}>
+                EVALUACIONES PENDIENTES
+              </Text>
+
+              <Text style={styles.pendingSubtitle}>
+                Equipos que todavía debes evaluar
+              </Text>
 
             </View>
 
-            <Text
-              style={styles.emptyTitle}
-            >
-              No tienes asignaciones
+          </View>
+
+          <Text style={styles.pendingNumber}>
+            {evaluacionesPendientes}
+          </Text>
+
+        </View>
+
+        {/* =================================================
+            BOTÓN MIS ASIGNACIONES
+        ================================================== */}
+
+        <TouchableOpacity
+          style={styles.assignmentsCard}
+          onPress={() =>
+            router.push(
+              '/(jurado)/asignaciones'
+            )
+          }
+          activeOpacity={0.8}
+        >
+
+          <View style={styles.assignmentsIcon}>
+            <Ionicons
+              name="clipboard-outline"
+              size={26}
+              color="#2563eb"
+            />
+          </View>
+
+          <View style={styles.assignmentsInfo}>
+
+            <Text style={styles.assignmentsTitle}>
+              Mis asignaciones
             </Text>
 
-            <Text
-              style={styles.emptyText}
-            >
-              Cuando tengas equipos asignados,
-              aparecerán aquí.
+            <Text style={styles.assignmentsSubtitle}>
+              Consulta los equipos que debes evaluar
             </Text>
 
           </View>
 
-        ) : (
+          <Ionicons
+            name="chevron-forward"
+            size={24}
+            color="#94a3b8"
+          />
 
-          asignaciones.map(
-            (item, index) => (
-
-              <TouchableOpacity
-                key={
-                  item?.Id_asignacion ??
-                  item?.id ??
-                  index
-                }
-                style={
-                  styles.assignmentCard
-                }
-                activeOpacity={0.8}
-                onPress={() =>
-                  router.push({
-                    pathname:
-                      '/(jurado)/equipos',
-                    params: {
-                      idAsignacion:
-                        String(
-                          item?.Id_asignacion ??
-                            item?.id ??
-                            ''
-                        ),
-                    },
-                  })
-                }
-              >
-
-                <View
-                  style={
-                    styles.assignmentIcon
-                  }
-                >
-
-                  <Ionicons
-                    name="people"
-                    size={25}
-                    color="#2563eb"
-                  />
-
-                </View>
-
-                <View
-                  style={
-                    styles.assignmentInfo
-                  }
-                >
-
-                  <Text
-                    style={
-                      styles.assignmentTitle
-                    }
-                  >
-                    {item?.Nombre_equipo ??
-                      item?.nombre_equipo ??
-                      item?.Equipo ??
-                      `Equipo ${index + 1}`}
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.assignmentSubtitle
-                    }
-                  >
-                    {item?.Nombre_certamen ??
-                      item?.Certamen ??
-                      'Certamen'}
-                  </Text>
-
-                </View>
-
-                <Ionicons
-                  name="chevron-forward"
-                  size={23}
-                  color="#94a3b8"
-                />
-
-              </TouchableOpacity>
-
-            )
-          )
-
-        )}
+        </TouchableOpacity>
 
       </ScrollView>
 
@@ -1274,203 +666,48 @@ export default function JuradoIndex() {
   );
 }
 
-// ==========================================================
+// =========================================================
 // ESTILOS
-// ==========================================================
+// =========================================================
 
 const styles = StyleSheet.create({
 
+  // =======================================================
+  // CONTENEDOR
+  // =======================================================
+
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f5f6fb',
   },
+
+  scrollContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 40,
+  },
+
+  // =======================================================
+  // CARGANDO
+  // =======================================================
 
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
+    backgroundColor: '#f5f6fb',
     justifyContent: 'center',
+    alignItems: 'center',
+    padding: 25,
   },
 
   loadingText: {
     marginTop: 12,
-    fontSize: 15,
     color: '#64748b',
-  },
-
-  profileContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
-
-  profileHeader: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-
-  profileIconContainer: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-
-  profileTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#0f172a',
-    textAlign: 'center',
-  },
-
-  profileSubtitle: {
-    fontSize: 15,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 22,
-  },
-
-  fieldContainer: {
-    marginBottom: 18,
-  },
-
-  label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 8,
   },
 
-  inputContainer: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-  },
-
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: '#0f172a',
-    marginLeft: 10,
-  },
-
-  placeholderText: {
-    color: '#94a3b8',
-  },
-
-  optionsContainer: {
-    marginTop: 5,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-
-  optionItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-
-  optionText: {
-    fontSize: 15,
-    color: '#334155',
-  },
-
-  curriculumButton: {
-    minHeight: 70,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-  },
-
-  curriculumIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: '#eff6ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  curriculumInfo: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-
-  curriculumTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#334155',
-  },
-
-  curriculumSubtitle: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 4,
-  },
-
-  saveButton: {
-    minHeight: 52,
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    paddingHorizontal: 20,
-  },
-
-  saveButtonDisabled: {
-    opacity: 0.7,
-  },
-
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 18,
-  },
-
-  errorText: {
-    flex: 1,
-    color: '#b91c1c',
-    fontSize: 13,
-    marginLeft: 8,
-  },
-
-  panelContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 40,
-  },
+  // =======================================================
+  // ENCABEZADO
+  // =======================================================
 
   header: {
     flexDirection: 'row',
@@ -1479,132 +716,208 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
 
-  welcomeText: {
-    fontSize: 25,
-    fontWeight: '700',
-    color: '#0f172a',
+  greetingContainer: {
+    flex: 1,
+    paddingRight: 10,
   },
 
-  headerSubtitle: {
-    fontSize: 14,
+  greeting: {
+    color: '#0f172a',
+    fontSize: 23,
+    fontWeight: '700',
+  },
+
+  role: {
     color: '#64748b',
+    fontSize: 15,
     marginTop: 5,
   },
 
-  profileButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#eff6ff',
+  // =======================================================
+  // CERRAR SESIÓN
+  // =======================================================
+
+  logoutButton: {
+    backgroundColor: '#ef4444',
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  sectionHeader: {
+  logoutText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 5,
+  },
+
+  // =======================================================
+  // ERROR
+  // =======================================================
+
+  errorBox: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  errorText: {
+    flex: 1,
+    color: '#991b1b',
+    fontSize: 13,
+    marginLeft: 8,
+  },
+
+  // =======================================================
+  // ESTADÍSTICAS
+  // =======================================================
+
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+
+  statCard: {
+    flex: 1,
+    minHeight: 155,
+    backgroundColor: '#fff',
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 16,
+  },
+
+  statIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  blueIcon: {
+    backgroundColor: '#eff6ff',
+  },
+
+  greenIcon: {
+    backgroundColor: '#ecfdf5',
+  },
+
+  statTitle: {
+    color: '#64748b',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+
+  statNumber: {
+    color: '#0f172a',
+    fontSize: 32,
+    fontWeight: '800',
+    marginTop: 5,
+  },
+
+  // =======================================================
+  // PENDIENTES
+  // =======================================================
+
+  pendingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 18,
+    marginBottom: 16,
+    minHeight: 105,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
   },
 
-  sectionTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-
-  sectionSubtitle: {
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 4,
-  },
-
-  countBadge: {
-    minWidth: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#dbeafe',
+  pendingLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+
+  pendingIcon: {
+    width: 49,
+    height: 49,
+    borderRadius: 14,
+    backgroundColor: '#fff7ed',
     justifyContent: 'center',
-    paddingHorizontal: 10,
-  },
-
-  countText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#2563eb',
-  },
-
-  emptyContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 40,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
 
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+  pendingInfo: {
+    flex: 1,
+    marginLeft: 13,
   },
 
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+  pendingTitle: {
     color: '#334155',
-    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '800',
   },
 
-  emptyText: {
-    fontSize: 14,
+  pendingSubtitle: {
     color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 21,
-    marginTop: 7,
+    fontSize: 11,
+    marginTop: 5,
   },
 
-  assignmentCard: {
+  pendingNumber: {
+    color: '#f97316',
+    fontSize: 32,
+    fontWeight: '800',
+    marginLeft: 10,
+  },
+
+  // =======================================================
+  // MIS ASIGNACIONES
+  // =======================================================
+
+  assignmentsCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 17,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
   },
 
-  assignmentIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  assignmentsIcon: {
+    width: 49,
+    height: 49,
+    borderRadius: 14,
     backgroundColor: '#eff6ff',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
 
-  assignmentInfo: {
+  assignmentsInfo: {
     flex: 1,
     marginHorizontal: 13,
   },
 
-  assignmentTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+  assignmentsTitle: {
     color: '#0f172a',
+    fontSize: 16,
+    fontWeight: '700',
   },
 
-  assignmentSubtitle: {
-    fontSize: 13,
+  assignmentsSubtitle: {
     color: '#64748b',
+    fontSize: 11,
     marginTop: 5,
   },
-
 });
