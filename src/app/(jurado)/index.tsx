@@ -1,33 +1,96 @@
-// @ts-nocheck
+// src/app/(jurado)/index.tsx
 
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+
+import { File } from 'expo-file-system';
+
+import { useRouter } from 'expo-router';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
-import { getMisAsignacionesJurado } from '../../services/api';
+import {
+  getMiPerfilJurado,
+  getMisAsignacionesJurado,
+  guardarMiPerfilJurado,
+} from '../../services/api';
+
+type ArchivoPDF = {
+  uri: string;
+  name: string;
+  mimeType?: string;
+  size?: number;
+  file: File;
+};
 
 export default function JuradoIndex() {
   const router = useRouter();
 
-  const [asignaciones, setAsignaciones] = useState<any[]>([]);
+  // ==========================================================
+  // ESTADOS GENERALES
+  // ==========================================================
+
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(false);
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+
   const [error, setError] = useState('');
 
+  const [perfilCompleto, setPerfilCompleto] = useState(false);
+
+  const [asignaciones, setAsignaciones] = useState<any[]>([]);
+
   // ==========================================================
-  // EXTRAER LISTA DE LA RESPUESTA
+  // ESTADOS DEL PERFIL
+  // ==========================================================
+
+  const [institucion, setInstitucion] = useState('');
+  const [puesto, setPuesto] = useState('');
+  const [sexo, setSexo] = useState('');
+
+  const [areaParticipacion, setAreaParticipacion] =
+    useState('');
+
+  const [areaEspecializada, setAreaEspecializada] =
+    useState('');
+
+  const [curriculum, setCurriculum] =
+    useState<ArchivoPDF | null>(null);
+
+  const [curriculumExistente, setCurriculumExistente] =
+    useState<string | null>(null);
+
+  // ==========================================================
+  // SELECTOR DE SEXO
+  // ==========================================================
+
+  const [mostrarOpcionesSexo, setMostrarOpcionesSexo] =
+    useState(false);
+
+  // ==========================================================
+  // CONTROL DE CARGAS
+  // ==========================================================
+
+  const cargandoRef = useRef(false);
+
+  const cargaInicialRealizada =
+    useRef(false);
+
+  // ==========================================================
+  // EXTRAER LISTA
   // ==========================================================
 
   const extraerLista = (respuesta: any) => {
@@ -39,7 +102,11 @@ export default function JuradoIndex() {
       return respuesta.data;
     }
 
-    if (Array.isArray(respuesta?.data?.data)) {
+    if (
+      Array.isArray(
+        respuesta?.data?.data
+      )
+    ) {
       return respuesta.data.data;
     }
 
@@ -47,1040 +114,1497 @@ export default function JuradoIndex() {
   };
 
   // ==========================================================
-  // CARGAR ASIGNACIONES
+  // COMPROBAR PERFIL
   // ==========================================================
 
-  const cargarAsignaciones = useCallback(async () => {
-    try {
-      setError('');
+  const comprobarPerfil = useCallback(
+    async () => {
 
-      const respuesta = await getMisAsignacionesJurado();
+      try {
 
-      const lista = extraerLista(respuesta);
+        console.log(
+          'JuradoIndex: comprobando perfil...'
+        );
 
-      setAsignaciones(lista);
-    } catch (err: any) {
-      console.log(
-        'Error cargando asignaciones:',
-        err
-      );
+        const respuesta =
+          await getMiPerfilJurado();
 
-      setError(
-        err?.message ||
-          'No se pudieron cargar tus equipos asignados.'
-      );
-    } finally {
-      setCargando(false);
-      setActualizando(false);
-    }
-  }, []);
+        console.log(
+          'Respuesta perfil jurado:',
+          respuesta
+        );
 
-  // ==========================================================
-  // CARGAR AL ENTRAR A LA PANTALLA
-  // ==========================================================
+        if (
+          !respuesta?.completo ||
+          !respuesta?.perfil
+        ) {
 
-  useFocusEffect(
-    useCallback(() => {
-      setCargando(true);
-      void cargarAsignaciones();
-    }, [cargarAsignaciones])
+          console.log(
+            'JuradoIndex: perfil incompleto.'
+          );
+
+          setPerfilCompleto(false);
+
+          return false;
+        }
+
+        console.log(
+          'JuradoIndex: perfil completo.'
+        );
+
+        const perfil =
+          respuesta.perfil;
+
+        setPerfilCompleto(true);
+
+        setInstitucion(
+          perfil.Institucion ?? ''
+        );
+
+        setPuesto(
+          perfil.Puesto ?? ''
+        );
+
+        setSexo(
+          perfil.Sexo ?? ''
+        );
+
+        setAreaParticipacion(
+          perfil.Area_participacion ?? ''
+        );
+
+        setAreaEspecializada(
+          perfil.Area_especializada ?? ''
+        );
+
+        setCurriculumExistente(
+          perfil.Curriculum ?? null
+        );
+
+        return true;
+
+      } catch (err: any) {
+
+        console.log(
+          'Error comprobando perfil:',
+          err
+        );
+
+        setError(
+          err?.message ||
+            'No se pudo comprobar el perfil.'
+        );
+
+        return false;
+      }
+
+    },
+    []
   );
 
   // ==========================================================
-  // ACTUALIZAR
+  // CARGAR PANEL
+  // ==========================================================
+
+  const cargarPanel = useCallback(
+    async (
+      mostrarCarga = true
+    ) => {
+
+      if (cargandoRef.current) {
+
+        console.log(
+          'JuradoIndex: carga ya en proceso.'
+        );
+
+        return;
+      }
+
+      cargandoRef.current = true;
+
+      try {
+
+        if (mostrarCarga) {
+          setCargando(true);
+        }
+
+        setError('');
+
+        console.log(
+          'JuradoIndex: iniciando carga...'
+        );
+
+        const tienePerfil =
+          await comprobarPerfil();
+
+        if (!tienePerfil) {
+
+          console.log(
+            'JuradoIndex: no se cargarán asignaciones.'
+          );
+
+          setAsignaciones([]);
+
+          return;
+        }
+
+        console.log(
+          'JuradoIndex: cargando asignaciones...'
+        );
+
+        const respuesta =
+          await getMisAsignacionesJurado();
+
+        console.log(
+          'Respuesta asignaciones jurado:',
+          respuesta
+        );
+
+        const lista =
+          extraerLista(respuesta);
+
+        setAsignaciones(lista);
+
+      } catch (err: any) {
+
+        console.log(
+          'Error cargando panel:',
+          err
+        );
+
+        setError(
+          err?.message ||
+            'No se pudo cargar el panel.'
+        );
+
+      } finally {
+
+        cargandoRef.current = false;
+
+        setCargando(false);
+        setActualizando(false);
+
+        console.log(
+          'JuradoIndex: carga finalizada.'
+        );
+      }
+
+    },
+    [comprobarPerfil]
+  );
+
+  // ==========================================================
+  // CARGA INICIAL
+  // ==========================================================
+
+  useEffect(() => {
+
+    if (
+      cargaInicialRealizada.current
+    ) {
+      return;
+    }
+
+    cargaInicialRealizada.current = true;
+
+    console.log(
+      'JuradoIndex: EJECUTANDO CARGA INICIAL UNA SOLA VEZ.'
+    );
+
+    cargarPanel(true);
+
+  }, [cargarPanel]);
+
+  // ==========================================================
+  // ACTUALIZAR PANEL
   // ==========================================================
 
   const actualizar = async () => {
+
+    if (cargandoRef.current) {
+      return;
+    }
+
     setActualizando(true);
-    await cargarAsignaciones();
+
+    await cargarPanel(false);
+
   };
 
   // ==========================================================
-  // CERRAR SESIÓN
+  // SELECCIONAR CURRÍCULUM PDF
   // ==========================================================
 
-  const cerrarSesion = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Seguro que deseas cerrar tu sesión?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Cerrar sesión',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              /*
-               * Eliminamos los datos de sesión guardados
-               * localmente.
-               */
-              await AsyncStorage.clear();
+  const seleccionarCurriculum =
+    async () => {
 
-              /*
-               * Regresamos al login.
-               *
-               * Cambia esta ruta solamente si tu pantalla
-               * de login tiene otro nombre.
-               */
-              router.replace('/login');
-            } catch (err) {
-              console.log(
-                'Error cerrando sesión:',
-                err
-              );
+      try {
 
-              Alert.alert(
-                'Error',
-                'No se pudo cerrar la sesión.'
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
+        setError('');
+
+        const resultado =
+          await File.pickFileAsync({
+            multipleFiles: false,
+            mimeTypes: ['application/pdf'],
+          });
+
+        if (
+          resultado.canceled
+        ) {
+          return;
+        }
+
+        const archivo =
+          resultado.result;
+
+        if (!archivo) {
+          return;
+        }
+
+        const esPDF =
+          archivo.type ===
+            'application/pdf' ||
+          archivo.name
+            ?.toLowerCase()
+            .endsWith('.pdf');
+
+        if (!esPDF) {
+
+          Alert.alert(
+            'Archivo no válido',
+            'El currículum debe estar en formato PDF.'
+          );
+
+          return;
+        }
+
+        if (
+          archivo.size !==
+            undefined &&
+          archivo.size >
+            10 * 1024 * 1024
+        ) {
+
+          Alert.alert(
+            'Archivo demasiado grande',
+            'El currículum no puede superar los 10 MB.'
+          );
+
+          return;
+        }
+
+        setCurriculum({
+          uri: archivo.uri,
+          name: archivo.name,
+          mimeType:
+            archivo.type ||
+            'application/pdf',
+          size: archivo.size,
+          file: archivo,
+        });
+
+        setCurriculumExistente(
+          null
+        );
+
+      } catch (err) {
+
+        console.log(
+          'Error seleccionando PDF:',
+          err
+        );
+
+        Alert.alert(
+          'Error',
+          'No se pudo seleccionar el currículum.'
+        );
+
+      }
+    };
 
   // ==========================================================
-  // ESTADÍSTICAS
+  // GUARDAR PERFIL
   // ==========================================================
 
-  const equiposAsignados = asignaciones.length;
+  const guardarPerfil =
+    async () => {
 
-  const evaluacionesPendientes =
-    asignaciones.filter((item: any) => {
-      const estado =
-        item?.evaluado ??
-        item?.Evaluado ??
-        item?.estado_evaluacion ??
-        item?.Estado_evaluacion;
+      setError('');
 
-      return (
-        estado !== true &&
-        estado !== 1 &&
-        String(estado).toLowerCase() !== 'evaluado'
-      );
-    }).length;
+      if (
+        !institucion.trim()
+      ) {
 
-  const evaluados =
-    equiposAsignados - evaluacionesPendientes;
+        Alert.alert(
+          'Campo requerido',
+          'Ingresa la institución.'
+        );
 
-  const pendientes = evaluacionesPendientes;
+        return;
+      }
+
+      if (
+        !sexo
+      ) {
+
+        Alert.alert(
+          'Campo requerido',
+          'Selecciona tu sexo.'
+        );
+
+        return;
+      }
+
+      if (
+        !areaParticipacion.trim()
+      ) {
+
+        Alert.alert(
+          'Campo requerido',
+          'Ingresa el área de participación.'
+        );
+
+        return;
+      }
+
+      try {
+
+        setGuardandoPerfil(
+          true
+        );
+
+        const formData =
+          new FormData();
+
+        formData.append(
+          'Institucion',
+          institucion.trim()
+        );
+
+        formData.append(
+          'Puesto',
+          puesto.trim()
+        );
+
+        formData.append(
+          'Sexo',
+          sexo
+        );
+
+        formData.append(
+          'Area_participacion',
+          areaParticipacion.trim()
+        );
+
+        formData.append(
+          'Area_especializada',
+          areaEspecializada.trim()
+        );
+
+        /*
+         * IMPORTANTE:
+         * Se utiliza directamente el File
+         * obtenido por expo-file-system.
+         *
+         * Esto evita volver a construir el archivo
+         * desde la URI y evita el error:
+         *
+         * Missing 'READ' permission for accessing the file.
+         */
+
+        if (curriculum) {
+
+          formData.append(
+            'Curriculum',
+            curriculum.file
+          );
+        }
+
+        console.log(
+          'JuradoIndex: guardando perfil...'
+        );
+
+        const respuesta =
+          await guardarMiPerfilJurado(
+            formData
+          );
+
+        console.log(
+          'Respuesta guardar perfil:',
+          respuesta
+        );
+
+        setPerfilCompleto(
+          true
+        );
+
+        Alert.alert(
+          'Perfil guardado',
+          'Tu perfil profesional se guardó correctamente.',
+          [
+            {
+              text: 'Continuar',
+              onPress: () => {
+
+                cargarPanel(true);
+
+              },
+            },
+          ]
+        );
+
+      } catch (err: any) {
+
+        console.log(
+          'Error guardando perfil:',
+          err
+        );
+
+        const mensaje =
+          err?.message ||
+          'No se pudo guardar el perfil profesional.';
+
+        setError(
+          mensaje
+        );
+
+        Alert.alert(
+          'Error',
+          mensaje
+        );
+
+      } finally {
+
+        setGuardandoPerfil(
+          false
+        );
+      }
+    };
 
   // ==========================================================
-  // NAVEGACIÓN
-  // ==========================================================
-
-  const irAEquipos = () => {
-    router.push('/(jurado)/equipos');
-  };
-
-  const irAPerfil = () => {
-    router.push('/(jurado)/perfil');
-  };
-
-  // ==========================================================
-  // LOADING
+  // RENDER
   // ==========================================================
 
   if (cargando) {
+
     return (
       <View style={styles.loadingContainer}>
-
         <ActivityIndicator
-          size="small"
-          color="#003B54"
+          size="large"
         />
 
         <Text style={styles.loadingText}>
           Cargando panel...
         </Text>
-
       </View>
     );
   }
 
   // ==========================================================
-  // PANTALLA PRINCIPAL
+  // PERFIL INCOMPLETO
+  // ==========================================================
+
+  if (!perfilCompleto) {
+
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : undefined
+        }
+      >
+
+        <ScrollView
+          contentContainerStyle={
+            styles.profileContainer
+          }
+          keyboardShouldPersistTaps="handled"
+        >
+
+          <View style={styles.profileHeader}>
+
+            <View
+              style={styles.profileIconContainer}
+            >
+
+              <Ionicons
+                name="person-outline"
+                size={32}
+                color="#fff"
+              />
+
+            </View>
+
+            <Text
+              style={styles.profileTitle}
+            >
+              Perfil profesional
+            </Text>
+
+            <Text
+              style={styles.profileSubtitle}
+            >
+              Completa tu información profesional
+              para continuar.
+            </Text>
+
+          </View>
+
+          {error ? (
+            <View
+              style={styles.errorContainer}
+            >
+
+              <Ionicons
+                name="alert-circle-outline"
+                size={20}
+                color="#b91c1c"
+              />
+
+              <Text
+                style={styles.errorText}
+              >
+                {error}
+              </Text>
+
+            </View>
+          ) : null}
+
+          {/* INSTITUCIÓN */}
+
+          <View style={styles.fieldContainer}>
+
+            <Text style={styles.label}>
+              Institución *
+            </Text>
+
+            <View
+              style={styles.inputContainer}
+            >
+
+              <Ionicons
+                name="business-outline"
+                size={20}
+                color="#64748b"
+              />
+
+              <TextInput
+                style={styles.input}
+                value={institucion}
+                onChangeText={
+                  setInstitucion
+                }
+                placeholder="Ingresa tu institución"
+                placeholderTextColor="#94a3b8"
+              />
+
+            </View>
+
+          </View>
+
+          {/* PUESTO */}
+
+          <View style={styles.fieldContainer}>
+
+            <Text style={styles.label}>
+              Puesto
+            </Text>
+
+            <View
+              style={styles.inputContainer}
+            >
+
+              <Ionicons
+                name="briefcase-outline"
+                size={20}
+                color="#64748b"
+              />
+
+              <TextInput
+                style={styles.input}
+                value={puesto}
+                onChangeText={
+                  setPuesto
+                }
+                placeholder="Ingresa tu puesto"
+                placeholderTextColor="#94a3b8"
+              />
+
+            </View>
+
+          </View>
+
+          {/* SEXO */}
+
+          <View style={styles.fieldContainer}>
+
+            <Text style={styles.label}>
+              Sexo *
+            </Text>
+
+            <TouchableOpacity
+              style={styles.inputContainer}
+              onPress={() =>
+                setMostrarOpcionesSexo(
+                  !mostrarOpcionesSexo
+                )
+              }
+              activeOpacity={0.8}
+            >
+
+              <Ionicons
+                name="person-outline"
+                size={20}
+                color="#64748b"
+              />
+
+              <Text
+                style={[
+                  styles.input,
+                  !sexo &&
+                    styles.placeholderText,
+                ]}
+              >
+                {sexo ||
+                  'Selecciona tu sexo'}
+              </Text>
+
+              <Ionicons
+                name={
+                  mostrarOpcionesSexo
+                    ? 'chevron-up'
+                    : 'chevron-down'
+                }
+                size={20}
+                color="#64748b"
+              />
+
+            </TouchableOpacity>
+
+            {mostrarOpcionesSexo && (
+
+              <View
+                style={
+                  styles.optionsContainer
+                }
+              >
+
+                {[
+                  'Masculino',
+                  'Femenino',
+                  'Otro',
+                ].map((opcion) => (
+
+                  <TouchableOpacity
+                    key={opcion}
+                    style={
+                      styles.optionItem
+                    }
+                    onPress={() => {
+
+                      setSexo(opcion);
+
+                      setMostrarOpcionesSexo(
+                        false
+                      );
+
+                    }}
+                  >
+
+                    <Text
+                      style={
+                        styles.optionText
+                      }
+                    >
+                      {opcion}
+                    </Text>
+
+                  </TouchableOpacity>
+
+                ))}
+
+              </View>
+
+            )}
+
+          </View>
+
+          {/* ÁREA DE PARTICIPACIÓN */}
+
+          <View style={styles.fieldContainer}>
+
+            <Text style={styles.label}>
+              Área de participación *
+            </Text>
+
+            <View
+              style={styles.inputContainer}
+            >
+
+              <Ionicons
+                name="people-outline"
+                size={20}
+                color="#64748b"
+              />
+
+              <TextInput
+                style={styles.input}
+                value={
+                  areaParticipacion
+                }
+                onChangeText={
+                  setAreaParticipacion
+                }
+                placeholder="Ingresa el área de participación"
+                placeholderTextColor="#94a3b8"
+              />
+
+            </View>
+
+          </View>
+
+          {/* ÁREA ESPECIALIZADA */}
+
+          <View style={styles.fieldContainer}>
+
+            <Text style={styles.label}>
+              Área especializada
+            </Text>
+
+            <View
+              style={styles.inputContainer}
+            >
+
+              <Ionicons
+                name="school-outline"
+                size={20}
+                color="#64748b"
+              />
+
+              <TextInput
+                style={styles.input}
+                value={
+                  areaEspecializada
+                }
+                onChangeText={
+                  setAreaEspecializada
+                }
+                placeholder="Ingresa tu área especializada"
+                placeholderTextColor="#94a3b8"
+              />
+
+            </View>
+
+          </View>
+
+          {/* CURRÍCULUM */}
+
+          <View style={styles.fieldContainer}>
+
+            <Text style={styles.label}>
+              Currículum PDF
+            </Text>
+
+            <TouchableOpacity
+              style={
+                styles.curriculumButton
+              }
+              onPress={
+                seleccionarCurriculum
+              }
+              activeOpacity={0.8}
+            >
+
+              <View
+                style={
+                  styles.curriculumIcon
+                }
+              >
+
+                <Ionicons
+                  name="document-text-outline"
+                  size={26}
+                  color="#2563eb"
+                />
+
+              </View>
+
+              <View
+                style={
+                  styles.curriculumInfo
+                }
+              >
+
+                <Text
+                  style={
+                    styles.curriculumTitle
+                  }
+                >
+                  {curriculum
+                    ? curriculum.name
+                    : curriculumExistente
+                      ? 'Currículum cargado'
+                      : 'Seleccionar currículum'}
+                </Text>
+
+                <Text
+                  style={
+                    styles.curriculumSubtitle
+                  }
+                >
+                  PDF · Máximo 10 MB
+                </Text>
+
+              </View>
+
+              <Ionicons
+                name="cloud-upload-outline"
+                size={24}
+                color="#2563eb"
+              />
+
+            </TouchableOpacity>
+
+          </View>
+
+          {/* BOTÓN GUARDAR */}
+
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              guardandoPerfil &&
+                styles.saveButtonDisabled,
+            ]}
+            onPress={
+              guardarPerfil
+            }
+            disabled={
+              guardandoPerfil
+            }
+            activeOpacity={0.8}
+          >
+
+            {guardandoPerfil ? (
+
+              <ActivityIndicator
+                color="#fff"
+              />
+
+            ) : (
+
+              <>
+                <Ionicons
+                  name="save-outline"
+                  size={21}
+                  color="#fff"
+                />
+
+                <Text
+                  style={
+                    styles.saveButtonText
+                  }
+                >
+                  Guardar perfil
+                </Text>
+              </>
+
+            )}
+
+          </TouchableOpacity>
+
+        </ScrollView>
+
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // ==========================================================
+  // PANEL DEL JURADO
   // ==========================================================
 
   return (
-    <View style={styles.page}>
+    <View style={styles.container}>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={
+          styles.panelContainer
+        }
         refreshControl={
           <RefreshControl
-            refreshing={actualizando}
-            onRefresh={actualizar}
-            colors={['#003B54']}
-            tintColor="#003B54"
+            refreshing={
+              actualizando
+            }
+            onRefresh={
+              actualizar
+            }
           />
         }
       >
 
-        {/* ====================================================
-            ENCABEZADO
-        ==================================================== */}
+        {/* ENCABEZADO */}
 
-        <View style={styles.header}>
+        <View
+          style={styles.header}
+        >
 
-          <View style={styles.headerTop}>
+          <View>
 
-            {/* MENÚ */}
-
-            <TouchableOpacity
-              style={styles.menuButton}
-              activeOpacity={0.8}
+            <Text
+              style={styles.welcomeText}
             >
-              <Ionicons
-                name="menu-outline"
-                size={27}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
-
-            {/* TÍTULO */}
-
-            <Text style={styles.headerTitle}>
-              Panel del Jurado
+              Panel del jurado
             </Text>
 
-            {/* CONFIGURACIÓN */}
-
-            <TouchableOpacity
-              style={styles.settingsButton}
-              activeOpacity={0.8}
+            <Text
+              style={styles.headerSubtitle}
             >
-              <Ionicons
-                name="settings-outline"
-                size={25}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
-
-          </View>
-
-          {/* SALUDO */}
-
-          <View style={styles.greetingContainer}>
-
-            <Text style={styles.greeting}>
-              ¡Hola, Jurado!
-            </Text>
-
-            <Text style={styles.role}>
-              Jurado
+              Revisa tus equipos asignados
             </Text>
 
           </View>
-
-          {/* CERRAR SESIÓN */}
 
           <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={cerrarSesion}
-            activeOpacity={0.85}
+            style={
+              styles.profileButton
+            }
+            onPress={() =>
+              router.push(
+                '/(jurado)/perfil'
+              )
+            }
           >
 
             <Ionicons
-              name="log-out-outline"
-              size={20}
-              color="#FF5A5F"
+              name="person-outline"
+              size={23}
+              color="#2563eb"
             />
-
-            <Text style={styles.logoutText}>
-              Cerrar sesión
-            </Text>
 
           </TouchableOpacity>
 
         </View>
 
-        {/* ====================================================
-            CONTENIDO
-        ==================================================== */}
+        {/* ERROR */}
 
-        <View style={styles.body}>
+        {error ? (
 
-          {/* ERROR */}
-
-          {error ? (
-            <View style={styles.errorCard}>
-
-              <Ionicons
-                name="alert-circle-outline"
-                size={21}
-                color="#C62828"
-              />
-
-              <View style={{ flex: 1 }}>
-
-                <Text style={styles.errorTitle}>
-                  No se pudieron cargar los datos
-                </Text>
-
-                <Text style={styles.errorText}>
-                  {error}
-                </Text>
-
-                <TouchableOpacity
-                  onPress={actualizar}
-                  style={styles.retryButton}
-                >
-                  <Text style={styles.retryText}>
-                    Reintentar
-                  </Text>
-                </TouchableOpacity>
-
-              </View>
-
-            </View>
-          ) : null}
-
-          {/* ==================================================
-              RESUMEN
-          ================================================== */}
-
-          <View style={styles.sectionHeader}>
-
-            <Text style={styles.sectionTitle}>
-              Resumen de evaluación
-            </Text>
-
-            <TouchableOpacity
-              style={styles.refreshButton}
-              onPress={actualizar}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name="refresh-outline"
-                size={23}
-                color="#003B54"
-              />
-            </TouchableOpacity>
-
-          </View>
-
-          {/* ==================================================
-              TARJETAS
-          ================================================== */}
-
-          <View style={styles.statsGrid}>
-
-            {/* EQUIPOS */}
-
-            <View style={styles.statCard}>
-
-              <View style={styles.statTop}>
-
-                <Text style={styles.statLabel}>
-                  EQUIPOS
-                </Text>
-
-                <View style={styles.statIconBlue}>
-                  <Ionicons
-                    name="people-outline"
-                    size={25}
-                    color="#087FAF"
-                  />
-                </View>
-
-              </View>
-
-              <Text style={styles.statNumber}>
-                {equiposAsignados}
-              </Text>
-
-              <View style={styles.statFooter}>
-
-                <Ionicons
-                  name="checkmark-circle"
-                  size={15}
-                  color="#087FAF"
-                />
-
-                <Text style={styles.statFooterBlue}>
-                  Asignados
-                </Text>
-
-              </View>
-
-            </View>
-
-            {/* EVALUACIONES */}
-
-            <View style={styles.statCard}>
-
-              <View style={styles.statTop}>
-
-                <Text style={styles.statLabel}>
-                  EVALUACIONES
-                </Text>
-
-                <View style={styles.statIconOrange}>
-                  <Ionicons
-                    name="clipboard-outline"
-                    size={25}
-                    color="#D99100"
-                  />
-                </View>
-
-              </View>
-
-              <Text style={styles.statNumber}>
-                {evaluacionesPendientes}
-              </Text>
-
-              <View style={styles.statFooter}>
-
-                <Ionicons
-                  name="alert-circle"
-                  size={15}
-                  color="#D99100"
-                />
-
-                <Text style={styles.statFooterOrange}>
-                  Pendientes
-                </Text>
-
-              </View>
-
-            </View>
-
-            {/* EVALUADOS */}
-
-            <View style={styles.statCard}>
-
-              <View style={styles.statTop}>
-
-                <Text style={styles.statLabel}>
-                  EVALUADOS
-                </Text>
-
-                <View style={styles.statIconGreen}>
-                  <Ionicons
-                    name="checkmark-done-outline"
-                    size={25}
-                    color="#159447"
-                  />
-                </View>
-
-              </View>
-
-              <Text style={styles.statNumber}>
-                {evaluados}
-              </Text>
-
-              <View style={styles.statFooter}>
-
-                <Ionicons
-                  name="checkmark-circle"
-                  size={15}
-                  color="#159447"
-                />
-
-                <Text style={styles.statFooterGreen}>
-                  Realizadas
-                </Text>
-
-              </View>
-
-            </View>
-
-            {/* PENDIENTES */}
-
-            <View style={styles.statCard}>
-
-              <View style={styles.statTop}>
-
-                <Text style={styles.statLabel}>
-                  PENDIENTES
-                </Text>
-
-                <View style={styles.statIconRed}>
-                  <Ionicons
-                    name="time-outline"
-                    size={25}
-                    color="#D94A4A"
-                  />
-                </View>
-
-              </View>
-
-              <Text style={styles.statNumber}>
-                {pendientes}
-              </Text>
-
-              <View style={styles.statFooter}>
-
-                <Ionicons
-                  name="time"
-                  size={15}
-                  color="#D94A4A"
-                />
-
-                <Text style={styles.statFooterRed}>
-                  Por evaluar
-                </Text>
-
-              </View>
-
-            </View>
-
-          </View>
-
-          {/* ==================================================
-              MIS EQUIPOS
-          ================================================== */}
-
-          <TouchableOpacity
-            style={styles.teamsButton}
-            onPress={irAEquipos}
-            activeOpacity={0.85}
+          <View
+            style={styles.errorContainer}
           >
 
-            <View style={styles.teamsButtonIcon}>
-              <Ionicons
-                name="people"
-                size={25}
-                color="#FFFFFF"
-              />
-            </View>
-
-            <View style={styles.teamsButtonTextContainer}>
-
-              <Text style={styles.teamsButtonTitle}>
-                Mis equipos
-              </Text>
-
-              <Text style={styles.teamsButtonSubtitle}>
-                Ver equipos asignados y evaluar
-              </Text>
-
-            </View>
-
             <Ionicons
-              name="chevron-forward"
-              size={25}
-              color="#FFFFFF"
+              name="alert-circle-outline"
+              size={20}
+              color="#b91c1c"
             />
 
-          </TouchableOpacity>
+            <Text
+              style={styles.errorText}
+            >
+              {error}
+            </Text>
 
-          {/* SIN EQUIPOS */}
+          </View>
 
-          {equiposAsignados === 0 && !error ? (
-            <View style={styles.emptyCard}>
+        ) : null}
+
+        {/* TÍTULO ASIGNACIONES */}
+
+        <View
+          style={styles.sectionHeader}
+        >
+
+          <View>
+
+            <Text
+              style={styles.sectionTitle}
+            >
+              Mis asignaciones
+            </Text>
+
+            <Text
+              style={styles.sectionSubtitle}
+            >
+              Equipos que debes evaluar
+            </Text>
+
+          </View>
+
+          <View
+            style={styles.countBadge}
+          >
+
+            <Text
+              style={styles.countText}
+            >
+              {asignaciones.length}
+            </Text>
+
+          </View>
+
+        </View>
+
+        {/* LISTA */}
+
+        {asignaciones.length === 0 ? (
+
+          <View
+            style={styles.emptyContainer}
+          >
+
+            <View
+              style={styles.emptyIcon}
+            >
 
               <Ionicons
                 name="people-outline"
-                size={36}
-                color="#7D93A3"
+                size={38}
+                color="#94a3b8"
               />
 
-              <Text style={styles.emptyTitle}>
-                No tienes equipos asignados
-              </Text>
-
-              <Text style={styles.emptyText}>
-                Cuando el administrador te asigne
-                equipos, aparecerán aquí.
-              </Text>
-
             </View>
-          ) : null}
 
-        </View>
+            <Text
+              style={styles.emptyTitle}
+            >
+              No tienes asignaciones
+            </Text>
+
+            <Text
+              style={styles.emptyText}
+            >
+              Cuando tengas equipos asignados,
+              aparecerán aquí.
+            </Text>
+
+          </View>
+
+        ) : (
+
+          asignaciones.map(
+            (item, index) => (
+
+              <TouchableOpacity
+                key={
+                  item?.Id_asignacion ??
+                  item?.id ??
+                  index
+                }
+                style={
+                  styles.assignmentCard
+                }
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push({
+                    pathname:
+                      '/(jurado)/equipos',
+                    params: {
+                      idAsignacion:
+                        String(
+                          item?.Id_asignacion ??
+                            item?.id ??
+                            ''
+                        ),
+                    },
+                  })
+                }
+              >
+
+                <View
+                  style={
+                    styles.assignmentIcon
+                  }
+                >
+
+                  <Ionicons
+                    name="people"
+                    size={25}
+                    color="#2563eb"
+                  />
+
+                </View>
+
+                <View
+                  style={
+                    styles.assignmentInfo
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.assignmentTitle
+                    }
+                  >
+                    {item?.Nombre_equipo ??
+                      item?.nombre_equipo ??
+                      item?.Equipo ??
+                      `Equipo ${index + 1}`}
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.assignmentSubtitle
+                    }
+                  >
+                    {item?.Nombre_certamen ??
+                      item?.Certamen ??
+                      'Certamen'}
+                  </Text>
+
+                </View>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={23}
+                  color="#94a3b8"
+                />
+
+              </TouchableOpacity>
+
+            )
+          )
+
+        )}
 
       </ScrollView>
-
-      {/* ======================================================
-          BARRA INFERIOR
-      ====================================================== */}
-
-      <View style={styles.bottomBar}>
-
-        {/* INICIO */}
-
-        <TouchableOpacity
-          style={styles.bottomItem}
-          activeOpacity={0.8}
-        >
-
-          <Ionicons
-            name="home"
-            size={27}
-            color="#003B54"
-          />
-
-          <Text style={styles.bottomActiveText}>
-            Inicio
-          </Text>
-
-        </TouchableOpacity>
-
-        {/* PERFIL */}
-
-        <TouchableOpacity
-          style={styles.bottomItem}
-          onPress={irAPerfil}
-          activeOpacity={0.8}
-        >
-
-          <Ionicons
-            name="person-outline"
-            size={27}
-            color="#777777"
-          />
-
-          <Text style={styles.bottomText}>
-            Perfil
-          </Text>
-
-        </TouchableOpacity>
-
-      </View>
 
     </View>
   );
 }
 
-// ============================================================
+// ==========================================================
 // ESTILOS
-// ============================================================
+// ==========================================================
 
 const styles = StyleSheet.create({
 
-  page: {
+  container: {
     flex: 1,
-    backgroundColor: '#F4F6FA',
+    backgroundColor: '#f8fafc',
   },
-
-  scrollContent: {
-    paddingBottom: 22,
-  },
-
-  // ==========================================================
-  // LOADING
-  // ==========================================================
 
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
     alignItems: 'center',
-    backgroundColor: '#F4F6FA',
+    justifyContent: 'center',
   },
 
   loadingText: {
-    marginTop: 9,
+    marginTop: 12,
+    fontSize: 15,
+    color: '#64748b',
+  },
+
+  profileContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  },
+
+  profileHeader: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+
+  profileIconContainer: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+
+  profileTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+
+  profileSubtitle: {
+    fontSize: 15,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 22,
+  },
+
+  fieldContainer: {
+    marginBottom: 18,
+  },
+
+  label: {
     fontSize: 14,
-    color: '#64788A',
     fontWeight: '600',
+    color: '#334155',
+    marginBottom: 8,
   },
 
-  // ==========================================================
-  // HEADER
-  // ==========================================================
-
-  header: {
-    backgroundColor: '#003B54',
-    paddingTop: 38,
-    paddingHorizontal: 20,
-    paddingBottom: 25,
-  },
-
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  menuButton: {
-    width: 43,
-    height: 43,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  headerTitle: {
-    flex: 1,
-    marginLeft: 7,
-    fontSize: 23,
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-
-  settingsButton: {
-    width: 47,
-    height: 47,
-    borderRadius: 24,
-    backgroundColor: '#527486',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#698B9B',
-  },
-
-  greetingContainer: {
-    marginTop: 28,
-    paddingLeft: 12,
-  },
-
-  greeting: {
-    fontSize: 28,
-    color: '#FFFFFF',
-    fontWeight: '900',
-  },
-
-  role: {
-    marginTop: 3,
-    fontSize: 19,
-    color: '#B9C9D3',
-    fontWeight: '500',
-  },
-
-  // ==========================================================
-  // CERRAR SESIÓN
-  // ==========================================================
-
-  logoutButton: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 12,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    marginTop: 17,
-  },
-
-  logoutText: {
-    color: '#FF777B',
-    fontSize: 13,
-    fontWeight: '800',
-    marginLeft: 6,
-  },
-
-  // ==========================================================
-  // BODY
-  // ==========================================================
-
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 21,
-  },
-
-  // ==========================================================
-  // ERROR
-  // ==========================================================
-
-  errorCard: {
-    backgroundColor: '#FFF1F0',
-    borderRadius: 15,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 17,
+  inputContainer: {
+    minHeight: 52,
     borderWidth: 1,
-    borderColor: '#F4C7C3',
-    gap: 9,
+    borderColor: '#cbd5e1',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
   },
 
-  errorTitle: {
-    color: '#9B2C25',
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0f172a',
+    marginLeft: 10,
+  },
+
+  placeholderText: {
+    color: '#94a3b8',
+  },
+
+  optionsContainer: {
+    marginTop: 5,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+
+  optionItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+
+  optionText: {
+    fontSize: 15,
+    color: '#334155',
+  },
+
+  curriculumButton: {
+    minHeight: 70,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+  },
+
+  curriculumIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  curriculumInfo: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+
+  curriculumTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
+    color: '#334155',
+  },
+
+  curriculumSubtitle: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 4,
+  },
+
+  saveButton: {
+    minHeight: 52,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
+  },
+
+  saveButtonDisabled: {
+    opacity: 0.7,
+  },
+
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 18,
   },
 
   errorText: {
-    color: '#7A403C',
-    fontSize: 12,
-    marginTop: 3,
-    lineHeight: 17,
+    flex: 1,
+    color: '#b91c1c',
+    fontSize: 13,
+    marginLeft: 8,
   },
 
-  retryButton: {
-    marginTop: 9,
-    backgroundColor: '#C62828',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 9,
+  panelContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 40,
   },
 
-  retryText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 28,
   },
 
-  // ==========================================================
-  // RESUMEN
-  // ==========================================================
+  welcomeText: {
+    fontSize: 25,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 5,
+  },
+
+  profileButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 16,
   },
 
   sectionTitle: {
-    color: '#003B54',
-    fontSize: 21,
-    fontWeight: '800',
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#0f172a',
   },
 
-  refreshButton: {
-    width: 43,
-    height: 43,
-    borderRadius: 13,
-    backgroundColor: '#EAF4FA',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // ==========================================================
-  // ESTADÍSTICAS
-  // ==========================================================
-
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-
-  statCard: {
-    width: '48%',
-    minHeight: 145,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 15,
-    marginBottom: 13,
-    borderWidth: 1,
-    borderColor: '#DCE4EA',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.07,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-
-  statTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-
-  statLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: '#8796A2',
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-
-  statNumber: {
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
     marginTop: 4,
-    fontSize: 34,
-    color: '#003B54',
-    fontWeight: '900',
   },
 
-  statIconBlue: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: '#EAF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  statIconOrange: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: '#FFF8E8',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  statIconGreen: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: '#E9FAF0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  statIconRed: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: '#FFF0F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  statFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-    gap: 4,
-  },
-
-  statFooterBlue: {
-    color: '#087FAF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-
-  statFooterOrange: {
-    color: '#D99100',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-
-  statFooterGreen: {
-    color: '#159447',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-
-  statFooterRed: {
-    color: '#D94A4A',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-
-  // ==========================================================
-  // MIS EQUIPOS
-  // ==========================================================
-
-  teamsButton: {
-    minHeight: 72,
-    backgroundColor: '#003B54',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 1,
-    marginBottom: 15,
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-
-  teamsButtonIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: '#087FAF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  teamsButtonTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-
-  teamsButtonTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-
-  teamsButtonSubtitle: {
-    color: '#B9D0DA',
-    fontSize: 11,
-    marginTop: 2,
-  },
-
-  // ==========================================================
-  // SIN EQUIPOS
-  // ==========================================================
-
-  emptyCard: {
-    backgroundColor: '#FFFFFF',
+  countBadge: {
+    minWidth: 34,
+    height: 34,
     borderRadius: 17,
-    padding: 22,
+    backgroundColor: '#dbeafe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+
+  countText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
+
+  emptyContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#DCE4EA',
+    borderColor: '#e2e8f0',
+  },
+
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
 
   emptyTitle: {
-    marginTop: 9,
-    fontSize: 16,
-    color: '#003B54',
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#334155',
     textAlign: 'center',
   },
 
   emptyText: {
-    marginTop: 5,
-    fontSize: 12,
-    color: '#758895',
+    fontSize: 14,
+    color: '#64748b',
     textAlign: 'center',
-    lineHeight: 17,
+    lineHeight: 21,
+    marginTop: 7,
   },
 
-  // ==========================================================
-  // BARRA INFERIOR
-  // ==========================================================
-
-  bottomBar: {
-    height: 73,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E1E6EA',
+  assignmentCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 16,
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.07,
-    shadowRadius: 4,
-    elevation: 8,
+    marginBottom: 12,
   },
 
-  bottomItem: {
-    width: '45%',
+  assignmentIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#eff6ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  bottomActiveText: {
-    marginTop: 1,
-    color: '#003B54',
-    fontSize: 14,
-    fontWeight: '900',
+  assignmentInfo: {
+    flex: 1,
+    marginHorizontal: 13,
   },
 
-  bottomText: {
-    marginTop: 1,
-    color: '#777777',
-    fontSize: 14,
-    fontWeight: '500',
+  assignmentTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0f172a',
   },
+
+  assignmentSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 5,
+  },
+
 });
