@@ -1,6 +1,7 @@
 import {
   getMiPerfilJurado,
   getMisAsignacionesJurado,
+  getFormularioEvaluacion,
   logoutUsuario,
 } from '@/services/api';
 
@@ -211,23 +212,95 @@ export default function JuradoIndex() {
         respuesta
       );
 
-      const lista =
-        extraerLista(respuesta);
+      const lista = extraerLista(respuesta);
 
-      setAsignaciones(lista);
+      /*
+       * Verificamos cada equipo directamente contra
+       * el formulario de evaluación.
+       *
+       * Esto evita depender de que la API de asignaciones
+       * incluya o no un campo "evaluado".
+       */
+      const listaConEstado = await Promise.all(
+        lista.map(async (item: any) => {
+          try {
+            const idEquipo =
+              item?.Id_equipo ??
+              item?.id_equipo ??
+              item?.Equipo?.Id_equipo ??
+              item?.equipo?.Id_equipo ??
+              item?.equipo_id;
+
+            if (!idEquipo) {
+              console.log(
+                'No se encontró Id_equipo en la asignación:',
+                item
+              );
+
+              return {
+                ...item,
+                evaluado: false,
+              };
+            }
+
+            const respuestaEvaluacion =
+              await getFormularioEvaluacion(
+                Number(idEquipo)
+              );
+
+            const tieneEvaluacion =
+              !!respuestaEvaluacion?.evaluacion;
+
+            console.log(
+              `Equipo ${idEquipo} - evaluación:`,
+              tieneEvaluacion
+            );
+
+            return {
+              ...item,
+              evaluado: tieneEvaluacion,
+            };
+          } catch (error) {
+            console.log(
+              'Error verificando evaluación del equipo:',
+              item,
+              error
+            );
+
+            return {
+              ...item,
+              evaluado: false,
+            };
+          }
+        })
+      );
+
+      setAsignaciones(listaConEstado);
 
       // ===============================================
       // CALCULAR ESTADÍSTICAS
       // ===============================================
 
       const realizadas =
-        lista.filter(estaEvaluada).length;
+        listaConEstado.filter(
+          (item: any) => item.evaluado === true
+        ).length;
 
       const pendientes =
         Math.max(
-          lista.length - realizadas,
+          listaConEstado.length - realizadas,
           0
         );
+
+      console.log(
+        'Evaluaciones realizadas:',
+        realizadas
+      );
+
+      console.log(
+        'Evaluaciones pendientes:',
+        pendientes
+      );
 
       setEvaluacionesRealizadas(
         realizadas
@@ -236,6 +309,7 @@ export default function JuradoIndex() {
       setEvaluacionesPendientes(
         pendientes
       );
+
     } catch (e: any) {
       console.log(
         'Error cargando asignaciones:',
@@ -245,10 +319,10 @@ export default function JuradoIndex() {
       setAsignaciones([]);
 
       setEvaluacionesRealizadas(0);
+
       setEvaluacionesPendientes(0);
     }
   }, []);
-
   // =========================================================
   // CARGA INICIAL
   // =========================================================
