@@ -181,7 +181,6 @@ export default function JuradoIndex() {
       setPerfilCompleto(completo);
 
       return completo;
-
     } catch (e: any) {
       console.log(
         'Error comprobando perfil:',
@@ -237,7 +236,6 @@ export default function JuradoIndex() {
       setEvaluacionesPendientes(
         pendientes
       );
-
     } catch (e: any) {
       console.log(
         'Error cargando asignaciones:',
@@ -303,7 +301,6 @@ export default function JuradoIndex() {
       console.log(
         'JuradoIndex: carga finalizada.'
       );
-
     } catch (e: any) {
       console.log(
         'Error cargando panel del jurado:',
@@ -313,7 +310,6 @@ export default function JuradoIndex() {
       setError(
         'No fue posible cargar el panel del jurado.'
       );
-
     } finally {
       setCargando(false);
     }
@@ -358,7 +354,6 @@ export default function JuradoIndex() {
       await cargarDatosUsuario();
 
       await cargarAsignaciones();
-
     } catch (e) {
       console.log(
         'Error actualizando panel:',
@@ -382,6 +377,7 @@ export default function JuradoIndex() {
           text: 'Cancelar',
           style: 'cancel',
         },
+
         {
           text: 'Cerrar sesión',
           style: 'destructive',
@@ -389,13 +385,11 @@ export default function JuradoIndex() {
           onPress: async () => {
             try {
               await logoutUsuario();
-
             } catch (e) {
               console.log(
                 'Error cerrando sesión:',
                 e
               );
-
             } finally {
               await AsyncStorage.multiRemove([
                 'userToken',
@@ -437,11 +431,54 @@ export default function JuradoIndex() {
   return (
     <View style={styles.container}>
 
+      {/* =================================================
+          ENCABEZADO
+      ================================================= */}
+
+      <View style={styles.topHeader}>
+
+        <View style={styles.headerText}>
+
+          <Text style={styles.panelTitle}>
+            Panel del Jurado
+          </Text>
+
+          <Text style={styles.welcomeTitle}>
+            ¡Hola, {nombreJurado}!
+          </Text>
+
+          <Text style={styles.welcomeSubtitle}>
+            Jurado
+          </Text>
+
+        </View>
+
+        {/* CERRAR SESIÓN */}
+
+        <TouchableOpacity
+          style={styles.btnLogout}
+          onPress={cerrarSesion}
+          accessibilityLabel="Cerrar sesión"
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={22}
+            color="#ff4d4d"
+          />
+        </TouchableOpacity>
+
+      </View>
+
+      {/* =================================================
+          CONTENIDO
+      ================================================= */}
+
       <ScrollView
-        contentContainerStyle={
-          styles.scrollContainer
-        }
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={
+          styles.scrollContent
+        }
         refreshControl={
           <RefreshControl
             refreshing={actualizando}
@@ -450,47 +487,12 @@ export default function JuradoIndex() {
             tintColor="#002b45"
           />
         }
+        keyboardShouldPersistTaps="handled"
       >
 
         {/* =================================================
-            ENCABEZADO
-        ================================================== */}
-
-        <View style={styles.header}>
-
-          <View style={styles.greetingContainer}>
-
-            <Text style={styles.greeting}>
-              Hola, {nombreJurado} 👋
-            </Text>
-
-            <Text style={styles.role}>
-              Jurado
-            </Text>
-
-          </View>
-
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={cerrarSesion}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="log-out-outline"
-              size={19}
-              color="#fff"
-            />
-
-            <Text style={styles.logoutText}>
-              Cerrar sesión
-            </Text>
-          </TouchableOpacity>
-
-        </View>
-
-        {/* =================================================
             ERROR
-        ================================================== */}
+        ================================================= */}
 
         {error ? (
           <View style={styles.errorBox}>
@@ -509,74 +511,153 @@ export default function JuradoIndex() {
         ) : null}
 
         {/* =================================================
+            TÍTULO DE SECCIÓN
+        ================================================= */}
+
+        <View style={styles.sectionHeader}>
+
+          <View>
+            <Text style={styles.sectionTitle}>
+              Resumen de evaluaciones
+            </Text>
+
+            <Text style={styles.sectionSubtitle}>
+              Estado de tus actividades como jurado
+            </Text>
+          </View>
+
+          {/* ACTUALIZAR */}
+
+          <TouchableOpacity
+            onPress={actualizar}
+            disabled={actualizando}
+            style={styles.refreshButton}
+            accessibilityLabel="Actualizar información"
+            activeOpacity={0.8}
+          >
+            {actualizando ? (
+              <ActivityIndicator
+                size="small"
+                color="#002b45"
+              />
+            ) : (
+              <Ionicons
+                name="refresh-outline"
+                size={19}
+                color="#002b45"
+              />
+            )}
+          </TouchableOpacity>
+
+        </View>
+
+        {/* =================================================
             TARJETAS DE ESTADÍSTICAS
-        ================================================== */}
+        ================================================= */}
 
-        <View style={styles.statsRow}>
+        <View style={styles.statsGrid}>
 
-          {/* -----------------------------------------------
-              EVALUACIONES REALIZADAS
-          ----------------------------------------------- */}
+          {/* EVALUACIONES REALIZADAS */}
 
           <View style={styles.statCard}>
 
+            <View style={styles.statTextContainer}>
+
+              <Text style={styles.statTitle}>
+                EVALUACIONES
+              </Text>
+
+              <Text style={styles.statNumber}>
+                {evaluacionesRealizadas}
+              </Text>
+
+              <View style={styles.statFooter}>
+
+                <Ionicons
+                  name="checkmark-circle"
+                  size={13}
+                  color="#2563eb"
+                />
+
+                <Text
+                  style={[
+                    styles.statDetail,
+                    {
+                      color: '#2563eb',
+                    },
+                  ]}
+                >
+                  Evaluaciones realizadas
+                </Text>
+
+              </View>
+
+            </View>
+
             <View
               style={[
-                styles.statIcon,
+                styles.statIconBox,
                 styles.blueIcon,
               ]}
             >
               <Ionicons
                 name="checkmark-circle-outline"
-                size={26}
+                size={25}
                 color="#2563eb"
               />
             </View>
 
-            <Text style={styles.statTitle}>
-              EVALUACIONES
-            </Text>
-
-            <Text style={styles.statTitle}>
-              REALIZADAS
-            </Text>
-
-            <Text style={styles.statNumber}>
-              {evaluacionesRealizadas}
-            </Text>
-
           </View>
 
-          {/* -----------------------------------------------
-              EQUIPOS ASIGNADOS
-          ----------------------------------------------- */}
+          {/* EQUIPOS ASIGNADOS */}
 
           <View style={styles.statCard}>
 
+            <View style={styles.statTextContainer}>
+
+              <Text style={styles.statTitle}>
+                EQUIPOS
+              </Text>
+
+              <Text style={styles.statNumber}>
+                {asignaciones.length}
+              </Text>
+
+              <View style={styles.statFooter}>
+
+                <Ionicons
+                  name="people"
+                  size={13}
+                  color="#059669"
+                />
+
+                <Text
+                  style={[
+                    styles.statDetail,
+                    {
+                      color: '#059669',
+                    },
+                  ]}
+                >
+                  Equipos asignados
+                </Text>
+
+              </View>
+
+            </View>
+
             <View
               style={[
-                styles.statIcon,
+                styles.statIconBox,
                 styles.greenIcon,
               ]}
             >
               <Ionicons
                 name="people-outline"
-                size={26}
+                size={25}
                 color="#059669"
               />
             </View>
-
-            <Text style={styles.statTitle}>
-              EQUIPOS
-            </Text>
-
-            <Text style={styles.statTitle}>
-              ASIGNADOS
-            </Text>
-
-            <Text style={styles.statNumber}>
-              {asignaciones.length}
-            </Text>
 
           </View>
 
@@ -584,18 +665,20 @@ export default function JuradoIndex() {
 
         {/* =================================================
             EVALUACIONES PENDIENTES
-        ================================================== */}
+        ================================================= */}
 
         <View style={styles.pendingCard}>
 
           <View style={styles.pendingLeft}>
 
             <View style={styles.pendingIcon}>
+
               <Ionicons
                 name="time-outline"
                 size={27}
                 color="#f97316"
               />
+
             </View>
 
             <View style={styles.pendingInfo}>
@@ -619,8 +702,12 @@ export default function JuradoIndex() {
         </View>
 
         {/* =================================================
-            BOTÓN MIS ASIGNACIONES
-        ================================================== */}
+            MIS ASIGNACIONES
+        ================================================= */}
+
+        <Text style={styles.subsectionTitle}>
+          Acciones
+        </Text>
 
         <TouchableOpacity
           style={styles.assignmentsCard}
@@ -633,11 +720,13 @@ export default function JuradoIndex() {
         >
 
           <View style={styles.assignmentsIcon}>
+
             <Ionicons
               name="clipboard-outline"
               size={26}
               color="#2563eb"
             />
+
           </View>
 
           <View style={styles.assignmentsInfo}>
@@ -660,7 +749,94 @@ export default function JuradoIndex() {
 
         </TouchableOpacity>
 
+        {/* =================================================
+            INFORMACIÓN
+        ================================================= */}
+
+        <View style={styles.infoCard}>
+
+          <View style={styles.infoIcon}>
+
+            <Ionicons
+              name="information-circle-outline"
+              size={24}
+              color="#002b45"
+            />
+
+          </View>
+
+          <View style={styles.infoContent}>
+
+            <Text style={styles.infoTitle}>
+              Panel del jurado
+            </Text>
+
+            <Text style={styles.infoText}>
+              Desde este panel puedes consultar
+              tus equipos asignados, revisar tus
+              evaluaciones pendientes y acceder
+              al módulo de evaluación.
+            </Text>
+
+          </View>
+
+        </View>
+
       </ScrollView>
+
+      {/* =================================================
+          BARRA INFERIOR
+      ================================================= */}
+
+      <View style={styles.bottomBar}>
+
+        {/* INICIO */}
+
+        <TouchableOpacity
+          style={styles.bottomTab}
+          activeOpacity={0.8}
+        >
+
+          <Ionicons
+            name="home"
+            size={22}
+            color="#002b45"
+          />
+
+          <Text
+            style={[
+              styles.tabText,
+              styles.activeTabText,
+            ]}
+          >
+            Inicio
+          </Text>
+
+        </TouchableOpacity>
+
+        {/* PERFIL */}
+
+        <TouchableOpacity
+          style={styles.bottomTab}
+          onPress={() =>
+            router.push('/(jurado)/perfil')
+          }
+          activeOpacity={0.8}
+        >
+
+          <Ionicons
+            name="person-outline"
+            size={22}
+            color="#666"
+          />
+
+          <Text style={styles.tabText}>
+            Perfil
+          </Text>
+
+        </TouchableOpacity>
+
+      </View>
 
     </View>
   );
@@ -678,13 +854,7 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    backgroundColor: '#f5f6fb',
-  },
-
-  scrollContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 28,
-    paddingBottom: 40,
+    backgroundColor: '#f5f7fa',
   },
 
   // =======================================================
@@ -693,65 +863,71 @@ const styles = StyleSheet.create({
 
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#f5f6fb',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 25,
+    backgroundColor: '#fff',
   },
 
   loadingText: {
-    marginTop: 12,
-    color: '#64748b',
+    marginTop: 10,
+    color: '#002b45',
     fontSize: 14,
   },
 
   // =======================================================
-  // ENCABEZADO
+  // HEADER
   // =======================================================
 
-  header: {
+  topHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 28,
+    alignItems: 'flex-start',
+    paddingTop: 18,
+    paddingHorizontal: 18,
+    paddingBottom: 20,
+    backgroundColor: '#002b45',
   },
 
-  greetingContainer: {
+  headerText: {
     flex: 1,
-    paddingRight: 10,
+    paddingRight: 12,
   },
 
-  greeting: {
-    color: '#0f172a',
-    fontSize: 23,
-    fontWeight: '700',
+  panelTitle: {
+    fontSize: 21,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 16,
   },
 
-  role: {
-    color: '#64748b',
-    fontSize: 15,
-    marginTop: 5,
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
 
-  // =======================================================
-  // CERRAR SESIÓN
-  // =======================================================
+  welcomeSubtitle: {
+    fontSize: 12,
+    color: '#a0b2c6',
+    marginTop: 3,
+  },
 
-  logoutButton: {
-    backgroundColor: '#ef4444',
-    minHeight: 44,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    flexDirection: 'row',
+  btnLogout: {
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#ffffff1a',
+    borderRadius: 10,
+    marginTop: 2,
   },
 
-  logoutText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    marginLeft: 5,
+  // =======================================================
+  // SCROLL
+  // =======================================================
+
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
   },
 
   // =======================================================
@@ -762,7 +938,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fee2e2',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 18,
+    marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -775,32 +951,111 @@ const styles = StyleSheet.create({
   },
 
   // =======================================================
-  // ESTADÍSTICAS
+  // SECCIÓN
   // =======================================================
 
-  statsRow: {
+  sectionHeader: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#002b45',
+    marginTop: 18,
+    marginBottom: 2,
+  },
+
+  sectionSubtitle: {
+    fontSize: 11,
+    color: '#7b8794',
+    marginBottom: 8,
+  },
+
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e8eef5',
+  },
+
+  // =======================================================
+  // TARJETAS DE ESTADÍSTICAS
+  // =======================================================
+
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 14,
   },
 
   statCard: {
-    flex: 1,
-    minHeight: 155,
+    width: '48.5%',
+    minHeight: 132,
     backgroundColor: '#fff',
-    borderRadius: 17,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 16,
+    borderColor: '#dce5ef',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+
+    elevation: 2,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
 
-  statIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 13,
-    justifyContent: 'center',
+  statTextContainer: {
+    flex: 1,
+    paddingRight: 5,
+  },
+
+  statTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.45,
+    color: '#8190a5',
+  },
+
+  statNumber: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    color: '#002b45',
+    marginTop: 5,
+    marginBottom: 4,
+  },
+
+  statFooter: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 4,
+  },
+
+  statDetail: {
+    fontSize: 9,
+    flexShrink: 1,
+  },
+
+  statIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   blueIcon: {
@@ -811,35 +1066,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#ecfdf5',
   },
 
-  statTitle: {
-    color: '#64748b',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-
-  statNumber: {
-    color: '#0f172a',
-    fontSize: 32,
-    fontWeight: '800',
-    marginTop: 5,
-  },
-
   // =======================================================
   // PENDIENTES
   // =======================================================
 
   pendingCard: {
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 16,
     backgroundColor: '#fff',
-    borderRadius: 17,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 18,
-    marginBottom: 16,
+    borderColor: '#dce5ef',
     minHeight: 105,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+
+    elevation: 2,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
 
   pendingLeft: {
@@ -849,9 +1100,9 @@ const styles = StyleSheet.create({
   },
 
   pendingIcon: {
-    width: 49,
-    height: 49,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: '#fff7ed',
     justifyContent: 'center',
     alignItems: 'center',
@@ -859,12 +1110,12 @@ const styles = StyleSheet.create({
 
   pendingInfo: {
     flex: 1,
-    marginLeft: 13,
+    marginLeft: 12,
   },
 
   pendingTitle: {
     color: '#334155',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
   },
 
@@ -876,29 +1127,47 @@ const styles = StyleSheet.create({
 
   pendingNumber: {
     color: '#f97316',
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
     marginLeft: 10,
   },
 
   // =======================================================
-  // MIS ASIGNACIONES
+  // ACCIONES
   // =======================================================
+
+  subsectionTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#002b45',
+    marginTop: 20,
+    marginBottom: 10,
+  },
 
   assignmentsCard: {
     backgroundColor: '#fff',
-    borderRadius: 17,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#dce5ef',
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+
+    elevation: 2,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
 
   assignmentsIcon: {
-    width: 49,
-    height: 49,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: '#eff6ff',
     justifyContent: 'center',
     alignItems: 'center',
@@ -910,9 +1179,9 @@ const styles = StyleSheet.create({
   },
 
   assignmentsTitle: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '700',
+    color: '#002b45',
+    fontSize: 15,
+    fontWeight: '800',
   },
 
   assignmentsSubtitle: {
@@ -920,4 +1189,92 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 5,
   },
+
+  // =======================================================
+  // INFORMACIÓN
+  // =======================================================
+
+  infoCard: {
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#dce5ef',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+
+    elevation: 2,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+
+  infoIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#e8eef5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  infoContent: {
+    flex: 1,
+  },
+
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#002b45',
+    marginBottom: 5,
+  },
+
+  infoText: {
+    fontSize: 11,
+    lineHeight: 17,
+    color: '#64748b',
+  },
+
+  // =======================================================
+  // BARRA INFERIOR
+  // =======================================================
+
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 65,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    elevation: 8,
+  },
+
+  bottomTab: {
+    alignItems: 'center',
+    minWidth: 70,
+  },
+
+  tabText: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
+  },
+
+  activeTabText: {
+    color: '#002b45',
+    fontWeight: 'bold',
+  },
+
 });

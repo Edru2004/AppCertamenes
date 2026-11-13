@@ -49,6 +49,7 @@ type CampoFormularioProps = {
   onChangeText: (valor: string) => void;
   teclado?: 'default' | 'email-address';
   seguro?: boolean;
+  iconoDerecho?: React.ReactNode;
 };
 
 // ==========================================
@@ -80,6 +81,7 @@ function CampoFormulario({
   onChangeText,
   teclado = 'default',
   seguro = false,
+  iconoDerecho,
 }: CampoFormularioProps) {
   return (
     <View style={styles.grupoCampo}>
@@ -87,20 +89,28 @@ function CampoFormulario({
         {titulo}
       </Text>
 
-      <TextInput
-        style={styles.input}
-        value={valor}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
-        keyboardType={teclado}
-        secureTextEntry={seguro}
-        autoCapitalize={
-          teclado === 'email-address' ? 'none' : 'sentences'
-        }
-        autoCorrect={false}
-        blurOnSubmit={false}
-      />
+      <View style={styles.contenedorInput}>
+        <TextInput
+          style={styles.input}
+          value={valor}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#94A3B8"
+          keyboardType={teclado}
+          secureTextEntry={seguro}
+          autoCapitalize={
+            teclado === 'email-address' ? 'none' : 'sentences'
+          }
+          autoCorrect={false}
+          blurOnSubmit={false}
+        />
+
+        {iconoDerecho && (
+          <View style={styles.iconoDerecho}>
+            {iconoDerecho}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -120,7 +130,7 @@ export default function UsuarioForm() {
   const [idUsuario, setIdUsuario] = useState<number | null>(null);
 
   const [guardando, setGuardando] = useState(false);
-
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const esEdicion = idUsuario !== null;
 
   // ==========================================
@@ -279,15 +289,15 @@ export default function UsuarioForm() {
     } catch (error: any) {
       const erroresApi = error?.errors
         ? Object.values(error.errors)
-            .flat()
-            .join('\n')
+          .flat()
+          .join('\n')
         : '';
 
       Alert.alert(
         'No se pudo guardar',
         erroresApi ||
-          error?.message ||
-          'Verifica los datos e intenta nuevamente.'
+        error?.message ||
+        'Verifica los datos e intenta nuevamente.'
       );
     } finally {
       setGuardando(false);
@@ -411,7 +421,25 @@ export default function UsuarioForm() {
                 ? 'Deja vacío para conservar la actual'
                 : 'Mínimo 8 caracteres'
             }
-            seguro
+            seguro={!mostrarContrasena}
+            iconoDerecho={
+              <TouchableOpacity
+                onPress={() =>
+                  setMostrarContrasena(!mostrarContrasena)
+                }
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={
+                    mostrarContrasena
+                      ? 'eye-off-outline'
+                      : 'eye-outline'
+                  }
+                  size={22}
+                  color="#64748B"
+                />
+              </TouchableOpacity>
+            }
           />
 
           <CampoFormulario
@@ -596,7 +624,21 @@ const styles = StyleSheet.create({
   grupoCampo: {
     marginBottom: 14,
   },
+  contenedorInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 49,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+  },
 
+  iconoDerecho: {
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   etiqueta: {
     color: '#334155',
     fontSize: 13,
@@ -604,17 +646,14 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
 
-  input: {
-    height: 49,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    color: '#172033',
-    backgroundColor: '#FFFFFF',
-    fontSize: 14,
-  },
-
+input: {
+  flex: 1,
+  height: 49,
+  paddingHorizontal: 12,
+  color: '#172033',
+  backgroundColor: '#FFFFFF',
+  fontSize: 14,
+},
   selector: {
     borderWidth: 1,
     borderColor: '#CBD5E1',
