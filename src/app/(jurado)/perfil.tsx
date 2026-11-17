@@ -7,7 +7,9 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -37,6 +39,15 @@ type ArchivoPDF = {
   size?: number;
 };
 
+// ======================================================
+// OPCIONES PARA LISTA DESPLEGABLE DE SEXO
+// ======================================================
+const OPCIONES_SEXO = [
+  { label: 'Femenino', value: 'Femenino' },
+  { label: 'Masculino', value: 'Masculino' },
+  { label: 'Prefiero no decirlo', value: 'Prefiero no decirlo' },
+];
+
 export default function JuradoPerfil() {
   const router = useRouter();
 
@@ -56,6 +67,9 @@ export default function JuradoPerfil() {
   const [sexo, setSexo] = useState('');
   const [areaParticipacion, setAreaParticipacion] = useState('');
   const [areaEspecializada, setAreaEspecializada] = useState('');
+
+  // Estado para controlar el modal centrado de Sexo
+  const [modalSexoVisible, setModalSexoVisible] = useState(false);
 
   const [curriculum, setCurriculum] =
     useState<ArchivoPDF | null>(null);
@@ -80,9 +94,6 @@ export default function JuradoPerfil() {
 
       if (!respuesta?.completo || !respuesta?.perfil) {
         setPerfilExiste(false);
-
-        // Si no existe perfil, obligamos al jurado
-        // a completar sus datos.
         return;
       }
 
@@ -148,7 +159,6 @@ export default function JuradoPerfil() {
         return;
       }
 
-      // Validación adicional por seguridad
       const esPDF =
         archivo.mimeType === 'application/pdf' ||
         archivo.name?.toLowerCase().endsWith('.pdf');
@@ -161,7 +171,6 @@ export default function JuradoPerfil() {
         return;
       }
 
-      // Laravel permite máximo 10 MB
       if (
         archivo.size !== undefined &&
         archivo.size > 10 * 1024 * 1024
@@ -180,8 +189,6 @@ export default function JuradoPerfil() {
         size: archivo.size,
       });
 
-      // Si se seleccionó uno nuevo, ya no mostramos
-      // el anterior como archivo seleccionado.
       setCurriculumExistente(null);
 
     } catch (err: any) {
@@ -250,8 +257,6 @@ export default function JuradoPerfil() {
         areaEspecializada.trim()
       );
 
-      // Solo agregamos el archivo si el usuario
-      // seleccionó uno nuevo.
       if (curriculum) {
         formData.append(
           'Curriculum',
@@ -264,10 +269,6 @@ export default function JuradoPerfil() {
           } as any
         );
       }
-
-      console.log(
-        'Guardando perfil profesional del jurado...'
-      );
 
       const respuesta =
         await guardarMiPerfilJurado(formData);
@@ -351,7 +352,10 @@ export default function JuradoPerfil() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[
+            styles.container,
+            !esInicial && { paddingBottom: 100 },
+          ]}
           keyboardShouldPersistTaps="handled"
         >
 
@@ -500,30 +504,39 @@ export default function JuradoPerfil() {
 
             </View>
 
-            {/* SEXO */}
+            {/* SEXO (ÚNICA LISTA DESPLEGABLE) */}
 
             <Text style={styles.label}>
               Sexo
             </Text>
 
-            <View style={styles.inputContainer}>
-
+            <TouchableOpacity
+              style={styles.inputContainer}
+              onPress={() => setModalSexoVisible(true)}
+              disabled={guardando}
+              activeOpacity={0.7}
+            >
               <Ionicons
                 name="person-outline"
                 size={21}
                 color="#0B4F6C"
               />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Especifica tu sexo"
-                placeholderTextColor="#94A3B8"
-                value={sexo}
-                onChangeText={setSexo}
-                editable={!guardando}
-              />
+              <Text
+                style={[
+                  styles.selectText,
+                  !sexo && styles.placeholderText,
+                ]}
+              >
+                {sexo || 'Selecciona tu sexo'}
+              </Text>
 
-            </View>
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color="#64748B"
+              />
+            </TouchableOpacity>
 
             {/* ÁREA DE PARTICIPACIÓN */}
 
@@ -689,6 +702,81 @@ export default function JuradoPerfil() {
         </ScrollView>
 
       </KeyboardAvoidingView>
+
+      {/* MODAL CENTRADO ESTILO TARJETA PARA SEXO */}
+      <Modal
+        visible={modalSexoVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalSexoVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setModalSexoVisible(false)}
+        >
+          <Pressable
+            style={styles.modalCard}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Encabezado del Modal */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Selecciona tu sexo
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => setModalSexoVisible(false)}
+                style={styles.modalCloseBtn}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color="#172033"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Lista de Opciones */}
+            <View style={styles.modalList}>
+              {OPCIONES_SEXO.map((opcion, index) => {
+                const seleccionado = sexo === opcion.value;
+                const esUltimo = index === OPCIONES_SEXO.length - 1;
+
+                return (
+                  <TouchableOpacity
+                    key={opcion.value}
+                    style={[
+                      styles.modalOption,
+                      !esUltimo && styles.modalOptionBorder,
+                    ]}
+                    onPress={() => {
+                      setSexo(opcion.value);
+                      setModalSexoVisible(false);
+                    }}
+                    activeOpacity={0.6}
+                  >
+                    <Text
+                      style={[
+                        styles.modalOptionText,
+                        seleccionado && styles.modalOptionTextSelected,
+                      ]}
+                    >
+                      {opcion.label}
+                    </Text>
+
+                    <Ionicons
+                      name={seleccionado ? 'checkmark' : 'ellipse-outline'}
+                      size={20}
+                      color={seleccionado ? '#0B4F6C' : '#64748B'}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* NAV */}
 
@@ -949,6 +1037,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
 
+  selectText: {
+    flex: 1,
+    color: '#172033',
+    fontSize: 15,
+    marginLeft: 10,
+    paddingVertical: 12,
+  },
+
+  placeholderText: {
+    color: '#94A3B8',
+  },
+
   pdfButton: {
     minHeight: 70,
     borderWidth: 1,
@@ -1066,5 +1166,77 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     marginTop: 3,
+  },
+
+  // ======================================================
+  // ESTILOS DEL MODAL CENTRADO (ESTILO TARJETA FLOTANTE)
+  // ======================================================
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+  },
+
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+
+  modalTitle: {
+    color: '#172033',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+
+  modalCloseBtn: {
+    padding: 2,
+  },
+
+  modalList: {
+    marginTop: 4,
+  },
+
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 18,
+    paddingHorizontal: 4,
+  },
+
+  modalOptionBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+
+  modalOptionText: {
+    color: '#172033',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+
+  modalOptionTextSelected: {
+    color: '#0B4F6C',
+    fontWeight: '800',
   },
 });
