@@ -30,6 +30,13 @@ export default function LiderLayout() {
           headerTitle: 'Gestión de Mi Equipo',
         }}
       />
+      <Drawer.Screen
+        name="fotos"
+        options={{
+          title: 'Fotos',
+          headerTitle: 'Gestión de Fotos',
+        }}
+      />
     </Drawer>
   );
 }

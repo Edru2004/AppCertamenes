@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetch as expoFetch } from 'expo/fetch';
+// import { fetch as expoFetch } from 'expo/fetch';
 
 // ======================================================
 // CONFIGURACIÓN
@@ -7,7 +7,7 @@ import { fetch as expoFetch } from 'expo/fetch';
 
 // Usa la IP de la computadora donde está corriendo Laravel.
 // El celular y la computadora deben estar en la misma red Wi-Fi.
-const API = 'http://192.168.1.152:8000/api';
+const API = 'http://192.168.1.166:8000/api';
 
 
 type Datos = Record<string, any> | FormData;
@@ -107,10 +107,11 @@ const peticion = async (
   }
 
   const clienteFetch = esFormData
-    ? expoFetch
+    ? fetch
     : fetch;
 
-  const res = await clienteFetch(`${API}${ruta}`, {
+  
+  const res = await fetch(`${API}${ruta}`, {
     method: metodo,
     headers,
     ...(body !== undefined ? { body } : {}),
