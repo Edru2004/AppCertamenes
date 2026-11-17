@@ -91,30 +91,64 @@ const peticion = async (
   metodo: Metodo = 'GET',
   datos?: Datos
 ): Promise<any> => {
-
   const esFormData =
-    typeof FormData !== 'undefined' &&
-    datos instanceof FormData;
+    typeof FormData !== 'undefined' && datos instanceof FormData;
 
   const headers = await getAuthHeaders(esFormData);
 
-  let body: any = undefined;
+  // Si es FormData (fotos/archivos), usamos XMLHttpRequest nativo de React Native
+  if (esFormData) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(metodo, `${API}${ruta}`);
 
-  if (datos !== undefined) {
-    body = esFormData
-      ? datos
-      : JSON.stringify(datos);
+      Object.entries(headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+
+      xhr.onload = () => {
+        const texto = xhr.responseText || '';
+        let resJson: any = null;
+        if (texto.trim()) {
+          try {
+            resJson = JSON.parse(texto);
+          } catch {
+            resJson = { message: texto };
+          }
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(resJson);
+        } else {
+          const errores = resJson?.errors
+            ? Object.values(resJson.errors).flat().join('\n')
+            : '';
+          reject(
+            new Error(
+              String(
+                errores ||
+                  resJson?.message ||
+                  resJson?.error ||
+                  `Error HTTP ${xhr.status}`
+              )
+            )
+          );
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Error de red al subir el archivo. Verifica tu conexión Wi-Fi con el servidor.'));
+      };
+
+      xhr.send(datos as any);
+    });
   }
 
-  const clienteFetch = esFormData
-    ? fetch
-    : fetch;
-
-  
+  // Para peticiones normales JSON, seguimos usando fetch estándar
   const res = await fetch(`${API}${ruta}`, {
     method: metodo,
     headers,
-    ...(body !== undefined ? { body } : {}),
+    ...(datos !== undefined ? { body: JSON.stringify(datos) } : {}),
   });
 
   return leerRespuesta(res);

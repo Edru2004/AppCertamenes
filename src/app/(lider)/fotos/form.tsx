@@ -46,7 +46,7 @@ export default function FotosFormScreen() {
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      quality: 0.8,
+      quality: 0.5,
     });
 
     if (!res.canceled && res.assets?.length) {
@@ -63,7 +63,7 @@ export default function FotosFormScreen() {
 
     const res = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.5,
     });
 
     if (!res.canceled && res.assets?.length) {
