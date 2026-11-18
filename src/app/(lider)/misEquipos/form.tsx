@@ -1,13 +1,14 @@
 // @ts-nocheck
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -34,6 +35,35 @@ const idCategoriaDe = (x: any) => Number(x?.Id_categCertamen ?? x?.id_categCerta
 const idSalaDe = (x: any) => Number(x?.Id_sala ?? x?.id_sala ?? x?.id);
 
 const estadoInicial = { visible: false, titulo: '', mensaje: '', exito: false };
+
+const crearIntegranteVacio = (rol = 'Participante'): IntegranteState => ({
+  no_control: '',
+  Nombre: '',
+  Carrera: '',
+  Rol: rol,
+  Sexo: 'F',
+  Correo: '',
+  Semestre: '',
+});
+
+// ======================================================
+// CATÁLOGOS PARA LISTAS DESPLEGABLES
+// ======================================================
+const OPCIONES_SEXO = [
+  { label: 'Femenino', value: 'F' },
+  { label: 'Masculino', value: 'M' },
+  { label: 'Prefiero no decirlo', value: 'Prefiero no decirlo' },
+];
+
+const OPCIONES_CARRERA = [
+  { label: 'Ing. en Sistemas Computacionales', value: 'Ing. en Sistemas Computacionales' },
+  { label: 'Ing. Electromecánica', value: 'Ing. Electromecánica' },
+  { label: 'Ing. Industrial', value: 'Ing. Industrial' },
+  { label: 'Ing. Ambiental', value: 'Ing. Ambiental' },
+  { label: 'Ing. en Gestión Empresarial', value: 'Ing. en Gestión Empresarial' },
+  { label: 'Lic. en Contador Público', value: 'Lic. en Contador Público' },
+  { label: 'Lic. en Turismo', value: 'Lic. en Turismo' },
+];
 
 interface IntegranteState {
   no_control: string;
@@ -76,12 +106,16 @@ export default function EquipoFormScreen() {
   const [idLider, setIdLider] = useState<number | null>(null);
 
   const [integrantes, setIntegrantes] = useState<IntegranteState[]>([
-    { no_control: '', Nombre: '', Carrera: '', Rol: 'Participante', Sexo: 'F', Correo: '', Semestre: '' },
+    crearIntegranteVacio('Participante'),
   ]);
 
   const [selectorDesafio, setSelectorDesafio] = useState(false);
   const [selectorCategoria, setSelectorCategoria] = useState(false);
   const [selectorSala, setSelectorSala] = useState(false);
+
+  // Estados para modales desplegables de Integrantes (guardan el índice del integrante)
+  const [indiceSelectorCarrera, setIndiceSelectorCarrera] = useState<number | null>(null);
+  const [indiceSelectorSexo, setIndiceSelectorSexo] = useState<number | null>(null);
 
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -100,92 +134,117 @@ export default function EquipoFormScreen() {
   const mostrarResultado = (titulo: string, mensaje: string, exito = false) =>
     setResultado({ visible: true, titulo, mensaje, exito });
 
-  useEffect(() => {
-    let activo = true;
-    const cargarFormulario = async () => {
-      setCargando(true);
-      try {
-        const userRaw = await AsyncStorage.getItem('userData');
-        if (userRaw) {
-          const u = JSON.parse(userRaw);
-          setIdLider(Number(u.Id_usuario ?? u.id_usuario ?? u.id));
-        }
+  // Función para limpiar todos los campos a su estado inicial
+  const resetearFormulario = useCallback(() => {
+    setPaso(1);
+    setIdEquipo(null);
+    setNombreEquipo('');
+    setVideo('');
+    setReporte('');
+    setIdDesafio(null);
+    setIdCategCertamen(null);
+    setIdSala(null);
+    setIntegrantes([crearIntegranteVacio('Participante')]);
+    setIndiceSelectorCarrera(null);
+    setIndiceSelectorSexo(null);
+  }, []);
 
-        let original: any = null;
-        if (equipoParam) {
-          try {
-            original = JSON.parse(String(equipoParam));
-          } catch {
-            original = null;
+  // Se ejecuta cada vez que entras a esta pantalla
+  useFocusEffect(
+    useCallback(() => {
+      let activo = true;
+
+      const cargarFormulario = async () => {
+        setCargando(true);
+        try {
+          const userRaw = await AsyncStorage.getItem('userData');
+          if (userRaw) {
+            const u = JSON.parse(userRaw);
+            setIdLider(Number(u.Id_usuario ?? u.id_usuario ?? u.id));
           }
-        }
 
-        const [rCert, rDesaf, rCateg] = await Promise.all([
-          getCertamenes(),
-          getDesafios(),
-          getCategCertamenes(),
-        ]);
-        if (!activo) return;
-
-        const listaCert = extraerLista(rCert);
-        const listaDesaf = extraerLista(rDesaf);
-        const listaCateg = extraerLista(rCateg);
-
-        setCertamenes(listaCert);
-        setTodosLosDesafios(listaDesaf);
-        setTodasLasCategorias(listaCateg);
-
-        if (original) {
-          setIdEquipo(Number(original.Id_equipo) || null);
-          setNombreEquipo(String(original.Nombre ?? ''));
-          setVideo(String(original.Video ?? ''));
-          setReporte(String(original.Reporte ?? ''));
-          setIdDesafio(Number(original.Id_desafio) || null);
-          setIdCategCertamen(Number(original.Id_categCertamen) || null);
-          setIdSala(original.Id_sala ? Number(original.Id_sala) : null);
-          setIdLider(Number(original.Id_lider) || null);
-
-          const listaIntegrantes = original.integrantes ?? original.integrante ?? [];
-          if (Array.isArray(listaIntegrantes) && listaIntegrantes.length > 0) {
-            setIntegrantes(
-              listaIntegrantes.map((i: any) => {
-                const sexoRaw = String(i.Sexo ?? i.sexo ?? 'F').toUpperCase();
-                return {
-                  no_control: String(i.no_control ?? i.No_control ?? ''),
-                  Nombre: String(i.Nombre ?? i.nombre ?? ''),
-                  Carrera: String(i.Carrera ?? i.carrera ?? ''),
-                  Rol: String(i.Rol ?? i.rol ?? 'Participante'),
-                  Sexo: sexoRaw.startsWith('M') ? 'M' : 'F',
-                  Correo: String(i.Correo ?? i.correo ?? ''),
-                  Semestre: String(i.Semestre ?? i.semestre ?? ''),
-                };
-              })
-            );
+          let original: any = null;
+          if (equipoParam) {
+            try {
+              original = JSON.parse(String(equipoParam));
+            } catch {
+              original = null;
+            }
           }
+
+          const [rCert, rDesaf, rCateg] = await Promise.all([
+            getCertamenes(),
+            getDesafios(),
+            getCategCertamenes(),
+          ]);
+          if (!activo) return;
+
+          const listaCert = extraerLista(rCert);
+          const listaDesaf = extraerLista(rDesaf);
+          const listaCateg = extraerLista(rCateg);
+
+          setCertamenes(listaCert);
+          setTodosLosDesafios(listaDesaf);
+          setTodasLasCategorias(listaCateg);
+
+          if (original) {
+            setPaso(1);
+            setIdEquipo(Number(original.Id_equipo) || null);
+            setNombreEquipo(String(original.Nombre ?? ''));
+            setVideo(String(original.Video ?? ''));
+            setReporte(String(original.Reporte ?? ''));
+            setIdDesafio(Number(original.Id_desafio) || null);
+            setIdCategCertamen(Number(original.Id_categCertamen) || null);
+            setIdSala(original.Id_sala ? Number(original.Id_sala) : null);
+            setIdLider(Number(original.Id_lider) || null);
+
+            const listaIntegrantes = original.integrantes ?? original.integrante ?? [];
+            if (Array.isArray(listaIntegrantes) && listaIntegrantes.length > 0) {
+              setIntegrantes(
+                listaIntegrantes.map((i: any) => {
+                  const sexoRaw = String(i.Sexo ?? i.sexo ?? 'F').toUpperCase();
+                  return {
+                    no_control: String(i.no_control ?? i.No_control ?? ''),
+                    Nombre: String(i.Nombre ?? i.nombre ?? ''),
+                    Carrera: String(i.Carrera ?? i.carrera ?? ''),
+                    Rol: String(i.Rol ?? i.rol ?? 'Participante'),
+                    Sexo: sexoRaw.startsWith('M') ? 'M' : 'F',
+                    Correo: String(i.Correo ?? i.correo ?? ''),
+                    Semestre: String(i.Semestre ?? i.semestre ?? ''),
+                  };
+                })
+              );
+            } else {
+              setIntegrantes([crearIntegranteVacio('Participante')]);
+            }
+          } else {
+            resetearFormulario();
+          }
+
+          const idCertDefecto = Number(
+            original?.Id_certamen ??
+            original?.desafio?.Id_certamen ??
+            (idCertamenParam ? Number(idCertamenParam) : null) ??
+            idCertamenDe(listaCert[0])
+          );
+
+          setIdCertamen(idCertDefecto);
+          setDesafios(listaDesaf.filter((d) => idCertamenDe(d) === idCertDefecto));
+          setCategorias(listaCateg.filter((c) => idCertamenDe(c) === idCertDefecto));
+        } catch (error: any) {
+          if (activo) mostrarResultado('Error', error?.message || 'No se pudieron cargar los datos.', false);
+        } finally {
+          if (activo) setCargando(false);
         }
+      };
 
-        const idCertDefecto = Number(
-          original?.Id_certamen ??
-          original?.desafio?.Id_certamen ??
-          (idCertamenParam ? Number(idCertamenParam) : null) ??
-          idCertamenDe(listaCert[0])
-        );
+      void cargarFormulario();
 
-        setIdCertamen(idCertDefecto);
-        setDesafios(listaDesaf.filter((d) => idCertamenDe(d) === idCertDefecto));
-        setCategorias(listaCateg.filter((c) => idCertamenDe(c) === idCertDefecto));
-      } catch (error: any) {
-        if (activo) mostrarResultado('Error', error?.message || 'No se pudieron cargar los datos.', false);
-      } finally {
-        if (activo) setCargando(false);
-      }
-    };
-
-    void cargarFormulario();
-    return () => {
-      activo = false;
-    };
-  }, [equipoParam, idCertamenParam]);
+      return () => {
+        activo = false;
+      };
+    }, [equipoParam, idCertamenParam, resetearFormulario])
+  );
 
   useEffect(() => {
     let activo = true;
@@ -223,7 +282,7 @@ export default function EquipoFormScreen() {
   const agregarIntegrante = () => {
     setIntegrantes([
       ...integrantes,
-      { no_control: '', Nombre: '', Carrera: '', Rol: 'Integrante', Sexo: 'F', Correo: '', Semestre: '' },
+      crearIntegranteVacio('Integrante'),
     ]);
   };
 
@@ -311,7 +370,7 @@ export default function EquipoFormScreen() {
           Nombre: ing.Nombre.trim(),
           Carrera: ing.Carrera.trim() || null,
           Rol: ing.Rol.trim() || 'Participante',
-          Sexo: ing.Sexo === 'M' ? 'M' : 'F', // 🟢 Garantiza enviar solo 1 carácter
+          Sexo: ing.Sexo === 'M' ? 'M' : 'F',
           Correo: ing.Correo.trim() || null,
           Semestre: ing.Semestre ? Number(ing.Semestre) : null,
         })),
@@ -342,7 +401,11 @@ export default function EquipoFormScreen() {
   const cerrarResultado = () => {
     const exito = resultado.exito;
     setResultado(estadoInicial);
-    if (exito) router.back();
+    if (exito) {
+      resetearFormulario();
+      router.setParams({ equipoEditar: undefined });
+      router.back();
+    }
   };
 
   if (cargando) {
@@ -418,24 +481,6 @@ export default function EquipoFormScreen() {
                 <Ionicons name="chevron-down" size={19} color="#64748b" />
               </TouchableOpacity>
 
-              {esCertamenInnova ? (
-                <>
-                  <Text style={styles.label}>Sala asignada (opcional)</Text>
-                  <TouchableOpacity style={styles.selector} onPress={() => setSelectorSala(true)}>
-                    <Ionicons name="business-outline" size={20} color="#0369a1" />
-                    <Text style={[styles.selectorText, !salaSeleccionada && styles.placeholder]}>
-                      {salaSeleccionada ? (salaSeleccionada.Nombre ?? salaSeleccionada.nombre) : 'Sin sala asignada'}
-                    </Text>
-                    <Ionicons name="chevron-down" size={19} color="#64748b" />
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <View style={styles.infoBox}>
-                  <Ionicons name="information-circle-outline" size={20} color="#92400e" />
-                  <Text style={styles.infoText}>Rally no utiliza salas. El equipo se guardará sin sala asignada.</Text>
-                </View>
-              )}
-
               <Text style={styles.label}>Enlace al video (opcional)</Text>
               <TextInput style={styles.input} placeholder="https://youtube.com/..." placeholderTextColor="#94a3b8" value={video} onChangeText={setVideo} />
 
@@ -488,35 +533,42 @@ export default function EquipoFormScreen() {
                     </View>
                   </View>
 
+                  {/* LISTA DESPLEGABLE PARA CARRERA */}
                   <Text style={styles.labelSub}>Carrera</Text>
-                  <TextInput style={styles.inputSub} placeholder="Ej. Sistemas Computacionales" placeholderTextColor="#94a3b8" value={ing.Carrera} onChangeText={(t) => actualizarIntegrante(idx, 'Carrera', t)} />
+                  <TouchableOpacity
+                    style={styles.selectorSub}
+                    onPress={() => setIndiceSelectorCarrera(idx)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="school-outline" size={18} color="#0369a1" />
+                    <Text
+                      style={[
+                        styles.selectorSubText,
+                        !ing.Carrera && styles.placeholder,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {ing.Carrera || 'Selecciona una carrera'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={18} color="#64748b" />
+                  </TouchableOpacity>
 
                   <Text style={styles.labelSub}>Correo electrónico</Text>
                   <TextInput style={styles.inputSub} placeholder="ejemplo@itssmt.edu.mx" keyboardType="email-address" placeholderTextColor="#94a3b8" value={ing.Correo} onChangeText={(t) => actualizarIntegrante(idx, 'Correo', t)} />
 
-                  {/* 🟢 RADIO BUTTONS PARA SEXO (F/M) */}
+                  {/* LISTA DESPLEGABLE PARA SEXO */}
                   <Text style={styles.labelSub}>Sexo *</Text>
-                  <View style={styles.radioContainer}>
-                    <TouchableOpacity
-                      style={[styles.radioButton, ing.Sexo === 'F' && styles.radioButtonSelected]}
-                      onPress={() => actualizarIntegrante(idx, 'Sexo', 'F')}
-                    >
-                      <View style={styles.radioOuterCircle}>
-                        {ing.Sexo === 'F' && <View style={styles.radioInnerCircle} />}
-                      </View>
-                      <Text style={[styles.radioText, ing.Sexo === 'F' && styles.radioTextSelected]}>Femenino</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.radioButton, ing.Sexo === 'M' && styles.radioButtonSelected]}
-                      onPress={() => actualizarIntegrante(idx, 'Sexo', 'M')}
-                    >
-                      <View style={styles.radioOuterCircle}>
-                        {ing.Sexo === 'M' && <View style={styles.radioInnerCircle} />}
-                      </View>
-                      <Text style={[styles.radioText, ing.Sexo === 'M' && styles.radioTextSelected]}>Masculino</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.selectorSub}
+                    onPress={() => setIndiceSelectorSexo(idx)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="person-outline" size={18} color="#0369a1" />
+                    <Text style={styles.selectorSubText}>
+                      {ing.Sexo === 'M' ? 'Masculino' : 'Femenino'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={18} color="#64748b" />
+                  </TouchableOpacity>
                 </View>
               ))}
 
@@ -541,7 +593,147 @@ export default function EquipoFormScreen() {
           )}
         </ScrollView>
 
-        {/* MODALES SELECTORES */}
+        {/* MODAL CENTRADO ESTILO TARJETA PARA CARRERA */}
+        <Modal
+          visible={indiceSelectorCarrera !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIndiceSelectorCarrera(null)}
+        >
+          <Pressable
+            style={styles.backdrop}
+            onPress={() => setIndiceSelectorCarrera(null)}
+          >
+            <Pressable
+              style={styles.floatingCard}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.floatingHeader}>
+                <Text style={styles.floatingTitle}>Selecciona la carrera</Text>
+                <TouchableOpacity
+                  onPress={() => setIndiceSelectorCarrera(null)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close" size={24} color="#0f172a" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                {OPCIONES_CARRERA.map((opcion, index) => {
+                  const valorActual =
+                    indiceSelectorCarrera !== null
+                      ? integrantes[indiceSelectorCarrera]?.Carrera
+                      : '';
+                  const seleccionado = valorActual === opcion.value;
+                  const esUltimo = index === OPCIONES_CARRERA.length - 1;
+
+                  return (
+                    <TouchableOpacity
+                      key={opcion.value}
+                      style={[
+                        styles.floatingOption,
+                        !esUltimo && styles.floatingOptionBorder,
+                      ]}
+                      onPress={() => {
+                        if (indiceSelectorCarrera !== null) {
+                          actualizarIntegrante(indiceSelectorCarrera, 'Carrera', opcion.value);
+                        }
+                        setIndiceSelectorCarrera(null);
+                      }}
+                      activeOpacity={0.6}
+                    >
+                      <Text
+                        style={[
+                          styles.floatingOptionText,
+                          seleccionado && styles.floatingOptionTextSelected,
+                        ]}
+                      >
+                        {opcion.label}
+                      </Text>
+                      <Ionicons
+                        name={seleccionado ? 'checkmark' : 'ellipse-outline'}
+                        size={20}
+                        color={seleccionado ? '#0369a1' : '#64748b'}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        {/* MODAL CENTRADO ESTILO TARJETA PARA SEXO */}
+        <Modal
+          visible={indiceSelectorSexo !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIndiceSelectorSexo(null)}
+        >
+          <Pressable
+            style={styles.backdrop}
+            onPress={() => setIndiceSelectorSexo(null)}
+          >
+            <Pressable
+              style={styles.floatingCard}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.floatingHeader}>
+                <Text style={styles.floatingTitle}>Selecciona el sexo</Text>
+                <TouchableOpacity
+                  onPress={() => setIndiceSelectorSexo(null)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close" size={24} color="#0f172a" />
+                </TouchableOpacity>
+              </View>
+
+              <View>
+                {OPCIONES_SEXO.map((opcion, index) => {
+                  const valorActual =
+                    indiceSelectorSexo !== null
+                      ? integrantes[indiceSelectorSexo]?.Sexo
+                      : 'F';
+                  const seleccionado = valorActual === opcion.value;
+                  const esUltimo = index === OPCIONES_SEXO.length - 1;
+
+                  return (
+                    <TouchableOpacity
+                      key={opcion.value}
+                      style={[
+                        styles.floatingOption,
+                        !esUltimo && styles.floatingOptionBorder,
+                      ]}
+                      onPress={() => {
+                        if (indiceSelectorSexo !== null) {
+                          actualizarIntegrante(indiceSelectorSexo, 'Sexo', opcion.value);
+                        }
+                        setIndiceSelectorSexo(null);
+                      }}
+                      activeOpacity={0.6}
+                    >
+                      <Text
+                        style={[
+                          styles.floatingOptionText,
+                          seleccionado && styles.floatingOptionTextSelected,
+                        ]}
+                      >
+                        {opcion.label}
+                      </Text>
+                      <Ionicons
+                        name={seleccionado ? 'checkmark' : 'ellipse-outline'}
+                        size={20}
+                        color={seleccionado ? '#0369a1' : '#64748b'}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        {/* MODALES SELECTORES PASO 1 */}
         <Modal visible={selectorDesafio} transparent animationType="fade" onRequestClose={() => setSelectorDesafio(false)}>
           <View style={styles.backdrop}>
             <View style={styles.modalCard}>
@@ -603,6 +795,7 @@ export default function EquipoFormScreen() {
           </View>
         </Modal>
 
+        {/* MODAL DE CONFIRMACIÓN (2 BOTONES EN FILA) */}
         <Modal visible={confirmarVisible} transparent animationType="fade" onRequestClose={() => setConfirmarVisible(false)}>
           <View style={styles.backdrop}>
             <View style={styles.modalCard}>
@@ -613,7 +806,7 @@ export default function EquipoFormScreen() {
                 <TouchableOpacity style={styles.cancelButton} onPress={() => setConfirmarVisible(false)}>
                   <Text style={styles.cancelText}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmButton} onPress={() => void confirmarGuardado()}>
+                <TouchableOpacity style={[styles.confirmButton, { flex: 1 }]} onPress={() => void confirmarGuardado()}>
                   <Text style={styles.confirmText}>Confirmar</Text>
                 </TouchableOpacity>
               </View>
@@ -621,6 +814,7 @@ export default function EquipoFormScreen() {
           </View>
         </Modal>
 
+        {/* MODAL DE RESULTADO CON BOTÓN ACEPTAR COMPLETO */}
         <Modal visible={resultado.visible} transparent animationType="fade" onRequestClose={cerrarResultado}>
           <View style={styles.backdrop}>
             <View style={styles.modalCard}>
@@ -641,52 +835,6 @@ export default function EquipoFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  radioContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  radioButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#f8fafc',
-  },
-  radioButtonSelected: {
-    borderColor: '#0369a1',
-    backgroundColor: '#f0f9ff',
-  },
-  radioOuterCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: '#64748b',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioInnerCircle: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: '#0369a1',
-  },
-  radioText: {
-    fontSize: 13,
-    color: '#475569',
-    fontWeight: '600',
-  },
-  radioTextSelected: {
-    color: '#0369a1',
-    fontWeight: '700',
-  },
   page: { flex: 1, backgroundColor: '#f1f5f9' },
   container: { padding: 18, paddingBottom: 130 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9' },
@@ -720,23 +868,107 @@ const styles = StyleSheet.create({
   cardTitleIntegrante: { fontSize: 14, fontWeight: '800', color: '#0369a1' },
   labelSub: { fontSize: 11, color: '#475569', fontWeight: '700', marginTop: 6, marginBottom: 2 },
   inputSub: { minHeight: 38, borderRadius: 7, borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#f8fafc', paddingHorizontal: 10, fontSize: 13, color: '#0f172a' },
+  selectorSub: {
+    minHeight: 40,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectorSubText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0f172a',
+  },
   saveButton: { marginTop: 24, minHeight: 49, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, borderRadius: 10, backgroundColor: '#002b45' },
   saveText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   btnVolver: { minHeight: 49, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: '#cbd5e1', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#fff' },
   btnVolverText: { color: '#334155', fontWeight: '700' },
   disabled: { opacity: 0.6 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.48)', justifyContent: 'center', padding: 18 },
-  modalCard: { backgroundColor: '#fff', padding: 18, borderRadius: 16, maxHeight: '88%' },
-  modalIcon: { alignSelf: 'center', marginBottom: 8, width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: '#e0f2fe' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.52)', justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: '#fff', padding: 20, borderRadius: 20, maxHeight: '88%' },
+  modalIcon: { alignSelf: 'center', marginBottom: 10, width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: '#e0f2fe' },
   successIcon: { backgroundColor: '#dcfce7' },
   errorIcon: { backgroundColor: '#fee2e2' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#0f172a', textAlign: 'center', marginBottom: 8 },
-  modalMessage: { fontSize: 13, lineHeight: 19, color: '#475569', textAlign: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 19, fontWeight: '800', color: '#0f172a', textAlign: 'center', marginBottom: 8 },
+  modalMessage: { fontSize: 13, lineHeight: 19, color: '#475569', textAlign: 'center', marginBottom: 18 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomColor: '#e2e8f0', borderBottomWidth: 1 },
   optionTitle: { color: '#0f172a', fontSize: 13, fontWeight: '700' },
   modalActions: { flexDirection: 'row', gap: 10 },
-  cancelButton: { padding: 12, borderRadius: 9, borderWidth: 1, borderColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center', marginTop: 6, flex: 1 },
-  cancelText: { color: '#334155', fontWeight: '700' },
-  confirmButton: { padding: 12, borderRadius: 9, backgroundColor: '#002b45', alignItems: 'center', justifyContent: 'center', marginTop: 6, flex: 1 },
-  confirmText: { color: '#fff', fontWeight: '800' },
+  cancelButton: {
+    minHeight: 46,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    flex: 1,
+  },
+  cancelText: { color: '#334155', fontWeight: '700', fontSize: 14 },
+  confirmButton: {
+    minHeight: 46,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#002b45',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    width: '100%',
+  },
+  confirmText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+
+  // Estilos del modal centrado estilo tarjeta flotante (Carrera y Sexo)
+  floatingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  floatingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  floatingTitle: {
+    color: '#0f172a',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  floatingOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    gap: 12,
+  },
+  floatingOptionBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  floatingOptionText: {
+    flex: 1,
+    color: '#0f172a',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  floatingOptionTextSelected: {
+    color: '#0369a1',
+    fontWeight: '800',
+  },
 });
