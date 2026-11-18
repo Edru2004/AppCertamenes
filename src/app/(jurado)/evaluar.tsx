@@ -98,161 +98,77 @@ export default function EvaluarEquipo() {
 
 
 
-  const cargarFormulario = async () => {
-
+const cargarFormulario = async () => {
     try {
-
       if (!idEquipo || isNaN(Number(idEquipo))) {
-
-        Alert.alert(
-
-          'Error',
-
-          'No se recibió un ID de equipo válido.'
-
-        );
-
+        Alert.alert('Error', 'No se recibió un ID de equipo válido.');
         return;
-
       }
-
-
 
       setCargando(true);
 
+      // 1. LIMPIAR ESTADOS ANTERIORES INMEDIATAMENTE AL CAMBIAR DE EQUIPO
+      setEvaluacionExistente(false);
+      setRespuestas({});
+      setComentarios('');
+      setEvaluacionEjecutiva(null);
+      setCategorias([]);
+      setEquipo(null);
 
-
-      console.log('================================');
-
-      console.log('CARGANDO EVALUACIÓN');
-
-      console.log('ID EQUIPO:', Number(idEquipo));
-
-      console.log('================================');
-
-
-
-      const respuesta = await getFormularioEvaluacion(
-
-        Number(idEquipo)
-
-      );
-
-
-
-      console.log(
-
-        'FORMULARIO RECIBIDO:',
-
-        JSON.stringify(respuesta, null, 2)
-
-      );
-
-
+      const respuesta = await getFormularioEvaluacion(Number(idEquipo));
 
       setEquipo(respuesta?.equipo || null);
 
-
-
-      const categoriasRecibidas = Array.isArray(
-
-        respuesta?.categorias
-
-      )
-
+      const categoriasRecibidas = Array.isArray(respuesta?.categorias)
         ? respuesta.categorias
-
         : [];
 
-
-
       setCategorias(categoriasRecibidas);
-
-      setTipoCertamen(
-
-        String(respuesta?.tipo || '').toUpperCase()
-
-      );
+      setTipoCertamen(String(respuesta?.tipo || '').toUpperCase());
 
       // ========================================================
-
       // SI YA EXISTE UNA EVALUACIÓN, CARGARLA
-
       // ========================================================
-
-
       if (respuesta?.evaluacion) {
-        // La evaluación ya fue realizada por este jurado
         setEvaluacionExistente(true);
-
-        setComentarios(
-          respuesta.evaluacion.Comentarios || ''
-        );
+        setComentarios(respuesta.evaluacion.Comentarios || '');
 
         const respuestasIniciales: any = {};
-
         let subtotalRubrica = 0;
 
-        if (
-          Array.isArray(
-            respuesta.evaluacion.preguntas
-          )
-        ) {
-          respuesta.evaluacion.preguntas.forEach(
-            (pregunta: any) => {
-              const valor = Number(
-                pregunta.Valor ?? 0
-              );
-
-              respuestasIniciales[
-                String(pregunta.Id_rubrica)
-              ] = String(
-                pregunta.Valor ?? ''
-              );
-
-              subtotalRubrica += valor;
-            }
-          );
+        if (Array.isArray(respuesta.evaluacion.preguntas)) {
+          respuesta.evaluacion.preguntas.forEach((pregunta: any) => {
+            const valor = Number(pregunta.Valor ?? 0);
+            respuestasIniciales[String(pregunta.Id_rubrica)] = String(
+              pregunta.Valor ?? ''
+            );
+            subtotalRubrica += valor;
+          });
         }
 
         setRespuestas(respuestasIniciales);
 
-        // ----------------------------------------------------------
-        // RECUPERAR LA EVALUACIÓN EJECUTIVA
-        // ----------------------------------------------------------
-        //
-        // El backend guarda el puntaje total, pero no guarda
-        // directamente el valor ejecutivo.
-        //
-        // Por eso lo reconstruimos:
-        //
-        // total guardado - subtotal de rúbrica
-        //
-        // En INNOVATEC debe dar 2, 5 u 8.
-        // ----------------------------------------------------------
-
         const totalGuardado = Number(
           respuesta.evaluacion.Puntuaje_determinado || 0
         );
-
-        const puntosEjecutivos =
-          totalGuardado - subtotalRubrica;
+        const puntosEjecutivos = totalGuardado - subtotalRubrica;
 
         if (
           puntosEjecutivos === 2 ||
           puntosEjecutivos === 5 ||
           puntosEjecutivos === 8
         ) {
-          setEvaluacionEjecutiva(
-            puntosEjecutivos
-          );
+          setEvaluacionEjecutiva(puntosEjecutivos);
+        } else {
+          setEvaluacionEjecutiva(null); // Asegurar nulo si no coincide
         }
       } else {
+        // 2. REFORZAR LIMPIEZA SI ES UNA EVALUACIÓN NUEVA
         setEvaluacionExistente(false);
+        setRespuestas({});
+        setComentarios('');
+        setEvaluacionEjecutiva(null);
       }
-
-
-
     } catch (error: any) {
 
       console.error(

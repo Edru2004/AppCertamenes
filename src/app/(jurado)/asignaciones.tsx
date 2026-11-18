@@ -4,28 +4,43 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import {
-    useFocusEffect,
-    useRouter,
+  useFocusEffect,
+  useRouter,
 } from 'expo-router';
 
 import { useCallback, useState } from 'react';
 
 import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import {
-    getMisAsignacionesJurado,
+  getFormularioEvaluacion,
+  getMisAsignacionesJurado,
 } from '../../services/api';
 
 export default function JuradoAsignaciones() {
   const router = useRouter();
+
+  // ==========================================================
+  // VERIFICAR SI YA FUE EVALUADO
+  // ==========================================================
+  const estaEvaluado = (asignacion: any): boolean => {
+    // Ajusta o deja estas validaciones según lo que devuelva tu endpoint de Laravel
+    if (typeof asignacion?.evaluado === 'boolean') return asignacion.evaluado;
+    if (asignacion?.evaluado === 1 || asignacion?.evaluado === '1') return true;
+    if (asignacion?.evaluacion !== null && asignacion?.evaluacion !== undefined) return true;
+    if (String(asignacion?.Estado || asignacion?.estado || '').toLowerCase() === 'evaluado') return true;
+    if (String(asignacion?.Estado || asignacion?.estado || '').toLowerCase() === 'completado') return true;
+
+    return false;
+  };
 
   // ==========================================================
   // ESTADOS
@@ -192,63 +207,42 @@ export default function JuradoAsignaciones() {
   // CARGAR ASIGNACIONES
   // ==========================================================
 
-  const cargarAsignaciones =
-    useCallback(async () => {
-      try {
-        setError('');
+ const cargarAsignaciones = useCallback(async () => {
+    try {
+      setError('');
 
-        console.log(
-          '================================'
-        );
+      const respuesta = await getMisAsignacionesJurado();
+      const lista = extraerLista(respuesta);
 
-        console.log(
-          'JURADO - CARGANDO ASIGNACIONES'
-        );
+      // Consultamos para cada equipo si ya tiene evaluación registrada
+      const listaConEstado = await Promise.all(
+        lista.map(async (asignacion: any) => {
+          const idEq = obtenerIdEquipo(asignacion);
+          if (!idEq) return { ...asignacion, evaluado: false };
 
-        console.log(
-          '================================'
-        );
+          try {
+            const formResp = await getFormularioEvaluacion(Number(idEq));
+            const yaTieneEvaluacion = Boolean(formResp?.evaluacion);
+            return {
+              ...asignacion,
+              evaluado: yaTieneEvaluacion,
+            };
+          } catch {
+            return { ...asignacion, evaluado: false };
+          }
+        })
+      );
 
-        const respuesta =
-          await getMisAsignacionesJurado();
-
-        console.log(
-          'Respuesta asignaciones jurado:',
-          JSON.stringify(
-            respuesta,
-            null,
-            2
-          )
-        );
-
-        const lista =
-          extraerLista(respuesta);
-
-        console.log(
-          'Total de asignaciones:',
-          lista.length
-        );
-
-        setAsignaciones(lista);
-
-      } catch (err: any) {
-        console.log(
-          'Error cargando asignaciones:',
-          err
-        );
-
-        setError(
-          err?.message ||
-            'No se pudieron cargar tus asignaciones.'
-        );
-
-        setAsignaciones([]);
-
-      } finally {
-        setCargando(false);
-        setActualizando(false);
-      }
-    }, []);
+      setAsignaciones(listaConEstado);
+    } catch (err: any) {
+      console.log('Error cargando asignaciones:', err);
+      setError(err?.message || 'No se pudieron cargar tus asignaciones.');
+      setAsignaciones([]);
+    } finally {
+      setCargando(false);
+      setActualizando(false);
+    }
+  }, []);
 
   // ==========================================================
   // RECARGAR AL ENTRAR
@@ -563,106 +557,44 @@ export default function JuradoAsignaciones() {
             LISTA DE ASIGNACIONES
         ================================================== */}
 
-        {asignaciones.map(
-          (
-            asignacion,
-            index
-          ) => {
+        {asignaciones.map((asignacion, index) => {
+          const idEquipo = obtenerIdEquipo(asignacion);
+          const yaEvaluado = estaEvaluado(asignacion); // <--- Evaluamos el estado
 
-            const idEquipo =
-              obtenerIdEquipo(
-                asignacion
-              );
-
-            const equipo =
-              obtenerEquipo(
-                asignacion
-              );
-
-            return (
-              <View
-                key={
-                  asignacion?.Id_asignacion ??
-                  `${idEquipo}-${index}`
-                }
-                style={
-                  styles.card
-                }
-              >
-
-                {/* ==========================================
-                    CABECERA
-                ========================================== */}
-
-                <View
-                  style={
-                    styles.cardHeader
-                  }
-                >
-
-                  <View
-                    style={
-                      styles.teamIcon
-                    }
-                  >
-                    <Ionicons
-                      name="people"
-                      size={29}
-                      color="#FFFFFF"
-                    />
-                  </View>
-
-                  <View
-                    style={
-                      styles.teamInfo
-                    }
-                  >
-
-                    <Text
-                      style={
-                        styles.teamLabel
-                      }
-                    >
-                      EQUIPO ASIGNADO
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.teamName
-                      }
-                    >
-                      {nombreEquipo(
-                        asignacion
-                      )}
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.certamen
-                      }
-                    >
-                      {nombreCertamen(
-                        asignacion
-                      )}
-                    </Text>
-
-                  </View>
-
-                  <View
-                    style={
-                      styles.pendingBadge
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.pendingText
-                      }
-                    >
-                      Pendiente
-                    </Text>
-                  </View>
-
+          return (
+            <View
+              key={asignacion?.Id_asignacion ?? `${idEquipo}-${index}`}
+              style={styles.card}
+            >
+              {/* CABECERA */}
+              <View style={styles.cardHeader}>
+                <View style={styles.teamIcon}>
+                  <Ionicons name="people" size={29} color="#FFFFFF" />
                 </View>
+
+                <View style={styles.teamInfo}>
+                  <Text style={styles.teamLabel}>EQUIPO ASIGNADO</Text>
+                  <Text style={styles.teamName}>{nombreEquipo(asignacion)}</Text>
+                  <Text style={styles.certamen}>{nombreCertamen(asignacion)}</Text>
+                </View>
+
+                {/* BADGE DINÁMICO */}
+                <View
+                  style={[
+                    styles.pendingBadge,
+                    yaEvaluado && styles.completedBadge,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.pendingText,
+                      yaEvaluado && styles.completedText,
+                    ]}
+                  >
+                    {yaEvaluado ? 'Evaluado' : 'Pendiente'}
+                  </Text>
+                </View>
+              </View>
 
                 {/* ==========================================
                     INFORMACIÓN
@@ -776,69 +708,35 @@ export default function JuradoAsignaciones() {
                     BOTONES
                 ========================================== */}
 
-                <View
-                  style={
-                    styles.buttons
-                  }
+                {/* BOTONES */}
+              <View style={styles.buttons}>
+                <TouchableOpacity
+                  style={styles.viewButton}
+                  onPress={() => verEquipo(asignacion)}
+                  activeOpacity={0.8}
                 >
+                  <Ionicons name="eye-outline" size={20} color="#0B4F6C" />
+                  <Text style={styles.viewButtonText}>Ver equipo</Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={
-                      styles.viewButton
-                    }
-                    onPress={() =>
-                      verEquipo(
-                        asignacion
-                      )
-                    }
-                    activeOpacity={0.8}
-                  >
-
-                    <Ionicons
-                      name="eye-outline"
-                      size={20}
-                      color="#0B4F6C"
-                    />
-
-                    <Text
-                      style={
-                        styles.viewButtonText
-                      }
-                    >
-                      Ver equipo
-                    </Text>
-
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={
-                      styles.evaluateButton
-                    }
-                    onPress={() =>
-                      evaluarEquipo(
-                        asignacion
-                      )
-                    }
-                    activeOpacity={0.8}
-                  >
-
-                    <Ionicons
-                      name="create-outline"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-
-                    <Text
-                      style={
-                        styles.evaluateButtonText
-                      }
-                    >
-                      Evaluar equipo
-                    </Text>
-
-                  </TouchableOpacity>
-
-                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.evaluateButton,
+                    yaEvaluado && styles.evaluatedButton,
+                  ]}
+                  onPress={() => evaluarEquipo(asignacion)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={yaEvaluado ? 'checkmark-done-outline' : 'create-outline'}
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.evaluateButtonText}>
+                    {yaEvaluado ? 'Ver evaluación' : 'Evaluar equipo'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               </View>
             );
@@ -1164,6 +1062,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     marginLeft: 6,
+  },
+
+  completedBadge: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+
+  completedText: {
+    color: '#059669',
+  },
+
+  evaluatedButton: {
+    backgroundColor: '#059669', // Verde para indicar que ya está listo y solo es consulta
   },
 
 });
