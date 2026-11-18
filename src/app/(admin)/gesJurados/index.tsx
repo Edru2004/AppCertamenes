@@ -25,7 +25,6 @@ import {
   getJurados,
 } from '../../../services/api';
 
-
 // =====================================================
 // HELPERS
 // =====================================================
@@ -144,7 +143,6 @@ const estadoInicial = {
   exito: false,
 };
 
-
 // =====================================================
 // COMPONENTE
 // =====================================================
@@ -163,7 +161,6 @@ export default function JuradosIndexScreen() {
   const [selectorCertamenVisible, setSelectorCertamenVisible] =
     useState(false);
 
-
   // ---------------------------------------------------
   // JURADOS
   // ---------------------------------------------------
@@ -172,14 +169,12 @@ export default function JuradosIndexScreen() {
   const [busqueda, setBusqueda] = useState('');
   const [invitacionFiltro, setInvitacionFiltro] = useState('TODOS');
 
-
   // ---------------------------------------------------
   // CARGA
   // ---------------------------------------------------
 
   const [cargando, setCargando] = useState(true);
   const [eliminando, setEliminando] = useState(false);
-
 
   // ---------------------------------------------------
   // ELIMINAR JURADO
@@ -188,38 +183,29 @@ export default function JuradosIndexScreen() {
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
   const [juradoPendiente, setJuradoPendiente] = useState<any>(null);
 
-
   // ---------------------------------------------------
   // RESULTADO
   // ---------------------------------------------------
 
   const [resultado, setResultado] = useState(estadoInicial);
 
-
   // =====================================================
   // ASIGNACIONES
   // =====================================================
 
   const [asignaciones, setAsignaciones] = useState<any[]>([]);
-
   const [equipos, setEquipos] = useState<any[]>([]);
-
   const [cargandoEquipos, setCargandoEquipos] = useState(false);
 
-  const [cargandoAsignaciones, setCargandoAsignaciones] =
-    useState(false);
-
-
-  // Modal asignar equipo
+  // Modal asignar equipos (SELECCIÓN MÚLTIPLE)
   const [modalAsignarEquipo, setModalAsignarEquipo] =
     useState(false);
 
   const [juradoParaAsignar, setJuradoParaAsignar] =
     useState<any>(null);
 
-  const [equipoSeleccionado, setEquipoSeleccionado] =
-    useState<any>(null);
-
+  const [equiposSeleccionados, setEquiposSeleccionados] =
+    useState<any[]>([]);
 
   // Confirmación asignación
   const [confirmarAsignacion, setConfirmarAsignacion] =
@@ -227,14 +213,12 @@ export default function JuradosIndexScreen() {
 
   const [asignando, setAsignando] = useState(false);
 
-
   // Detalles de equipos asignados
   const [modalEquiposAsignados, setModalEquiposAsignados] =
     useState(false);
 
   const [juradoEquipos, setJuradoEquipos] =
     useState<any>(null);
-
 
   // =====================================================
   // RESULTADO
@@ -253,7 +237,6 @@ export default function JuradosIndexScreen() {
     });
   };
 
-
   // =====================================================
   // CERTAMEN ACTUAL
   // =====================================================
@@ -263,7 +246,6 @@ export default function JuradosIndexScreen() {
       (x) =>
         idCertamenDe(x) === Number(idCertamenSel)
     ) ?? null;
-
 
   // =====================================================
   // CARGAR TODO
@@ -330,13 +312,11 @@ export default function JuradosIndexScreen() {
     }
   }, []);
 
-
   useFocusEffect(
     useCallback(() => {
       void cargarTodo();
     }, [cargarTodo])
   );
-
 
   // =====================================================
   // SELECCIONAR CERTAMEN
@@ -347,11 +327,8 @@ export default function JuradosIndexScreen() {
     setIdCertamenSel(id);
 
     setSelectorCertamenVisible(false);
-
-    // Limpiar selección anterior
-    setEquipoSeleccionado(null);
+    setEquiposSeleccionados([]);
   };
-
 
   // =====================================================
   // JURADOS DEL CERTAMEN
@@ -367,7 +344,6 @@ export default function JuradosIndexScreen() {
         ) === Number(idCertamenSel)
     );
   }, [jurados, idCertamenSel]);
-
 
   // =====================================================
   // FILTRO JURADOS
@@ -407,14 +383,13 @@ export default function JuradosIndexScreen() {
     invitacionFiltro,
   ]);
 
-
   // =====================================================
   // ABRIR ASIGNAR EQUIPO
   // =====================================================
 
   const abrirAsignarEquipo = async (jurado: any) => {
     setJuradoParaAsignar(jurado);
-    setEquipoSeleccionado(null);
+    setEquiposSeleccionados([]);
     setModalAsignarEquipo(true);
 
     setCargandoEquipos(true);
@@ -441,7 +416,6 @@ export default function JuradosIndexScreen() {
     }
   };
 
-
   // =====================================================
   // EQUIPOS YA ASIGNADOS A UN JURADO
   // =====================================================
@@ -454,7 +428,6 @@ export default function JuradosIndexScreen() {
         idUsuarioDe(a) === idUsuario
     );
   };
-
 
   // =====================================================
   // EQUIPO YA ASIGNADO
@@ -471,100 +444,108 @@ export default function JuradosIndexScreen() {
     );
   };
 
-
   // =====================================================
-  // SELECCIONAR EQUIPO
+  // ALTERNAR SELECCIÓN DE EQUIPO (MULTI-SELECCIÓN)
   // =====================================================
 
-  const seleccionarEquipo = (equipo: any) => {
+  const alternarEquipo = (equipo: any) => {
     const idEquipo = idEquipoDe(equipo);
-    const idUsuario =
-      idUsuarioDe(juradoParaAsignar);
+    const idUsuario = idUsuarioDe(juradoParaAsignar);
 
-    if (
-      equipoYaAsignado(
-        idEquipo,
-        idUsuario
-      )
-    ) {
+    if (equipoYaAsignado(idEquipo, idUsuario)) {
       mostrarResultado(
         'Equipo ya asignado',
         'Este equipo ya está asignado a este jurado.',
         false
       );
-
       return;
     }
 
-    setEquipoSeleccionado(equipo);
+    setEquiposSeleccionados((prev) => {
+      const existe = prev.some((e) => idEquipoDe(e) === idEquipo);
+      if (existe) {
+        return prev.filter((e) => idEquipoDe(e) !== idEquipo);
+      }
+      return [...prev, equipo];
+    });
   };
 
+  // =====================================================
+  // SELECCIONAR / DESELECCIONAR TODOS LOS DISPONIBLES
+  // =====================================================
+
+  const equiposDisponibles = useMemo(() => {
+    if (!juradoParaAsignar) return [];
+    const idUsuario = idUsuarioDe(juradoParaAsignar);
+    return equipos.filter(
+      (e) => !equipoYaAsignado(idEquipoDe(e), idUsuario)
+    );
+  }, [equipos, juradoParaAsignar, asignaciones]);
+
+  const todosSeleccionados =
+    equiposDisponibles.length > 0 &&
+    equiposSeleccionados.length === equiposDisponibles.length;
+
+  const alternarTodos = () => {
+    if (todosSeleccionados) {
+      setEquiposSeleccionados([]);
+    } else {
+      setEquiposSeleccionados(equiposDisponibles);
+    }
+  };
 
   // =====================================================
   // CONFIRMAR ASIGNACIÓN
   // =====================================================
 
   const abrirConfirmacionAsignacion = () => {
-    if (
-      !juradoParaAsignar ||
-      !equipoSeleccionado
-    ) {
+    if (!juradoParaAsignar || equiposSeleccionados.length === 0) {
       mostrarResultado(
-        'Falta seleccionar equipo',
-        'Selecciona un equipo antes de continuar.',
+        'Falta seleccionar equipos',
+        'Selecciona al menos un equipo antes de continuar.',
         false
       );
-
       return;
     }
 
     setConfirmarAsignacion(true);
   };
 
-
   // =====================================================
-  // GUARDAR ASIGNACIÓN
+  // GUARDAR ASIGNACIÓN MÚLTIPLE
   // =====================================================
 
   const confirmarAsignacionEquipo = async () => {
     if (
       asignando ||
       !juradoParaAsignar ||
-      !equipoSeleccionado
+      equiposSeleccionados.length === 0
     ) {
       return;
     }
 
-    const idUsuario =
-      idUsuarioDe(juradoParaAsignar);
+    const idUsuario = idUsuarioDe(juradoParaAsignar);
 
-    const idEquipo =
-      idEquipoDe(equipoSeleccionado);
-
-    if (!idUsuario || !idEquipo) {
+    if (!idUsuario) {
       mostrarResultado(
         'Datos incompletos',
-        'No se pudo identificar al jurado o al equipo.',
+        'No se pudo identificar al jurado.',
         false
       );
-
       return;
     }
 
-    if (
-      equipoYaAsignado(
-        idEquipo,
-        idUsuario
-      )
-    ) {
-      setConfirmarAsignacion(false);
+    const pendientes = equiposSeleccionados.filter(
+      (eq) => !equipoYaAsignado(idEquipoDe(eq), idUsuario)
+    );
 
+    if (pendientes.length === 0) {
+      setConfirmarAsignacion(false);
       mostrarResultado(
-        'Equipo ya asignado',
-        'Este equipo ya está asignado a este jurado.',
+        'Equipos ya asignados',
+        'Todos los equipos seleccionados ya estaban asignados a este jurado.',
         false
       );
-
       return;
     }
 
@@ -572,43 +553,45 @@ export default function JuradosIndexScreen() {
     setAsignando(true);
 
     try {
-      const respuesta = await crearAsignacion({
-        Id_usuario: idUsuario,
-        Id_Equipo: idEquipo,
+      const respuestas = await Promise.all(
+        pendientes.map(async (equipo) => {
+          const idEq = idEquipoDe(equipo);
+          const respuesta = await crearAsignacion({
+            Id_usuario: idUsuario,
+            Id_Equipo: idEq,
+            Id_sala: null,
+            Hora_inicio: null,
+          });
 
-        // Rally no utiliza sala.
-        // InnovaTecNM podrá utilizar sala posteriormente.
-        Id_sala: null,
-
-        Hora_inicio: null,
-      });
-
-      const nuevaAsignacion = {
-        ...respuesta,
-        Id_usuario: idUsuario,
-        Id_Equipo: idEquipo,
-        Id_sala: null,
-        equipo:
-          respuesta?.equipo ??
-          equipoSeleccionado,
-      };
+          return {
+            ...respuesta,
+            Id_usuario: idUsuario,
+            Id_Equipo: idEq,
+            Id_sala: null,
+            equipo: respuesta?.equipo ?? equipo,
+          };
+        })
+      );
 
       setAsignaciones((prev) => [
         ...prev,
-        nuevaAsignacion,
+        ...respuestas,
       ]);
 
-      setEquipoSeleccionado(null);
+      const nombresAsignados = pendientes
+        .map((e) => `• ${nombreEquipo(e)}`)
+        .join('\n');
 
+      setEquiposSeleccionados([]);
       setModalAsignarEquipo(false);
 
       mostrarResultado(
-        'Equipo asignado',
-        `El equipo "${nombreEquipo(
-          equipoSeleccionado
-        )}" fue asignado correctamente a ${nombreJurado(
+        pendientes.length === 1
+          ? 'Equipo asignado'
+          : `${pendientes.length} equipos asignados`,
+        `Se asignaron correctamente a ${nombreJurado(
           juradoParaAsignar
-        )}.`,
+        )}:\n\n${nombresAsignados}`,
         true
       );
 
@@ -621,7 +604,7 @@ export default function JuradosIndexScreen() {
           : '';
 
       mostrarResultado(
-        'No se pudo asignar el equipo',
+        'No se pudieron asignar los equipos',
         error?.message ||
           extra ||
           'Verifica la conexión con el servidor.',
@@ -632,7 +615,6 @@ export default function JuradosIndexScreen() {
     }
   };
 
-
   // =====================================================
   // MOSTRAR EQUIPOS ASIGNADOS
   // =====================================================
@@ -641,7 +623,6 @@ export default function JuradosIndexScreen() {
     setJuradoEquipos(jurado);
     setModalEquiposAsignados(true);
   };
-
 
   // =====================================================
   // ELIMINAR ASIGNACIÓN
@@ -688,7 +669,6 @@ export default function JuradosIndexScreen() {
     }
   };
 
-
   // =====================================================
   // ELIMINAR JURADO
   // =====================================================
@@ -697,7 +677,6 @@ export default function JuradosIndexScreen() {
     setJuradoPendiente(jurado);
     setConfirmarEliminar(true);
   };
-
 
   const confirmarEliminacion = async () => {
     if (
@@ -752,7 +731,6 @@ export default function JuradosIndexScreen() {
     }
   };
 
-
   // =====================================================
   // CERRAR RESULTADO
   // =====================================================
@@ -761,6 +739,10 @@ export default function JuradosIndexScreen() {
     setResultado(estadoInicial);
   };
 
+  const ultimoEquipoSeleccionado =
+    equiposSeleccionados.length > 0
+      ? equiposSeleccionados[equiposSeleccionados.length - 1]
+      : null;
 
   // =====================================================
   // RENDER
@@ -800,7 +782,6 @@ export default function JuradosIndexScreen() {
 
         </View>
 
-
         {/* =================================================
             CERTAMEN
         ================================================= */}
@@ -808,7 +789,6 @@ export default function JuradosIndexScreen() {
         <Text style={styles.sectionTitle}>
           Certamen seleccionado
         </Text>
-
 
         {certamenActual ? (
 
@@ -843,7 +823,6 @@ export default function JuradosIndexScreen() {
 
             </View>
 
-
             <View style={{ flex: 1 }}>
 
               <Text style={styles.certamenSeleccionadoNombre}>
@@ -873,7 +852,6 @@ export default function JuradosIndexScreen() {
 
             </View>
 
-
             <Ionicons
               name="chevron-down-circle"
               size={27}
@@ -893,7 +871,6 @@ export default function JuradosIndexScreen() {
           </View>
 
         )}
-
 
         {/* =================================================
             NUEVO JURADO
@@ -932,7 +909,6 @@ export default function JuradosIndexScreen() {
 
         </TouchableOpacity>
 
-
         {/* =================================================
             BUSCADOR
         ================================================= */}
@@ -954,7 +930,6 @@ export default function JuradosIndexScreen() {
           />
 
         </View>
-
 
         {/* =================================================
             FILTROS
@@ -1001,7 +976,6 @@ export default function JuradosIndexScreen() {
 
         </View>
 
-
         {/* =================================================
             TÍTULO LISTA
         ================================================= */}
@@ -1016,7 +990,6 @@ export default function JuradosIndexScreen() {
           </Text>
 
         </Text>
-
 
         {/* =================================================
             LISTA
@@ -1079,10 +1052,8 @@ export default function JuradosIndexScreen() {
                   ? styles.statusRechazada
                   : styles.statusPendiente;
 
-
             const equiposAsignados =
               asignacionesDelJurado(j);
-
 
             return (
 
@@ -1094,10 +1065,7 @@ export default function JuradosIndexScreen() {
                 style={styles.card}
               >
 
-                {/* =========================================
-                    CABECERA
-                ========================================= */}
-
+                {/* CABECERA */}
                 <View style={styles.cardHeader}>
 
                   <View style={styles.avatar}>
@@ -1110,7 +1078,6 @@ export default function JuradosIndexScreen() {
 
                   </View>
 
-
                   <View style={{ flex: 1 }}>
 
                     <Text style={styles.cardName}>
@@ -1122,7 +1089,6 @@ export default function JuradosIndexScreen() {
                     </Text>
 
                   </View>
-
 
                   <View
                     style={[
@@ -1140,11 +1106,7 @@ export default function JuradosIndexScreen() {
 
                 </View>
 
-
-                {/* =========================================
-                    INFORMACIÓN
-                ========================================= */}
-
+                {/* INFORMACIÓN */}
                 <View style={styles.infoBox}>
 
                   <Text style={styles.infoText}>
@@ -1156,7 +1118,6 @@ export default function JuradosIndexScreen() {
                     {j.Institucion ||
                       'Sin institución'}
                   </Text>
-
 
                   <Text style={styles.infoText}>
                     <Ionicons
@@ -1171,7 +1132,6 @@ export default function JuradosIndexScreen() {
                       : ''}
                   </Text>
 
-
                   <Text style={styles.infoText}>
                     <Ionicons
                       name="ribbon-outline"
@@ -1182,7 +1142,6 @@ export default function JuradosIndexScreen() {
                     {j.Area_participacion ||
                       'N/A'}
                   </Text>
-
 
                   <Text style={styles.infoText}>
                     <Ionicons
@@ -1195,7 +1154,6 @@ export default function JuradosIndexScreen() {
                       'N/A'}
                   </Text>
 
-
                   <Text style={styles.infoText}>
                     <Ionicons
                       name="trophy-outline"
@@ -1205,7 +1163,6 @@ export default function JuradosIndexScreen() {
                     Certamen:{' '}
                     {nombreCertamen(j)}
                   </Text>
-
 
                   {innov ? (
 
@@ -1236,11 +1193,7 @@ export default function JuradosIndexScreen() {
 
                 </View>
 
-
-                {/* =========================================
-                    EQUIPOS ASIGNADOS
-                ========================================= */}
-
+                {/* EQUIPOS ASIGNADOS */}
                 {equiposAsignados.length > 0 ? (
 
                   <TouchableOpacity
@@ -1309,11 +1262,7 @@ export default function JuradosIndexScreen() {
 
                 )}
 
-
-                {/* =========================================
-                    BOTONES
-                ========================================= */}
-
+                {/* BOTONES */}
                 <View style={styles.actions}>
 
                   <TouchableOpacity
@@ -1347,7 +1296,6 @@ export default function JuradosIndexScreen() {
 
                   </TouchableOpacity>
 
-
                   <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={() =>
@@ -1368,7 +1316,6 @@ export default function JuradosIndexScreen() {
 
                   </TouchableOpacity>
 
-
                   <TouchableOpacity
                     style={
                       styles.assignButton
@@ -1386,7 +1333,7 @@ export default function JuradosIndexScreen() {
                     />
 
                     <Text style={styles.actionText}>
-                      Asignar equipo
+                      Asignar equipos
                     </Text>
 
                   </TouchableOpacity>
@@ -1402,7 +1349,6 @@ export default function JuradosIndexScreen() {
         )}
 
       </ScrollView>
-
 
       {/* ===================================================
           MODAL SELECCIONAR CERTAMEN
@@ -1453,7 +1399,6 @@ export default function JuradosIndexScreen() {
               </TouchableOpacity>
 
             </View>
-
 
             <ScrollView
               style={styles.selectorScroll}
@@ -1515,7 +1460,6 @@ export default function JuradosIndexScreen() {
                       }
                     />
 
-
                     <View
                       style={{
                         flex: 1,
@@ -1534,7 +1478,6 @@ export default function JuradosIndexScreen() {
                           'Certamen'}
                       </Text>
 
-
                       <Text
                         style={[
                           styles.opcionTipo,
@@ -1552,7 +1495,6 @@ export default function JuradosIndexScreen() {
                       </Text>
 
                     </View>
-
 
                     {activo ? (
 
@@ -1578,9 +1520,8 @@ export default function JuradosIndexScreen() {
 
       </Modal>
 
-
       {/* ===================================================
-          MODAL ASIGNAR EQUIPO
+          MODAL ASIGNAR EQUIPOS (SELECCIÓN MÚLTIPLE)
       =================================================== */}
 
       <Modal
@@ -1607,7 +1548,7 @@ export default function JuradosIndexScreen() {
             >
 
               <Text style={styles.modalTitle}>
-                Asignar equipo
+                Asignar equipos
               </Text>
 
               <TouchableOpacity
@@ -1629,7 +1570,6 @@ export default function JuradosIndexScreen() {
 
             </View>
 
-
             <Text
               style={
                 styles.assignmentSubtitle
@@ -1648,15 +1588,31 @@ export default function JuradosIndexScreen() {
               </Text>
             </Text>
 
+            <View style={styles.selectAllRow}>
+              <Text style={styles.assignmentSectionTitle}>
+                Selecciona uno o varios equipos
+              </Text>
 
-            <Text
-              style={
-                styles.assignmentSectionTitle
-              }
-            >
-              Selecciona un equipo
-            </Text>
-
+              {equiposDisponibles.length > 0 && (
+                <TouchableOpacity
+                  style={styles.selectAllBtn}
+                  onPress={alternarTodos}
+                >
+                  <Ionicons
+                    name={
+                      todosSeleccionados
+                        ? 'checkbox'
+                        : 'square-outline'
+                    }
+                    size={16}
+                    color="#0369a1"
+                  />
+                  <Text style={styles.selectAllText}>
+                    {todosSeleccionados ? 'Quitar todos' : 'Seleccionar todos'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             {cargandoEquipos ? (
 
@@ -1728,11 +1684,9 @@ export default function JuradosIndexScreen() {
                     );
 
                   const seleccionado =
-                    Number(
-                      idEquipoDe(
-                        equipoSeleccionado
-                      )
-                    ) === id;
+                    equiposSeleccionados.some(
+                      (e) => idEquipoDe(e) === id
+                    );
 
                   const yaAsignado =
                     equipoYaAsignado(
@@ -1754,7 +1708,7 @@ export default function JuradosIndexScreen() {
                           styles.teamOptionDisabled,
                       ]}
                       onPress={() =>
-                        seleccionarEquipo(
+                        alternarEquipo(
                           equipo
                         )
                       }
@@ -1783,7 +1737,6 @@ export default function JuradosIndexScreen() {
 
                       </View>
 
-
                       <View
                         style={{
                           flex: 1,
@@ -1802,7 +1755,6 @@ export default function JuradosIndexScreen() {
                           )}
                         </Text>
 
-
                         <Text
                           style={
                             styles.teamId
@@ -1810,7 +1762,6 @@ export default function JuradosIndexScreen() {
                         >
                           Equipo #{id}
                         </Text>
-
 
                         {yaAsignado ? (
 
@@ -1827,16 +1778,25 @@ export default function JuradosIndexScreen() {
 
                       </View>
 
-
-                      {seleccionado ? (
-
+                      {yaAsignado ? (
                         <Ionicons
-                          name="checkmark-circle"
+                          name="lock-closed-outline"
+                          size={20}
+                          color="#94a3b8"
+                        />
+                      ) : seleccionado ? (
+                        <Ionicons
+                          name="checkbox"
                           size={24}
                           color="#15803d"
                         />
-
-                      ) : null}
+                      ) : (
+                        <Ionicons
+                          name="square-outline"
+                          size={24}
+                          color="#cbd5e1"
+                        />
+                      )}
 
                     </TouchableOpacity>
 
@@ -1848,12 +1808,11 @@ export default function JuradosIndexScreen() {
 
             )}
 
-
             {/* =========================================
-                INFORMACIÓN DEL EQUIPO
+                RESUMEN DE SELECCIÓN E INTEGRANTES
             ========================================= */}
 
-            {equipoSeleccionado ? (
+            {ultimoEquipoSeleccionado ? (
 
               <View
                 style={
@@ -1866,9 +1825,10 @@ export default function JuradosIndexScreen() {
                     styles.teamDetailTitle
                   }
                 >
-                  Información del equipo
+                  {equiposSeleccionados.length === 1
+                    ? 'Información del equipo seleccionado'
+                    : `${equiposSeleccionados.length} equipos seleccionados (vista previa del último)`}
                 </Text>
-
 
                 <Text
                   style={
@@ -1876,10 +1836,9 @@ export default function JuradosIndexScreen() {
                   }
                 >
                   {nombreEquipo(
-                    equipoSeleccionado
+                    ultimoEquipoSeleccionado
                   )}
                 </Text>
-
 
                 <Text
                   style={
@@ -1889,13 +1848,12 @@ export default function JuradosIndexScreen() {
                   Integrantes
                 </Text>
 
-
                 {integrantesEquipo(
-                  equipoSeleccionado
+                  ultimoEquipoSeleccionado
                 ).length > 0 ? (
 
                   integrantesEquipo(
-                    equipoSeleccionado
+                    ultimoEquipoSeleccionado
                   ).map(
                     (
                       integrante,
@@ -1992,15 +1950,12 @@ export default function JuradosIndexScreen() {
                     styles.selectHintText
                   }
                 >
-                  Selecciona un equipo
-                  para visualizar su
-                  información e integrantes.
+                  Toca uno o más equipos de la lista para seleccionarlos y ver sus integrantes.
                 </Text>
 
               </View>
 
             )}
-
 
             {/* =========================================
                 BOTONES
@@ -2036,12 +1991,11 @@ export default function JuradosIndexScreen() {
 
               </TouchableOpacity>
 
-
               <TouchableOpacity
                 style={[
                   styles.assignConfirmButton,
                   (
-                    !equipoSeleccionado ||
+                    equiposSeleccionados.length === 0 ||
                     asignando
                   ) &&
                     styles.disabledButton,
@@ -2050,7 +2004,7 @@ export default function JuradosIndexScreen() {
                   abrirConfirmacionAsignacion
                 }
                 disabled={
-                  !equipoSeleccionado ||
+                  equiposSeleccionados.length === 0 ||
                   asignando
                 }
               >
@@ -2075,7 +2029,9 @@ export default function JuradosIndexScreen() {
                         styles.confirmText
                       }
                     >
-                      Asignar
+                      {equiposSeleccionados.length > 1
+                        ? `Asignar (${equiposSeleccionados.length})`
+                        : 'Asignar'}
                     </Text>
                   </>
 
@@ -2090,7 +2046,6 @@ export default function JuradosIndexScreen() {
         </View>
 
       </Modal>
-
 
       {/* ===================================================
           CONFIRMAR ASIGNACIÓN
@@ -2128,31 +2083,25 @@ export default function JuradosIndexScreen() {
 
             </View>
 
-
             <Text
               style={
                 styles.modalTitle
               }
             >
-              ¿Seguro que deseas asignar
-              este equipo?
+              {equiposSeleccionados.length === 1
+                ? '¿Seguro que deseas asignar este equipo?'
+                : `¿Seguro que deseas asignar estos ${equiposSeleccionados.length} equipos?`}
             </Text>
-
 
             <Text
               style={
                 styles.modalMessage
               }
             >
-              {`El equipo "${nombreEquipo(
-                equipoSeleccionado ??
-                  {}
-              )}" será asignado al jurado "${nombreJurado(
-                juradoParaAsignar ??
-                  {}
-              )}".`}
+              {`Jurado: ${nombreJurado(juradoParaAsignar ?? {})}\n\n${equiposSeleccionados
+                .map((eq) => `• ${nombreEquipo(eq)}`)
+                .join('\n')}`}
             </Text>
-
 
             <View
               style={
@@ -2180,7 +2129,6 @@ export default function JuradosIndexScreen() {
                 </Text>
 
               </TouchableOpacity>
-
 
               <TouchableOpacity
                 style={
@@ -2214,7 +2162,6 @@ export default function JuradosIndexScreen() {
         </View>
 
       </Modal>
-
 
       {/* ===================================================
           MODAL EQUIPOS ASIGNADOS
@@ -2251,7 +2198,6 @@ export default function JuradosIndexScreen() {
                 Equipos asignados
               </Text>
 
-
               <TouchableOpacity
                 onPress={() =>
                   setModalEquiposAsignados(
@@ -2273,7 +2219,6 @@ export default function JuradosIndexScreen() {
 
             </View>
 
-
             <Text
               style={
                 styles.assignmentSubtitle
@@ -2291,7 +2236,6 @@ export default function JuradosIndexScreen() {
                 )}
               </Text>
             </Text>
-
 
             {asignacionesDelJurado(
               juradoEquipos
@@ -2387,7 +2331,6 @@ export default function JuradosIndexScreen() {
 
                           </View>
 
-
                           <View
                             style={{
                               flex: 1,
@@ -2420,7 +2363,6 @@ export default function JuradosIndexScreen() {
 
                         </View>
 
-
                         <Text
                           style={
                             styles.integrantesTitle
@@ -2428,7 +2370,6 @@ export default function JuradosIndexScreen() {
                         >
                           Integrantes
                         </Text>
-
 
                         {integrantes.length >
                         0 ? (
@@ -2486,7 +2427,6 @@ export default function JuradosIndexScreen() {
 
                         )}
 
-
                         <TouchableOpacity
                           style={
                             styles.removeAssignmentButton
@@ -2525,7 +2465,6 @@ export default function JuradosIndexScreen() {
 
             )}
 
-
             <TouchableOpacity
               style={
                 styles.closeModalButton
@@ -2552,7 +2491,6 @@ export default function JuradosIndexScreen() {
         </View>
 
       </Modal>
-
 
       {/* ===================================================
           MODAL ELIMINAR JURADO
@@ -2590,7 +2528,6 @@ export default function JuradosIndexScreen() {
 
             </View>
 
-
             <Text
               style={
                 styles.modalTitle
@@ -2598,7 +2535,6 @@ export default function JuradosIndexScreen() {
             >
               ¿Eliminar jurado?
             </Text>
-
 
             <Text
               style={
@@ -2610,7 +2546,6 @@ export default function JuradosIndexScreen() {
                   {}
               )}. Si tiene evaluaciones relacionadas, el servidor rechazará la operación.`}
             </Text>
-
 
             <View
               style={
@@ -2639,7 +2574,6 @@ export default function JuradosIndexScreen() {
 
               </TouchableOpacity>
 
-
               <TouchableOpacity
                 style={
                   styles.deleteConfirmButton
@@ -2666,7 +2600,6 @@ export default function JuradosIndexScreen() {
         </View>
 
       </Modal>
-
 
       {/* ===================================================
           MODAL RESULTADO
@@ -2714,7 +2647,6 @@ export default function JuradosIndexScreen() {
 
             </View>
 
-
             <Text
               style={
                 styles.modalTitle
@@ -2723,7 +2655,6 @@ export default function JuradosIndexScreen() {
               {resultado.titulo}
             </Text>
 
-
             <Text
               style={
                 styles.modalMessage
@@ -2731,7 +2662,6 @@ export default function JuradosIndexScreen() {
             >
               {resultado.mensaje}
             </Text>
-
 
             <TouchableOpacity
               style={
@@ -2761,7 +2691,6 @@ export default function JuradosIndexScreen() {
     </View>
   );
 }
-
 
 // =====================================================
 // ESTILOS
@@ -3325,7 +3254,7 @@ const styles = StyleSheet.create({
   assignmentSubtitle: {
     color: '#64748b',
     fontSize: 12,
-    marginBottom: 12,
+    marginBottom: 10,
   },
 
   assignmentSubtitleBold: {
@@ -3333,15 +3262,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
+  selectAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    gap: 8,
+  },
+
   assignmentSectionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#002b45',
-    marginBottom: 8,
+    flex: 1,
+  },
+
+  selectAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#e0f2fe',
+  },
+
+  selectAllText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0369a1',
   },
 
   teamList: {
-    maxHeight: 260,
+    maxHeight: 230,
   },
 
   teamOption: {
@@ -3405,7 +3358,7 @@ const styles = StyleSheet.create({
     borderColor: '#dbe3ee',
     padding: 12,
     marginTop: 10,
-    maxHeight: 240,
+    maxHeight: 200,
   },
 
   teamDetailTitle: {
