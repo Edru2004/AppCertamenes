@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -21,6 +20,13 @@ import {
 } from '../../../services/api';
 
 type Registro = Record<string, any>;
+
+const estadoInicialResultado = {
+  visible: false,
+  titulo: '',
+  mensaje: '',
+  exito: false,
+};
 
 const obtenerLista = (respuesta: any): Registro[] => {
   if (Array.isArray(respuesta)) return respuesta;
@@ -89,9 +95,74 @@ export default function AsignacionEquiposScreen() {
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
+  // Estados para modales personalizados estilo form de equipos
+  const [resultado, setResultado] = useState(estadoInicialResultado);
+  const [equipoAQuitar, setEquipoAQuitar] = useState<Registro | null>(null);
+
   const certamenActual = certamenes.find(
     (item) => idCertamen(item) === certamenSeleccionado
   );
+
+  const mostrarResultado = (titulo: string, mensaje: string, exito = false) =>
+    setResultado({ visible: true, titulo, mensaje, exito });
+
+  const cerrarResultado = () => setResultado(estadoInicialResultado);
+
+  // =========================================================
+  // FORMATEAR ERRORES Y PREPARAR INTEGRANTES
+  // =========================================================
+
+  const formatearMensajeError = (error: any, fallback: string) => {
+    const raw = String(error?.response?.data?.message || error?.message || '');
+
+    if (raw.includes('integrantes field is required')) {
+      return 'El equipo no tiene integrantes registrados. Agrega al menos un integrante antes de modificarlo.';
+    }
+    if (raw.includes('Correo field must be a valid email')) {
+      return 'Uno de los integrantes tiene un correo electrónico con formato inválido.';
+    }
+    if (raw.includes('exclusivas de certámenes INNOVATEC')) {
+      return 'Las salas solo pueden asignarse a equipos de certámenes InnovaTecNM.';
+    }
+    if (raw.includes('mismo certamen')) {
+      return 'La sala seleccionada no pertenece al mismo certamen que el equipo.';
+    }
+    if (raw.includes('Network request failed')) {
+      return 'Verifica la conexión con el servidor.';
+    }
+
+    return raw || fallback;
+  };
+
+  const prepararIntegrantes = (lista: any[]) => {
+    if (!Array.isArray(lista) || lista.length === 0) {
+      return [
+        {
+          no_control: '00000000',
+          Nombre: 'Integrante pendiente',
+          Carrera: null,
+          Rol: 'Participante',
+          Sexo: null,
+          Correo: null,
+          Semestre: null,
+        },
+      ];
+    }
+
+    return lista.map((ing: any) => {
+      const correoLimpio =
+        typeof ing.Correo === 'string' ? ing.Correo.trim() : '';
+      return {
+        no_control: String(ing.no_control || '00000000'),
+        Nombre: ing.Nombre || 'Sin nombre',
+        Carrera: ing.Carrera || null,
+        Rol: ing.Rol || 'Participante',
+        Sexo: ing.Sexo || null,
+        Correo: correoLimpio.includes('@') ? correoLimpio : null,
+        Semestre: ing.Semestre ? Number(ing.Semestre) : null,
+      };
+    });
+  };
 
   // =========================================================
   // CARGAR CERTÁMENES
@@ -116,10 +187,10 @@ export default function AsignacionEquiposScreen() {
           );
         }
       } catch (error: any) {
-        Alert.alert(
-          'Error',
-          error?.message ||
-          'No se pudieron cargar los certámenes.'
+        mostrarResultado(
+          'Error al cargar',
+          formatearMensajeError(error, 'No se pudieron cargar los certámenes.'),
+          false
         );
       } finally {
         setCargando(false);
@@ -145,12 +216,8 @@ export default function AsignacionEquiposScreen() {
         getSalas(id),
       ]);
 
-      // Laravel ya devuelve los equipos filtrados
-      // por certamen.
       setEquipos(obtenerLista(respuestaEquipos));
 
-      // Mantener únicamente las salas
-      // pertenecientes al certamen seleccionado.
       setSalas(
         obtenerLista(respuestaSalas).filter(
           (sala) =>
@@ -158,10 +225,10 @@ export default function AsignacionEquiposScreen() {
         )
       );
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error?.message ||
-        'No se pudieron cargar los datos.'
+      mostrarResultado(
+        'Error al cargar',
+        formatearMensajeError(error, 'No se pudieron cargar los datos.'),
+        false
       );
     } finally {
       setCargando(false);
@@ -198,17 +265,19 @@ export default function AsignacionEquiposScreen() {
 
   const abrirAsignacion = () => {
     if (equipos.length === 0) {
-      Alert.alert(
-        'Aviso',
-        'No hay equipos registrados en este certamen.'
+      mostrarResultado(
+        'Sin equipos',
+        'No hay equipos registrados en este certamen.',
+        false
       );
       return;
     }
 
     if (salas.length === 0) {
-      Alert.alert(
-        'Aviso',
-        'No hay salas registradas en este certamen.'
+      mostrarResultado(
+        'Sin salas',
+        'No hay salas registradas en este certamen.',
+        false
       );
       return;
     }
@@ -223,13 +292,27 @@ export default function AsignacionEquiposScreen() {
   // =========================================================
 
   const guardarAsignacion = async () => {
-    if (
-      !equipoSeleccionado ||
-      !salaSeleccionada
-    ) {
-      Alert.alert(
+    if (!equipoSeleccionado || !salaSeleccionada) {
+      mostrarResultado(
         'Datos incompletos',
-        'Selecciona un equipo y una sala.'
+        'Selecciona el equipo y la sala correspondientes.',
+        false
+      );
+      return;
+    }
+
+    const equipoObj = equipos.find(
+      (e) => Number(e.Id_equipo) === Number(equipoSeleccionado)
+    );
+    const salaObj = salas.find(
+      (s) => Number(s.Id_sala) === Number(salaSeleccionada)
+    );
+
+    if (!equipoObj) {
+      mostrarResultado(
+        'Equipo no encontrado',
+        'No se pudo recuperar la información del equipo.',
+        false
       );
       return;
     }
@@ -237,12 +320,16 @@ export default function AsignacionEquiposScreen() {
     try {
       setGuardando(true);
 
-      await actualizarEquipo(
-        equipoSeleccionado,
-        {
-          Id_sala: salaSeleccionada,
-        }
-      );
+      await actualizarEquipo(Number(equipoSeleccionado), {
+        Nombre: equipoObj.Nombre,
+        Id_desafio: Number(equipoObj.Id_desafio),
+        Id_categCertamen: Number(equipoObj.Id_categCertamen),
+        Id_sala: Number(salaSeleccionada),
+        Video: equipoObj.Video ?? null,
+        Reporte: equipoObj.Reporte ?? null,
+        Id_lider: equipoObj.Id_lider ?? null,
+        integrantes: prepararIntegrantes(equipoObj.integrantes),
+      });
 
       setModalVisible(false);
       setEquipoSeleccionado(null);
@@ -252,15 +339,16 @@ export default function AsignacionEquiposScreen() {
         await cargarDatos(certamenSeleccionado);
       }
 
-      Alert.alert(
-        'Correcto',
-        'La sala se asignó al equipo correctamente.'
+      mostrarResultado(
+        '¡Sala asignada!',
+        `El equipo "${equipoObj.Nombre}" ha sido asignado exitosamente a la sala "${salaObj?.Nombre || 'seleccionada'}".`,
+        true
       );
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error?.message ||
-        'No se pudo asignar la sala.'
+      mostrarResultado(
+        'No se pudo asignar',
+        formatearMensajeError(error, 'Verifica la conexión con el servidor.'),
+        false
       );
     } finally {
       setGuardando(false);
@@ -271,58 +359,47 @@ export default function AsignacionEquiposScreen() {
   // QUITAR SALA
   // =========================================================
 
-  const quitarSala = async (
-    equipo: Registro
-  ) => {
-    Alert.alert(
-      'Quitar sala',
-      '¿Deseas quitar la sala asignada a este equipo?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
+  const solicitarQuitarSala = (equipo: Registro) => {
+    setEquipoAQuitar(equipo);
+  };
 
-        {
-          text: 'Quitar',
-          style: 'destructive',
+  const confirmarQuitarSala = async () => {
+    if (!equipoAQuitar || guardando) return;
+    const equipo = equipoAQuitar;
+    setEquipoAQuitar(null);
 
-          onPress: async () => {
-            try {
-              setGuardando(true);
+    try {
+      setGuardando(true);
 
-              await actualizarEquipo(
-                Number(equipo.Id_equipo),
-                {
-                  Id_sala: null,
-                }
-              );
+      await actualizarEquipo(Number(equipo.Id_equipo), {
+        Nombre: equipo.Nombre,
+        Id_desafio: Number(equipo.Id_desafio),
+        Id_categCertamen: Number(equipo.Id_categCertamen),
+        Id_sala: null,
+        Video: equipo.Video ?? null,
+        Reporte: equipo.Reporte ?? null,
+        Id_lider: equipo.Id_lider ?? null,
+        integrantes: prepararIntegrantes(equipo.integrantes),
+      });
 
-              if (
-                certamenSeleccionado !== null
-              ) {
-                await cargarDatos(
-                  certamenSeleccionado
-                );
-              }
+      if (certamenSeleccionado !== null) {
+        await cargarDatos(certamenSeleccionado);
+      }
 
-              Alert.alert(
-                'Correcto',
-                'Se quitó la sala del equipo.'
-              );
-            } catch (error: any) {
-              Alert.alert(
-                'Error',
-                error?.message ||
-                'No se pudo quitar la sala.'
-              );
-            } finally {
-              setGuardando(false);
-            }
-          },
-        },
-      ]
-    );
+      mostrarResultado(
+        '¡Sala quitada!',
+        `Se ha desvinculado la sala del equipo "${equipo.Nombre}" correctamente.`,
+        true
+      );
+    } catch (error: any) {
+      mostrarResultado(
+        'No se pudo quitar',
+        formatearMensajeError(error, 'Verifica la conexión con el servidor.'),
+        false
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
   // =========================================================
@@ -827,7 +904,7 @@ export default function AsignacionEquiposScreen() {
                 {salaActual !== null && (
                   <TouchableOpacity
                     style={styles.botonQuitar}
-                    onPress={() => quitarSala(equipo)}
+                    onPress={() => solicitarQuitarSala(equipo)}
                     disabled={guardando}
                   >
                     <Text style={styles.textoBoton}>
@@ -869,103 +946,50 @@ export default function AsignacionEquiposScreen() {
             </Text>
 
             {/* EQUIPO */}
+            <Text style={styles.etiqueta}>Seleccionar equipo</Text>
 
-            <Text
-              style={styles.etiqueta}
-            >
-              Seleccionar equipo
-            </Text>
-
-            <View
-              style={styles.selector}
-            >
+            <View style={styles.selector}>
               <Picker
-                selectedValue={
-                  equipoSeleccionado
-                }
-                onValueChange={(
-                  value
-                ) => {
+                selectedValue={equipoSeleccionado ?? ''}
+                onValueChange={(value) => {
                   setEquipoSeleccionado(
-                    value == null
-                      ? null
-                      : Number(
-                        value
-                      )
+                    value === '' || value == null ? null : Number(value)
                   );
                 }}
               >
-                <Picker.Item
-                  label="Selecciona un equipo"
-                  value={null}
-                />
+                <Picker.Item label="Selecciona un equipo" value="" />
 
-                {equipos.map(
-                  (equipo) => (
-                    <Picker.Item
-                      key={
-                        equipo.Id_equipo
-                      }
-                      label={
-                        equipo.Nombre ||
-                        `Equipo ${equipo.Id_equipo}`
-                      }
-                      value={Number(
-                        equipo.Id_equipo
-                      )}
-                    />
-                  )
-                )}
+                {equipos.map((equipo) => (
+                  <Picker.Item
+                    key={equipo.Id_equipo}
+                    label={equipo.Nombre || `Equipo ${equipo.Id_equipo}`}
+                    value={Number(equipo.Id_equipo)}
+                  />
+                ))}
               </Picker>
             </View>
 
             {/* SALA */}
+            <Text style={styles.etiqueta}>Seleccionar sala</Text>
 
-            <Text
-              style={styles.etiqueta}
-            >
-              Seleccionar sala
-            </Text>
-
-            <View
-              style={styles.selector}
-            >
+            <View style={styles.selector}>
               <Picker
-                selectedValue={
-                  salaSeleccionada
-                }
-                onValueChange={(
-                  value
-                ) => {
+                selectedValue={salaSeleccionada ?? ''}
+                onValueChange={(value) => {
                   setSalaSeleccionada(
-                    value == null
-                      ? null
-                      : Number(
-                        value
-                      )
+                    value === '' || value == null ? null : Number(value)
                   );
                 }}
               >
-                <Picker.Item
-                  label="Selecciona una sala"
-                  value={null}
-                />
+                <Picker.Item label="Selecciona una sala" value="" />
 
-                {salas.map(
-                  (sala) => (
-                    <Picker.Item
-                      key={
-                        sala.Id_sala
-                      }
-                      label={`${sala.Nombre} - ${sala.Ubicacion ||
-                        'Sin ubicación'
-                        }`}
-                      value={Number(
-                        sala.Id_sala
-                      )}
-                    />
-                  )
-                )}
+                {salas.map((sala) => (
+                  <Picker.Item
+                    key={sala.Id_sala}
+                    label={`${sala.Nombre} - ${sala.Ubicacion || 'Sin ubicación'}`}
+                    value={Number(sala.Id_sala)}
+                  />
+                ))}
               </Picker>
             </View>
 
@@ -1019,6 +1043,85 @@ export default function AsignacionEquiposScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* =====================================================
+          MODAL DE CONFIRMACIÓN PARA QUITAR SALA
+          ===================================================== */}
+
+      <Modal
+        visible={equipoAQuitar !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEquipoAQuitar(null)}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.modalCard}>
+            <View style={[styles.modalIcon, styles.errorIcon]}>
+              <Ionicons name="help-circle-outline" size={30} color="#b91c1c" />
+            </View>
+            <Text style={styles.modalTitle}>¿Quitar sala asignada?</Text>
+            <Text style={styles.modalMessage}>
+              {equipoAQuitar
+                ? `Equipo: ${equipoAQuitar.Nombre}\nSala actual: ${nombreSala(idSala(equipoAQuitar))}`
+                : ''}
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelButtonMsg}
+                onPress={() => setEquipoAQuitar(null)}
+              >
+                <Text style={styles.cancelTextMsg}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButtonMsg, styles.dangerButtonMsg, { flex: 1 }]}
+                onPress={() => void confirmarQuitarSala()}
+              >
+                <Text style={styles.confirmTextMsg}>Quitar sala</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* =====================================================
+          MODAL DE RESULTADO (ÉXITO / ERROR ESTILO MISEQUIPOS)
+          ===================================================== */}
+
+      <Modal
+        visible={resultado.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={cerrarResultado}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.modalCard}>
+            <View
+              style={[
+                styles.modalIcon,
+                resultado.exito ? styles.successIcon : styles.errorIcon,
+              ]}
+            >
+              <Ionicons
+                name={
+                  resultado.exito
+                    ? 'checkmark-circle-outline'
+                    : 'alert-circle-outline'
+                }
+                size={30}
+                color={resultado.exito ? '#15803d' : '#b91c1c'}
+              />
+            </View>
+            <Text style={styles.modalTitle}>{resultado.titulo}</Text>
+            <Text style={styles.modalMessage}>{resultado.mensaje}</Text>
+            <TouchableOpacity
+              style={styles.confirmButtonMsg}
+              onPress={cerrarResultado}
+            >
+              <Text style={styles.confirmTextMsg}>Aceptar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1038,10 +1141,6 @@ const styles = StyleSheet.create({
     paddingBottom: 35,
   },
 
-  // =======================================================
-  // ENCABEZADO CENTRADO
-  // =======================================================
-
   encabezadoPrincipal: {
     width: '100%',
     alignItems: 'center',
@@ -1058,7 +1157,10 @@ const styles = StyleSheet.create({
   },
 
   titulo: {
-    fontSize: 23, fontWeight: '800', color: '#002b45', textAlign: 'center'
+    fontSize: 23,
+    fontWeight: '800',
+    color: '#002b45',
+    textAlign: 'center',
   },
 
   descripcion: {
@@ -1075,10 +1177,6 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 12,
   },
-
-  // =======================================================
-  // SELECTOR DE CERTAMEN
-  // =======================================================
 
   tarjetaCertamen: {
     height: 94,
@@ -1138,14 +1236,9 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
 
-  // =======================================================
-  // MODAL DE CERTÁMENES
-  // =======================================================
-
   fondoModalCertamen: {
     flex: 1,
-    backgroundColor:
-      'rgba(15, 23, 42, 0.52)',
+    backgroundColor: 'rgba(15, 23, 42, 0.52)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 18,
@@ -1165,8 +1258,7 @@ const styles = StyleSheet.create({
   encabezadoModalCertamen: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent:
-      'space-between',
+    justifyContent: 'space-between',
     paddingBottom: 22,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
@@ -1228,10 +1320,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // =======================================================
-  // BOTÓN PRINCIPAL
-  // =======================================================
-
   botonPrincipal: {
     backgroundColor: '#7C9F27',
     padding: 17,
@@ -1250,10 +1338,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // =======================================================
-  // ENCABEZADO DE EQUIPOS
-  // =======================================================
-
   encabezado: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1267,10 +1351,6 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
 
-  // =======================================================
-  // TARJETAS DE EQUIPOS
-  // =======================================================
-
   tarjeta: {
     backgroundColor: '#FFFFFF',
     padding: 18,
@@ -1280,19 +1360,6 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
 
-  nombre: {
-    fontSize: 19,
-    fontWeight: 'bold',
-    color: '#1E293B',
-  },
-
-  estado: {
-    color: '#15803D',
-    fontWeight: '700',
-    marginTop: 9,
-    fontSize: 16,
-  },
-
   vacio: {
     backgroundColor: '#FFFFFF',
     padding: 22,
@@ -1300,14 +1367,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // =======================================================
-  // MODAL DE ASIGNACIÓN
-  // =======================================================
-
   fondoModal: {
     flex: 1,
-    backgroundColor:
-      'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -1364,27 +1426,127 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
+
   datoTarjeta: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
-  marginBottom: 13,
-},
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 13,
+  },
 
-datoContenido: {
-  flex: 1,
-  marginLeft: 10,
-},
+  datoContenido: {
+    flex: 1,
+    marginLeft: 10,
+  },
 
-etiquetaTarjeta: {
-  fontSize: 13,
-  fontWeight: '600',
-  color: '#64748B',
-  marginBottom: 2,
-},
+  etiquetaTarjeta: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 2,
+  },
 
-valorTarjeta: {
-  fontSize: 16,
-  fontWeight: '700',
-  color: '#1E293B',
-},
+  valorTarjeta: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+
+  // =======================================================
+  // ESTILOS DE MODALES DE CONFIRMACIÓN Y RESULTADO
+  // =======================================================
+
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.52)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+
+  modalCard: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 20,
+    maxWidth: 420,
+    width: '100%',
+    alignSelf: 'center',
+  },
+
+  modalIcon: {
+    alignSelf: 'center',
+    marginBottom: 10,
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: '#e0f2fe',
+  },
+
+  successIcon: {
+    backgroundColor: '#dcfce7',
+  },
+
+  errorIcon: {
+    backgroundColor: '#fee2e2',
+  },
+
+  modalTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+
+  modalMessage: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#475569',
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+
+  cancelButtonMsg: {
+    minHeight: 46,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    flex: 1,
+  },
+
+  cancelTextMsg: {
+    color: '#334155',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  confirmButtonMsg: {
+    minHeight: 46,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#002b45',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    width: '100%',
+  },
+
+  dangerButtonMsg: {
+    backgroundColor: '#dc2626',
+  },
+
+  confirmTextMsg: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
+  },
 });
