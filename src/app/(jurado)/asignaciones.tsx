@@ -58,6 +58,8 @@ export default function JuradoAsignaciones() {
   const [error, setError] =
     useState('');
 
+
+  const [equipoSeleccionado, setEquipoSeleccionado] = useState<any>(null);
   // ==========================================================
   // EXTRAER LISTA
   // ==========================================================
@@ -128,12 +130,12 @@ export default function JuradoAsignaciones() {
 
     return String(
       equipo?.Nombre ??
-        equipo?.nombre ??
-        asignacion?.NombreEquipo ??
-        asignacion?.nombre_equipo ??
-        `Equipo #${obtenerIdEquipo(
-          asignacion
-        ) ?? ''}`
+      equipo?.nombre ??
+      asignacion?.NombreEquipo ??
+      asignacion?.nombre_equipo ??
+      `Equipo #${obtenerIdEquipo(
+        asignacion
+      ) ?? ''}`
     );
   };
 
@@ -149,11 +151,11 @@ export default function JuradoAsignaciones() {
 
     return String(
       asignacion?.Nombre_certamen ??
-        asignacion?.nombre_certamen ??
-        asignacion?.Certamen ??
-        equipo?.certamen?.Nombre ??
-        equipo?.Certamen?.Nombre ??
-        'Certamen'
+      asignacion?.nombre_certamen ??
+      asignacion?.Certamen ??
+      equipo?.certamen?.Nombre ??
+      equipo?.Certamen?.Nombre ??
+      'Certamen'
     );
   };
 
@@ -177,8 +179,8 @@ export default function JuradoAsignaciones() {
 
     return String(
       sala?.Nombre ??
-        sala?.nombre ??
-        'Sala asignada'
+      sala?.nombre ??
+      'Sala asignada'
     );
   };
 
@@ -194,12 +196,12 @@ export default function JuradoAsignaciones() {
 
     return String(
       equipo?.desafio?.Nombre ??
-        equipo?.desafio?.nombre ??
-        equipo?.Desafio?.Nombre ??
-        equipo?.Desafio?.nombre ??
-        asignacion?.Nombre_desafio ??
-        asignacion?.nombre_desafio ??
-        ''
+      equipo?.desafio?.nombre ??
+      equipo?.Desafio?.Nombre ??
+      equipo?.Desafio?.nombre ??
+      asignacion?.Nombre_desafio ??
+      asignacion?.nombre_desafio ??
+      ''
     );
   };
 
@@ -207,7 +209,7 @@ export default function JuradoAsignaciones() {
   // CARGAR ASIGNACIONES
   // ==========================================================
 
- const cargarAsignaciones = useCallback(async () => {
+  const cargarAsignaciones = useCallback(async () => {
     try {
       setError('');
 
@@ -298,46 +300,38 @@ export default function JuradoAsignaciones() {
       idEquipo
     );
 
-   router.push({
-  pathname: '/evaluar',
-  params: {
-    idEquipo: String(idEquipo),
-    nombreEquipo: nombreEquipo(asignacion),
-  },
-});
+    router.push({
+      pathname: '/evaluar',
+      params: {
+        idEquipo: String(idEquipo),
+        nombreEquipo: nombreEquipo(asignacion),
+      },
+    });
   };
 
   // ==========================================================
   // VER EQUIPO
   // ==========================================================
 
-  const verEquipo = (
-    asignacion: any
-  ) => {
-    const idEquipo =
-      obtenerIdEquipo(asignacion);
+  // ==========================================================
+  // VER DETALLES DEL EQUIPO
+  // ==========================================================
 
-    if (
-      idEquipo === null ||
-      idEquipo === undefined ||
-      idEquipo === ''
-    ) {
-      setError(
-        'No se encontró el ID del equipo.'
-      );
+  const verEquipo = (asignacion: any) => {
+    const equipo = asignacion?.equipo;
 
+    if (!equipo) {
+      setError('No se encontraron los datos del equipo.');
       return;
     }
 
-    router.push({
-      pathname:
-        '/(jurado)/equipos',
-      params: {
-        idEquipo: String(
-          idEquipo
-        ),
-      },
-    });
+    console.log('Equipo seleccionado:', equipo);
+    console.log(
+      'Integrantes:',
+      JSON.stringify(equipo.integrantes, null, 2)
+    );
+
+    setEquipoSeleccionado(equipo);
   };
 
   // ==========================================================
@@ -510,7 +504,7 @@ export default function JuradoAsignaciones() {
         ================================================== */}
 
         {!error &&
-        asignaciones.length === 0 ? (
+          asignaciones.length === 0 ? (
 
           <View
             style={
@@ -596,16 +590,50 @@ export default function JuradoAsignaciones() {
                 </View>
               </View>
 
-                {/* ==========================================
+              {/* ==========================================
                     INFORMACIÓN
                 ========================================== */}
 
+              <View
+                style={
+                  styles.infoContainer
+                }
+              >
+
                 <View
                   style={
-                    styles.infoContainer
+                    styles.infoRow
                   }
                 >
 
+                  <Ionicons
+                    name="location-outline"
+                    size={19}
+                    color="#64748B"
+                  />
+
+                  <Text
+                    style={
+                      styles.infoText
+                    }
+                  >
+                    Sala:{' '}
+                    <Text
+                      style={
+                        styles.infoValue
+                      }
+                    >
+                      {nombreSala(
+                        asignacion
+                      )}
+                    </Text>
+                  </Text>
+
+                </View>
+
+                {nombreDesafio(
+                  asignacion
+                ) ? (
                   <View
                     style={
                       styles.infoRow
@@ -613,7 +641,7 @@ export default function JuradoAsignaciones() {
                   >
 
                     <Ionicons
-                      name="location-outline"
+                      name="flag-outline"
                       size={19}
                       color="#64748B"
                     />
@@ -623,92 +651,58 @@ export default function JuradoAsignaciones() {
                         styles.infoText
                       }
                     >
-                      Sala:{' '}
+                      Desafío:{' '}
                       <Text
                         style={
                           styles.infoValue
                         }
                       >
-                        {nombreSala(
+                        {nombreDesafio(
                           asignacion
                         )}
                       </Text>
                     </Text>
 
                   </View>
+                ) : null}
 
-                  {nombreDesafio(
-                    asignacion
-                  ) ? (
-                    <View
-                      style={
-                        styles.infoRow
-                      }
-                    >
+                <View
+                  style={
+                    styles.infoRow
+                  }
+                >
 
-                      <Ionicons
-                        name="flag-outline"
-                        size={19}
-                        color="#64748B"
-                      />
+                  <Ionicons
+                    name="key-outline"
+                    size={19}
+                    color="#64748B"
+                  />
 
-                      <Text
-                        style={
-                          styles.infoText
-                        }
-                      >
-                        Desafío:{' '}
-                        <Text
-                          style={
-                            styles.infoValue
-                          }
-                        >
-                          {nombreDesafio(
-                            asignacion
-                          )}
-                        </Text>
-                      </Text>
-
-                    </View>
-                  ) : null}
-
-                  <View
+                  <Text
                     style={
-                      styles.infoRow
+                      styles.infoText
                     }
                   >
-
-                    <Ionicons
-                      name="key-outline"
-                      size={19}
-                      color="#64748B"
-                    />
-
+                    ID equipo:{' '}
                     <Text
                       style={
-                        styles.infoText
+                        styles.infoValue
                       }
                     >
-                      ID equipo:{' '}
-                      <Text
-                        style={
-                          styles.infoValue
-                        }
-                      >
-                        {idEquipo ??
-                          'No disponible'}
-                      </Text>
+                      {idEquipo ??
+                        'No disponible'}
                     </Text>
-
-                  </View>
+                  </Text>
 
                 </View>
 
-                {/* ==========================================
+              </View>
+
+              {/* ==========================================
                     BOTONES
                 ========================================== */}
 
-                {/* BOTONES */}
+              {/* BOTONES */}
               <View style={styles.buttons}>
                 <TouchableOpacity
                   style={styles.viewButton}
@@ -738,9 +732,178 @@ export default function JuradoAsignaciones() {
                 </TouchableOpacity>
               </View>
 
-              </View>
-            );
-          }
+              {/* ==========================================
+    TARJETA DE DETALLES DEL EQUIPO
+========================================== */}
+
+              {Number(equipoSeleccionado?.Id_equipo) === Number(idEquipo) && (
+
+                <View style={styles.teamDetailsCard}>
+
+                  {/* ENCABEZADO */}
+
+                  <View style={styles.detailsHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailsSubtitle}>
+                        DETALLES DEL EQUIPO
+                      </Text>
+
+                      <Text style={styles.detailsTitle}>
+                        {equipoSeleccionado?.Nombre ?? 'Equipo'}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => setEquipoSeleccionado(null)}
+                      style={styles.detailsClose}
+                    >
+                      <Ionicons
+                        name="close"
+                        size={22}
+                        color="#FFFFFF"
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* INFORMACIÓN GENERAL */}
+
+                  <View style={styles.detailsContent}>
+
+                    <Text style={styles.detailsSectionTitle}>
+                      Información general
+                    </Text>
+
+                    <View style={styles.detailsRow}>
+                      <Ionicons name="key-outline" size={18} color="#64748B" />
+                      <Text style={styles.detailsLabel}>ID del equipo:</Text>
+                      <Text style={styles.detailsValue}>
+                        {equipoSeleccionado?.Id_equipo ?? 'N/D'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailsRow}>
+                      <Ionicons name="flag-outline" size={18} color="#64748B" />
+                      <Text style={styles.detailsLabel}>Desafío:</Text>
+                      <Text style={styles.detailsValue}>
+                        {equipoSeleccionado?.desafio?.Nombre ?? 'No disponible'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailsRow}>
+                      <Ionicons name="location-outline" size={18} color="#64748B" />
+                      <Text style={styles.detailsLabel}>Sala:</Text>
+                      <Text style={styles.detailsValue}>
+                        {equipoSeleccionado?.sala?.Nombre ?? 'No disponible'}
+                      </Text>
+                    </View>
+
+                    {/* INTEGRANTES */}
+
+                    <View style={styles.membersTitleContainer}>
+                      <Text style={styles.detailsSectionTitle}>
+                        Integrantes del equipo
+                      </Text>
+
+                      <View style={styles.memberCounter}>
+                        <Text style={styles.memberCounterText}>
+                          {Array.isArray(equipoSeleccionado?.integrantes)
+                            ? equipoSeleccionado.integrantes.length
+                            : 0}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {Array.isArray(equipoSeleccionado?.integrantes) &&
+                      equipoSeleccionado.integrantes.length > 0 ? (
+
+                      equipoSeleccionado.integrantes.map(
+                        (integrante: any, index: number) => {
+
+                          const usuario = integrante?.usuario ?? integrante;
+
+                          const nombre = [
+                            usuario?.Nombre ?? usuario?.Nom ?? usuario?.nombre ?? '',
+                            usuario?.App ?? usuario?.apellido_paterno ?? '',
+                            usuario?.Apm ?? usuario?.apellido_materno ?? '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')
+                            .trim();
+
+                          const idUsuario =
+                            integrante?.Id_usuario ??
+                            integrante?.id_usuario ??
+                            integrante?.usuario?.Id_usuario ??
+                            integrante?.usuario?.id_usuario;
+
+                          const esLider =
+                            Number(idUsuario) === Number(equipoSeleccionado?.Id_lider);
+
+                          return (
+                            <View
+                              key={
+                                integrante?.Id_usuario ??
+                                integrante?.id ??
+                                index
+                              }
+                              style={styles.memberDetailItem}
+                            >
+                              <View style={styles.memberAvatar}>
+                                <Ionicons
+                                  name="person"
+                                  size={21}
+                                  color="#2563EB"
+                                />
+                              </View>
+
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.memberDetailName}>
+                                  {nombre ||
+                                    integrante?.Nombre ||
+                                    `Integrante ${index + 1}`}
+                                </Text>
+
+                                <Text style={styles.memberDetailRole}>
+                                  {esLider ? 'Líder del equipo' : 'Integrante'}
+                                </Text>
+                              </View>
+
+                              {esLider && (
+                                <Ionicons
+                                  name="star"
+                                  size={19}
+                                  color="#E9A23B"
+                                />
+                              )}
+                            </View>
+                          );
+                        }
+                      )
+
+                    ) : (
+                      <Text style={styles.noMembersText}>
+                        No hay integrantes registrados.
+                      </Text>
+                    )}
+
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.detailsCloseButton}
+                    onPress={() => setEquipoSeleccionado(null)}
+                  >
+                    <Text style={styles.detailsCloseButtonText}>
+                      Cerrar detalles
+                    </Text>
+                  </TouchableOpacity>
+
+                </View>
+              )}
+
+
+            </View>
+          );
+        }
         )}
 
       </ScrollView>
@@ -1077,5 +1240,157 @@ const styles = StyleSheet.create({
   evaluatedButton: {
     backgroundColor: '#059669', // Verde para indicar que ya está listo y solo es consulta
   },
+
+  // ========================================================
+  // DETALLES DEL EQUIPO
+  // ========================================================
+
+  teamDetailsCard: {
+    marginHorizontal: 12,
+    marginBottom: 15,
+    marginTop: 5,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    overflow: 'hidden',
+  },
+
+  detailsHeader: {
+    backgroundColor: '#002B45',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  detailsSubtitle: {
+    color: '#A4B74D',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+
+  detailsTitle: {
+    color: '#FFFFFF',
+    fontSize: 19,
+    fontWeight: '800',
+    marginTop: 5,
+  },
+
+  detailsClose: {
+    width: 35,
+    height: 35,
+    borderRadius: 10,
+    backgroundColor: '#0B4F6C',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  detailsContent: {
+    padding: 16,
+  },
+
+  detailsSectionTitle: {
+    color: '#002B45',
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 12,
+  },
+
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 7,
+  },
+
+  detailsLabel: {
+    color: '#64748B',
+    fontSize: 12,
+  },
+
+  detailsValue: {
+    color: '#1E293B',
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+
+  membersTitleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 15,
+  },
+
+  memberCounter: {
+    backgroundColor: '#DBEAFE',
+    width: 29,
+    height: 29,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  memberCounterText: {
+    color: '#2563EB',
+    fontWeight: '800',
+  },
+
+  memberDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+
+  memberAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#DBEAFE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  memberDetailName: {
+    color: '#1E293B',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  memberDetailRole: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 3,
+  },
+
+  noMembersText: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+    padding: 15,
+  },
+
+  detailsCloseButton: {
+    backgroundColor: '#002B45',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 13,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  detailsCloseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
 
 });
