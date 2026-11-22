@@ -289,15 +289,15 @@ export default function UsuarioForm() {
     } catch (error: any) {
       const erroresApi = error?.errors
         ? Object.values(error.errors)
-          .flat()
-          .join('\n')
+            .flat()
+            .join('\n')
         : '';
 
       Alert.alert(
         'No se pudo guardar',
         erroresApi ||
-        error?.message ||
-        'Verifica los datos e intenta nuevamente.'
+          error?.message ||
+          'Verifica los datos e intenta nuevamente.'
       );
     } finally {
       setGuardando(false);
@@ -352,7 +352,7 @@ export default function UsuarioForm() {
           </Text>
 
           <CampoFormulario
-            titulo="Nombre de usuario "
+            titulo="Nombre de usuario *"
             valor={datos.Usuario}
             onChangeText={(valor) =>
               cambiarCampo('Usuario', valor)
@@ -485,6 +485,11 @@ export default function UsuarioForm() {
               <Picker.Item
                 label="Líder"
                 value="Lider"
+              />
+
+              <Picker.Item
+                label="Personal de Apoyo"
+                value="Personal de apoyo"
               />
             </Picker>
           </View>
@@ -624,6 +629,7 @@ const styles = StyleSheet.create({
   grupoCampo: {
     marginBottom: 14,
   },
+
   contenedorInput: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -639,6 +645,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   etiqueta: {
     color: '#334155',
     fontSize: 13,
@@ -646,14 +653,15 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
 
-input: {
-  flex: 1,
-  height: 49,
-  paddingHorizontal: 12,
-  color: '#172033',
-  backgroundColor: '#FFFFFF',
-  fontSize: 14,
-},
+  input: {
+    flex: 1,
+    height: 49,
+    paddingHorizontal: 12,
+    color: '#172033',
+    backgroundColor: '#FFFFFF',
+    fontSize: 14,
+  },
+
   selector: {
     borderWidth: 1,
     borderColor: '#CBD5E1',
