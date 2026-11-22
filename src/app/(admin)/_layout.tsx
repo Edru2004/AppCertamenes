@@ -908,7 +908,16 @@ export default function AdminLayout() {
           title: 'Inicio',
         }}
       />
-
+{/* RESULTADOS */}
+<Drawer.Screen
+  name="resultados"
+  options={{
+    title: 'Evaluaciones',
+    drawerItemStyle: {
+      display: 'none',
+    },
+  }}
+/>
       {/* SELECCIÓN */}
 
       <Drawer.Screen

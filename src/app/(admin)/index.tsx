@@ -224,25 +224,25 @@ export default function AdminHomeScreen() {
           peticion: Promise<any>;
         }[] = [
 
-          {
-            nombre: 'Categorías',
-            peticion:
-              getCategCertamenes(),
-          },
+            {
+              nombre: 'Categorías',
+              peticion:
+                getCategCertamenes(),
+            },
 
-          {
-            nombre: 'Desafíos',
-            peticion:
-              getDesafios(),
-          },
+            {
+              nombre: 'Desafíos',
+              peticion:
+                getDesafios(),
+            },
 
-          {
-            nombre: 'Equipos',
-            peticion:
-              getEquipos(),
-          },
+            {
+              nombre: 'Equipos',
+              peticion:
+                getEquipos(),
+            },
 
-        ];
+          ];
 
         /*
          * SALAS
@@ -281,12 +281,12 @@ export default function AdminHomeScreen() {
         const nuevasCantidades:
           Cantidades = {
 
-            categorias: 0,
-            desafios: 0,
-            salas: 0,
-            equipos: 0,
+          categorias: 0,
+          desafios: 0,
+          salas: 0,
+          equipos: 0,
 
-          };
+        };
 
         const errores: string[] = [];
 
@@ -420,7 +420,7 @@ export default function AdminHomeScreen() {
           'Error del panel',
 
           error?.message ||
-            'No se pudieron cargar los registros.'
+          'No se pudieron cargar los registros.'
         );
 
       } finally {
@@ -598,52 +598,52 @@ export default function AdminHomeScreen() {
   const tarjetas:
     TarjetaResumen[] = [
 
-    {
-      titulo: 'CATEGORÍAS',
+      {
+        titulo: 'CATEGORÍAS',
 
-      cantidad:
-        cantidades.categorias,
+        cantidad:
+          cantidades.categorias,
 
-      detalle:
-        'Registradas en el sistema',
+        detalle:
+          'Registradas en el sistema',
 
-      icono:
-        'shapes-outline',
+        icono:
+          'shapes-outline',
 
-      color:
-        '#2563eb',
+        color:
+          '#2563eb',
 
-      fondoIcono:
-        '#eff6ff',
-    },
+        fondoIcono:
+          '#eff6ff',
+      },
 
-    {
-      titulo: 'DESAFÍOS',
+      {
+        titulo: 'DESAFÍOS',
 
-      cantidad:
-        cantidades.desafios,
+        cantidad:
+          cantidades.desafios,
 
-      detalle:
-        'Desafíos registrados',
+        detalle:
+          'Desafíos registrados',
 
-      icono:
-        'flame-outline',
+        icono:
+          'flame-outline',
 
-      color:
-        '#d97706',
+        color:
+          '#d97706',
 
-      fondoIcono:
-        '#fffbeb',
-    },
+        fondoIcono:
+          '#fffbeb',
+      },
 
-    /*
-     * SALAS SOLO INNOVATEC
-     */
+      /*
+       * SALAS SOLO INNOVATEC
+       */
 
-    ...(modalidad ===
-      'INNOVATEC'
+      ...(modalidad ===
+        'INNOVATEC'
 
-      ? [
+        ? [
 
           {
             titulo:
@@ -668,29 +668,29 @@ export default function AdminHomeScreen() {
 
         ]
 
-      : []),
+        : []),
 
-    {
-      titulo:
-        'EQUIPOS',
+      {
+        titulo:
+          'EQUIPOS',
 
-      cantidad:
-        cantidades.equipos,
+        cantidad:
+          cantidades.equipos,
 
-      detalle:
-        'Equipos registrados',
+        detalle:
+          'Equipos registrados',
 
-      icono:
-        'people-outline',
+        icono:
+          'people-outline',
 
-      color:
-        '#059669',
+        color:
+          '#059669',
 
-      fondoIcono:
-        '#ecfdf5',
-    },
+        fondoIcono:
+          '#ecfdf5',
+      },
 
-  ];
+    ];
 
   /* ==========================================
      LOADING
@@ -811,7 +811,7 @@ export default function AdminHomeScreen() {
               <Ionicons
                 name={
                   modalidad ===
-                  'RALLY'
+                    'RALLY'
 
                     ? 'flag-outline'
                     : 'bulb-outline'
@@ -1082,7 +1082,7 @@ export default function AdminHomeScreen() {
             <Ionicons
               name={
                 modalidad ===
-                'RALLY'
+                  'RALLY'
 
                   ? 'flag-outline'
                   : 'bulb-outline'
@@ -1110,7 +1110,7 @@ export default function AdminHomeScreen() {
             </Text>
 
             {modalidad ===
-            'RALLY' ? (
+              'RALLY' ? (
 
               <Text
                 style={
@@ -1188,7 +1188,24 @@ export default function AdminHomeScreen() {
           </Text>
 
         </TouchableOpacity>
+        {/* RESULTADOS */}
+        <TouchableOpacity
+          style={styles.bottomTab}
+          onPress={() =>
+            router.push('/(admin)/resultados' as any)
+          }
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="stats-chart-outline"
+            size={22}
+            color="#666"
+          />
 
+          <Text style={styles.tabText}>
+            resultados
+          </Text>
+        </TouchableOpacity>
         {/* PERFIL */}
 
         <TouchableOpacity
@@ -1218,6 +1235,7 @@ export default function AdminHomeScreen() {
           >
             Perfil
           </Text>
+
 
         </TouchableOpacity>
 
