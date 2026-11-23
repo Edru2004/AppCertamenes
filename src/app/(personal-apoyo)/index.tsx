@@ -46,24 +46,42 @@ export default function PersonalApoyoIndex() {
       'Personal de Apoyo'
     : 'Personal de Apoyo';
 
-  const cerrarSesion = async () => {
-    try {
-      await AsyncStorage.multiRemove([
-        'userToken',
-        'userData',
-        'userRole',
-      ]);
+const cerrarSesion = async () => {
+  Alert.alert(
+    'Cerrar sesión',
+    '¿Estás seguro de que deseas cerrar tu sesión?',
+    [
+      {
+        text: 'Cancelar',
+        style: 'cancel',
+      },
+      {
+        text: 'Cerrar sesión',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // Eliminar datos de sesión
+            await AsyncStorage.multiRemove([
+              'userToken',
+              'userData',
+              'userRole',
+            ]);
 
-      if (router.canDismiss()) {
-        router.dismissAll();
-      }
+            // Regresar a la pantalla de inicio de sesión
+            router.replace('/login' as any);
 
-      router.replace('/' as any);
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-      Alert.alert('Error', 'No se pudo cerrar la sesión.');
-    }
-  };
+          } catch (error) {
+            console.error('Error al cerrar sesión:', error);
+            Alert.alert(
+              'Error',
+              'No se pudo cerrar la sesión.'
+            );
+          }
+        },
+      },
+    ]
+  );
+};
 
   return (
     <View style={styles.contenedor}>
@@ -90,9 +108,27 @@ export default function PersonalApoyoIndex() {
         contentContainerStyle={styles.contenido}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.tituloSeccion}>Acciones rápidas</Text>
+        <Text style={styles.tituloSeccion}>Herramientas operativas</Text>
 
-        {/* TARJETA 1: CONTROL DE SALAS */}
+        {/* TARJETA PRINCIPAL: DISEÑO Y GENERACIÓN DE CONSTANCIAS */}
+        <TouchableOpacity
+          style={styles.cardAccion}
+          activeOpacity={0.85}
+          onPress={() => router.push('/(personal-apoyo)/constancias' as any)}
+        >
+          <View style={[styles.iconoCard, { backgroundColor: '#EDE9FE' }]}>
+            <Ionicons name="ribbon-outline" size={26} color="#6D28D9" />
+          </View>
+          <View style={styles.infoCard}>
+            <Text style={styles.tituloCard}>Diseño de Constancias</Text>
+            <Text style={styles.descripcionCard}>
+              Sube la plantilla con logos y acomoda los espacios editables
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+        </TouchableOpacity>
+
+        {/* TARJETA 2: CONTROL DE SALAS */}
         <TouchableOpacity
           style={styles.cardAccion}
           activeOpacity={0.85}
@@ -115,7 +151,7 @@ export default function PersonalApoyoIndex() {
           <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
         </TouchableOpacity>
 
-        {/* TARJETA 2: ASISTENCIA DE EQUIPOS */}
+        {/* TARJETA 3: ASISTENCIA DE EQUIPOS */}
         <TouchableOpacity
           style={styles.cardAccion}
           activeOpacity={0.85}
@@ -133,29 +169,6 @@ export default function PersonalApoyoIndex() {
             <Text style={styles.tituloCard}>Registro de Asistencia</Text>
             <Text style={styles.descripcionCard}>
               Verifica la presencia de equipos y jurados en sala
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
-        </TouchableOpacity>
-
-        {/* TARJETA 3: LOGÍSTICA E INCIDENCIAS */}
-        <TouchableOpacity
-          style={styles.cardAccion}
-          activeOpacity={0.85}
-          onPress={() =>
-            Alert.alert(
-              'Apoyo Logístico',
-              'Módulo listo para reportar requerimientos técnicos o de sala.'
-            )
-          }
-        >
-          <View style={[styles.iconoCard, { backgroundColor: '#FEF3C7' }]}>
-            <Ionicons name="construct-outline" size={26} color="#D97706" />
-          </View>
-          <View style={styles.infoCard}>
-            <Text style={styles.tituloCard}>Soporte y Logística</Text>
-            <Text style={styles.descripcionCard}>
-              Gestiona requerimientos técnicos durante el certamen
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#94A3B8" />

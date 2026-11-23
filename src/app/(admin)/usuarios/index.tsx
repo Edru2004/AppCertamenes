@@ -1,4 +1,3 @@
-
 import {
   eliminarUsuarioAdmin,
   getUsuariosCatalogo,
@@ -33,6 +32,21 @@ type Usuario = {
   Foto?: string | null;
 };
 
+type FiltroRol =
+  | 'Todos'
+  | 'Administrador'
+  | 'Jurado'
+  | 'Lider'
+  | 'Personal de apoyo';
+
+const OPCIONES_FILTRO: { clave: FiltroRol; etiqueta: string }[] = [
+  { clave: 'Todos', etiqueta: 'Todos' },
+  { clave: 'Administrador', etiqueta: 'Administradores' },
+  { clave: 'Jurado', etiqueta: 'Jurados' },
+  { clave: 'Lider', etiqueta: 'Líderes' },
+  { clave: 'Personal de apoyo', etiqueta: 'Personal de apoyo' },
+];
+
 const extraerLista = (respuesta: any): Usuario[] => {
   if (Array.isArray(respuesta)) return respuesta;
   if (Array.isArray(respuesta?.data)) return respuesta.data;
@@ -50,8 +64,34 @@ const nombreCompleto = (usuario: Usuario) =>
     .filter(Boolean)
     .join(' ');
 
+const normalizarRol = (rol: string) =>
+  rol
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+const coincideConFiltro = (rolUsuario: string, filtro: FiltroRol): boolean => {
+  if (filtro === 'Todos') return true;
+  const r = normalizarRol(rolUsuario);
+
+  if (filtro === 'Administrador') {
+    return r === 'administrador' || r === 'admin';
+  }
+  if (filtro === 'Jurado') {
+    return r === 'jurado';
+  }
+  if (filtro === 'Lider') {
+    return r === 'lider';
+  }
+  if (filtro === 'Personal de apoyo') {
+    return r === 'personal de apoyo' || r === 'personalapoyo';
+  }
+  return false;
+};
+
 const colorRol = (rol: string) => {
-  const valor = rol.toLowerCase();
+  const valor = normalizarRol(rol);
 
   if (valor === 'administrador' || valor === 'admin') {
     return {
@@ -67,6 +107,13 @@ const colorRol = (rol: string) => {
     };
   }
 
+  if (valor === 'personal de apoyo' || valor === 'personalapoyo') {
+    return {
+      fondo: '#FEF3C7',
+      texto: '#B45309',
+    };
+  }
+
   return {
     fondo: '#DCFCE7',
     texto: '#15803D',
@@ -78,6 +125,7 @@ export default function UsuariosIndex() {
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [busqueda, setBusqueda] = useState('');
+  const [filtroRol, setFiltroRol] = useState<FiltroRol>('Todos');
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(false);
 
@@ -102,9 +150,15 @@ export default function UsuariosIndex() {
     }, [cargarUsuarios])
   );
 
-  const usuariosFiltrados = usuarios.filter((usuario) => {
-    const texto = busqueda.toLowerCase().trim();
+  const contarPorRol = (filtro: FiltroRol) =>
+    usuarios.filter((u) => coincideConFiltro(u.Rol, filtro)).length;
 
+  const usuariosFiltrados = usuarios.filter((usuario) => {
+    if (!coincideConFiltro(usuario.Rol, filtroRol)) {
+      return false;
+    }
+
+    const texto = busqueda.toLowerCase().trim();
     if (!texto) return true;
 
     return [
@@ -121,17 +175,17 @@ export default function UsuariosIndex() {
   });
 
   const abrirFormulario = (usuario?: Usuario) => {
-  if (usuario) {
-    router.push({
-      pathname: '/(admin)/usuarios/form',
-      params: {
-        usuario: JSON.stringify(usuario),
-      },
-    });
-  } else {
-    router.push('/(admin)/usuarios/form');
-  }
-};
+    if (usuario) {
+      router.push({
+        pathname: '/(admin)/usuarios/form',
+        params: {
+          usuario: JSON.stringify(usuario),
+        },
+      });
+    } else {
+      router.push('/(admin)/usuarios/form');
+    }
+  };
 
   const confirmarEliminar = (usuario: Usuario) => {
     Alert.alert(
@@ -340,11 +394,13 @@ export default function UsuariosIndex() {
       <View style={styles.resumen}>
         <View>
           <Text style={styles.resumenEtiqueta}>
-            Usuarios registrados
+            {filtroRol === 'Todos'
+              ? 'Total de usuarios registrados'
+              : `Mostrando: ${filtroRol}`}
           </Text>
 
           <Text style={styles.resumenNumero}>
-            {usuarios.length}
+            {usuariosFiltrados.length}
           </Text>
         </View>
 
@@ -381,7 +437,7 @@ export default function UsuariosIndex() {
 
         <TextInput
           style={styles.inputBusqueda}
-          placeholder="Buscar por nombre, usuario, correo o rol..."
+          placeholder="Buscar por nombre, usuario, correo o carrera..."
           placeholderTextColor="#94A3B8"
           value={busqueda}
           onChangeText={setBusqueda}
@@ -400,10 +456,61 @@ export default function UsuariosIndex() {
         )}
       </View>
 
+      {/* FILTROS POR ROL */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filtrosScroll}
+      >
+        {OPCIONES_FILTRO.map((opcion) => {
+          const activo = filtroRol === opcion.clave;
+          const total = contarPorRol(opcion.clave);
+
+          return (
+            <TouchableOpacity
+              key={opcion.clave}
+              style={[
+                styles.chipFiltro,
+                activo && styles.chipFiltroActivo,
+              ]}
+              onPress={() => setFiltroRol(opcion.clave)}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.chipTexto,
+                  activo && styles.chipTextoActivo,
+                ]}
+              >
+                {opcion.etiqueta}
+              </Text>
+
+              <View
+                style={[
+                  styles.chipContador,
+                  activo && styles.chipContadorActivo,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.chipContadorTexto,
+                    activo && styles.chipContadorTextoActivo,
+                  ]}
+                >
+                  {total}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       {/* TÍTULO DE LA LISTA */}
       <View style={styles.tituloLista}>
         <Text style={styles.tituloListaTexto}>
-          Usuarios registrados
+          {filtroRol === 'Todos'
+            ? 'Usuarios registrados'
+            : `Rol: ${filtroRol}`}
         </Text>
 
         <TouchableOpacity
@@ -436,8 +543,8 @@ export default function UsuariosIndex() {
           </Text>
 
           <Text style={styles.vacioTexto}>
-            {busqueda
-              ? 'No se encontraron usuarios con esa búsqueda.'
+            {busqueda || filtroRol !== 'Todos'
+              ? 'No se encontraron usuarios con los filtros aplicados.'
               : 'Todavía no hay usuarios registrados.'}
           </Text>
         </View>
@@ -548,11 +655,65 @@ const styles = StyleSheet.create({
     marginLeft: 9,
   },
 
+  filtrosScroll: {
+    paddingTop: 14,
+    paddingBottom: 4,
+    gap: 8,
+  },
+
+  chipFiltro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    gap: 7,
+  },
+
+  chipFiltroActivo: {
+    backgroundColor: '#002B45',
+    borderColor: '#002B45',
+  },
+
+  chipTexto: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  chipTextoActivo: {
+    color: '#FFFFFF',
+  },
+
+  chipContador: {
+    backgroundColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+  },
+
+  chipContadorActivo: {
+    backgroundColor: '#087B8B',
+  },
+
+  chipContadorTexto: {
+    color: '#334155',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  chipContadorTextoActivo: {
+    color: '#FFFFFF',
+  },
+
   tituloLista: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 16,
     marginBottom: 12,
   },
 

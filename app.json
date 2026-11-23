@@ -44,7 +44,8 @@
           "photosPermission": "La aplicación requiere acceso a tu galería para subir evidencias fotográficas del certamen."
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

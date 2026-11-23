@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Usa la IP de la computadora donde está corriendo Laravel.
 // El celular y la computadora deben estar en la misma red Wi-Fi.
-const API = 'http://192.168.1.100:8000/api';
+const API = 'http://192.168.1.117:8000/api';
 
 
 type Datos = Record<string, any> | FormData;

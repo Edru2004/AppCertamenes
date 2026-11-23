@@ -25,6 +25,12 @@ export default function PersonalApoyoLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="constancias"
+        options={{
+          title: 'Diseño de Constancias',
+        }}
+      />
     </Stack>
   );
 }
