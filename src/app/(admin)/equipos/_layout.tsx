@@ -15,19 +15,16 @@ export default function EquiposLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Gestión',
+          title: 'Equipos',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-circle-outline" size={size} color={color} />
+            <Ionicons name="people-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="form"
         options={{
-          title: 'Nuevo / Editar',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle-outline" size={size} color={color} />
-          ),
+          href: null,
         }}
       />
     </Tabs>

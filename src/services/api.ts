@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Usa la IP de la computadora donde está corriendo Laravel.
 // El celular y la computadora deben estar en la misma red Wi-Fi.
-const API = 'http://192.168.1.117:8000/api';
+const API = 'http://192.168.1.221:8000/api';
 
 
 type Datos = Record<string, any> | FormData;
@@ -480,9 +480,8 @@ export const getEquipos = async (
 };
 
 export const crearEquipo = async (
-  data: Datos
+  data: Datos | FormData
 ) => {
-
   return peticion(
     '/equipos',
     'POST',
@@ -492,12 +491,12 @@ export const crearEquipo = async (
 
 export const actualizarEquipo = async (
   id: number,
-  data: Datos
+  data: Datos | FormData
 ) => {
-
+  const metodo = data instanceof FormData ? 'POST' : 'PUT';
   return peticion(
     `/equipos/${id}`,
-    'PUT',
+    metodo,
     data
   );
 };

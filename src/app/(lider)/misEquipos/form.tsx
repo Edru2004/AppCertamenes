@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -75,6 +76,12 @@ interface IntegranteState {
   Semestre: string;
 }
 
+interface ArchivoPdf {
+  uri: string;
+  name: string;
+  mimeType: string;
+}
+
 export default function EquipoFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ equipoEditar?: string; idCertamen?: string }>();
@@ -87,7 +94,9 @@ export default function EquipoFormScreen() {
   const [idEquipo, setIdEquipo] = useState<number | null>(null);
   const [nombreEquipo, setNombreEquipo] = useState('');
   const [video, setVideo] = useState('');
-  const [reporte, setReporte] = useState('');
+  const [reporteArchivo, setReporteArchivo] = useState<ArchivoPdf | null>(null);
+  const [reporteExistente, setReporteExistente] = useState('');
+  const [eliminarReporteActual, setEliminarReporteActual] = useState(false);
 
   // Catálogos Máster
   const [certamenes, setCertamenes] = useState<any[]>([]);
@@ -134,13 +143,36 @@ export default function EquipoFormScreen() {
   const mostrarResultado = (titulo: string, mensaje: string, exito = false) =>
     setResultado({ visible: true, titulo, mensaje, exito });
 
+  const seleccionarPdf = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        const archivo = res.assets[0];
+        setReporteArchivo({
+          uri: archivo.uri,
+          name: archivo.name || 'reporte.pdf',
+          mimeType: archivo.mimeType || 'application/pdf',
+        });
+        setEliminarReporteActual(false);
+      }
+    } catch {
+      mostrarResultado('Error', 'No se pudo seleccionar el archivo PDF.', false);
+    }
+  };
+
   // Función para limpiar todos los campos a su estado inicial
   const resetearFormulario = useCallback(() => {
     setPaso(1);
     setIdEquipo(null);
     setNombreEquipo('');
     setVideo('');
-    setReporte('');
+    setReporteArchivo(null);
+    setReporteExistente('');
+    setEliminarReporteActual(false);
     setIdDesafio(null);
     setIdCategCertamen(null);
     setIdSala(null);
@@ -192,7 +224,9 @@ export default function EquipoFormScreen() {
             setIdEquipo(Number(original.Id_equipo) || null);
             setNombreEquipo(String(original.Nombre ?? ''));
             setVideo(String(original.Video ?? ''));
-            setReporte(String(original.Reporte ?? ''));
+            setReporteArchivo(null);
+            setReporteExistente(String(original.Reporte ?? ''));
+            setEliminarReporteActual(false);
             setIdDesafio(Number(original.Id_desafio) || null);
             setIdCategCertamen(Number(original.Id_categCertamen) || null);
             setIdSala(original.Id_sala ? Number(original.Id_sala) : null);
@@ -356,30 +390,54 @@ export default function EquipoFormScreen() {
     }
 
     try {
-      const payload = {
-        Nombre: nombreEquipo.trim(),
-        Id_desafio: Number(idDesafio),
-        Id_categCertamen: Number(idCategCertamen),
-        Id_sala: esCertamenInnova && idSala ? Number(idSala) : null,
-        Video: video.trim() || null,
-        Reporte: reporte.trim() || null,
-        Id_lider: Number(idLiderCalculado && !isNaN(idLiderCalculado) ? idLiderCalculado : 1),
+      const formData = new FormData();
+      formData.append('Nombre', nombreEquipo.trim());
+      formData.append('Id_desafio', String(Number(idDesafio)));
+      formData.append('Id_categCertamen', String(Number(idCategCertamen)));
 
-        integrantes: integrantes.map((ing) => ({
-          no_control: ing.no_control.trim(),
-          Nombre: ing.Nombre.trim(),
-          Carrera: ing.Carrera.trim() || null,
-          Rol: ing.Rol.trim() || 'Participante',
-          Sexo: ing.Sexo === 'M' ? 'M' : 'F',
-          Correo: ing.Correo.trim() || null,
-          Semestre: ing.Semestre ? Number(ing.Semestre) : null,
-        })),
-      };
+      if (esCertamenInnova && idSala) {
+        formData.append('Id_sala', String(Number(idSala)));
+      }
+      if (video.trim()) {
+        formData.append('Video', video.trim());
+      }
+
+      formData.append(
+        'Id_lider',
+        String(Number(idLiderCalculado && !isNaN(idLiderCalculado) ? idLiderCalculado : 1))
+      );
+
+      if (reporteArchivo) {
+        formData.append('Reporte', {
+          uri: Platform.OS === 'android' ? reporteArchivo.uri : reporteArchivo.uri.replace('file://', ''),
+          name: reporteArchivo.name,
+          type: 'application/pdf',
+        } as any);
+      } else if (idEquipo && eliminarReporteActual) {
+        formData.append('eliminar_reporte', '1');
+      }
+
+      integrantes.forEach((ing, index) => {
+        formData.append(`integrantes[${index}][no_control]`, ing.no_control.trim());
+        formData.append(`integrantes[${index}][Nombre]`, ing.Nombre.trim());
+        if (ing.Carrera.trim()) {
+          formData.append(`integrantes[${index}][Carrera]`, ing.Carrera.trim());
+        }
+        formData.append(`integrantes[${index}][Rol]`, ing.Rol.trim() || 'Participante');
+        formData.append(`integrantes[${index}][Sexo]`, ing.Sexo === 'M' ? 'M' : 'F');
+        if (ing.Correo.trim()) {
+          formData.append(`integrantes[${index}][Correo]`, ing.Correo.trim());
+        }
+        if (ing.Semestre) {
+          formData.append(`integrantes[${index}][Semestre]`, String(Number(ing.Semestre)));
+        }
+      });
 
       if (idEquipo) {
-        await actualizarEquipo(idEquipo, payload);
+        formData.append('_method', 'PUT');
+        await actualizarEquipo(idEquipo, formData);
       } else {
-        await crearEquipo(payload);
+        await crearEquipo(formData);
       }
 
       mostrarResultado(
@@ -484,8 +542,44 @@ export default function EquipoFormScreen() {
               <Text style={styles.label}>Enlace al video (opcional)</Text>
               <TextInput style={styles.input} placeholder="https://youtube.com/..." placeholderTextColor="#94a3b8" value={video} onChangeText={setVideo} />
 
-              <Text style={styles.label}>Enlace al reporte (opcional)</Text>
-              <TextInput style={styles.input} placeholder="https://drive.google.com/..." placeholderTextColor="#94a3b8" value={reporte} onChangeText={setReporte} />
+              <Text style={styles.label}>Reporte del proyecto en PDF (opcional)</Text>
+              <TouchableOpacity style={styles.selector} onPress={seleccionarPdf} activeOpacity={0.7}>
+                <Ionicons
+                  name={reporteArchivo || (reporteExistente && !eliminarReporteActual) ? 'document-text' : 'cloud-upload-outline'}
+                  size={20}
+                  color="#0369a1"
+                />
+                <Text
+                  style={[
+                    styles.selectorText,
+                    !(reporteArchivo || (reporteExistente && !eliminarReporteActual)) && styles.placeholder,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {reporteArchivo
+                    ? reporteArchivo.name
+                    : reporteExistente && !eliminarReporteActual
+                    ? `PDF guardado: ${reporteExistente.split('/').pop()}`
+                    : 'Seleccionar archivo PDF...'}
+                </Text>
+                <Ionicons name="attach-outline" size={20} color="#64748b" />
+              </TouchableOpacity>
+
+              {(reporteArchivo || (reporteExistente && !eliminarReporteActual)) && (
+                <TouchableOpacity
+                  style={styles.btnQuitarPdf}
+                  onPress={() => {
+                    if (reporteArchivo) {
+                      setReporteArchivo(null);
+                    } else {
+                      setEliminarReporteActual(true);
+                    }
+                  }}
+                >
+                  <Ionicons name="close-circle" size={17} color="#dc2626" />
+                  <Text style={styles.btnQuitarPdfText}>Quitar archivo PDF</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity style={styles.saveButton} onPress={irAPaso2}>
                 <Text style={styles.saveText}>Continuar a Integrantes</Text>
@@ -858,6 +952,8 @@ const styles = StyleSheet.create({
   placeholder: { color: '#94a3b8' },
   label: { fontSize: 13, color: '#334155', fontWeight: '700', marginTop: 12, marginBottom: 6 },
   input: { minHeight: 44, borderRadius: 9, borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 9, color: '#0f172a' },
+  btnQuitarPdf: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end', marginTop: 6 },
+  btnQuitarPdfText: { color: '#dc2626', fontSize: 12, fontWeight: '700' },
   infoBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, padding: 11, borderRadius: 9, marginTop: 12 },
   infoText: { flex: 1, color: '#92400e', fontSize: 12, lineHeight: 17 },
   rowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 8 },
